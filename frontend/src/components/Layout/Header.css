@@ -1,0 +1,279 @@
+.header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 16rem;
+  height: 4rem;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+}
+
+/* ===== EMPLOYEE HEADER ===== */
+.header.employee-header {
+  background: #0A1628;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  left: 4.5rem;
+  padding: 0 1.5rem;
+}
+
+.employee-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.employee-brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.employee-brand .brand-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 1px;
+}
+
+.employee-brand .brand-name span {
+  color: #C9A84C;
+}
+
+.employee-brand .brand-panel {
+  font-size: 0.5rem;
+  color: #E8D5A3;
+  letter-spacing: 3px;
+  font-weight: 500;
+}
+
+.employee-branch {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #C9A84C;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(201, 168, 76, 0.15);
+  padding: 0.2rem 0.8rem;
+  border-radius: 9999px;
+}
+
+.employee-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* ===== HEADER USER ===== */
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-avatar {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: #C9A84C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.user-info .user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.user-info .user-role {
+  font-size: 0.6rem;
+  margin: 0;
+}
+
+/* Employee ke liye white text */
+.header.employee-header .user-info .user-name {
+  color: white;
+}
+
+.header.employee-header .user-info .user-role {
+  color: #9ca3af;
+}
+
+/* Admin/Manager ke liye dark text */
+.header:not(.employee-header) .user-info .user-name {
+  color: #1f2937;
+}
+
+.header:not(.employee-header) .user-info .user-role {
+  color: #6b7280;
+}
+
+/* ===== LOGOUT BUTTON IN HEADER ===== */
+.logout-btn-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.header.employee-header .logout-btn-header {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.header.employee-header .logout-btn-header:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.header:not(.employee-header) .logout-btn-header {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.header:not(.employee-header) .logout-btn-header:hover {
+  background: #e5e7eb;
+}
+
+/* ===== ADMIN/MANAGER HEADER ===== */
+.header-brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.header-brand .brand-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0A1628;
+  letter-spacing: 1px;
+}
+
+.header-brand .brand-name span {
+  color: #C9A84C;
+}
+
+.header-brand .brand-panel {
+  font-size: 0.5rem;
+  color: #6b7280;
+  letter-spacing: 3px;
+  font-weight: 500;
+}
+
+.header-branch {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: #1E1B4B;
+  background: #ede9fe;
+  padding: 0.2rem 0.8rem;
+  border-radius: 9999px;
+  margin-left: 0.5rem;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .header {
+    left: 0;
+    padding: 0 1rem;
+  }
+  
+  .header.employee-header {
+    left: 0;
+  }
+  
+  .employee-header-left {
+    gap: 0.75rem;
+  }
+  
+  .employee-brand .brand-name {
+    font-size: 0.9rem;
+  }
+  
+  .employee-branch {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.6rem;
+  }
+  
+  .user-info {
+    display: none;
+  }
+  
+  .logout-btn-header span {
+    display: none;
+  }
+  
+  .logout-btn-header {
+    padding: 0.4rem 0.6rem;
+  }
+  
+  .header-brand .brand-name {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    height: 3.5rem;
+  }
+  
+  .employee-brand .brand-panel {
+    font-size: 0.4rem;
+  }
+  
+  .employee-brand .brand-name {
+    font-size: 0.75rem;
+  }
+  
+  .employee-branch {
+    font-size: 0.5rem;
+    padding: 0.1rem 0.4rem;
+  }
+  
+  .header-brand .brand-panel {
+    font-size: 0.4rem;
+  }
+  
+  .header-brand .brand-name {
+    font-size: 0.75rem;
+  }
+  
+  .header-branch {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.4rem;
+  }
+}
