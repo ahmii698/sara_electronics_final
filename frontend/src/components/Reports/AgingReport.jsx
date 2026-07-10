@@ -402,21 +402,21 @@ const AgingReport = () => {
         </div>
       </div>
 
-      {/* ===== DETAIL MODAL ===== */}
+      {/* ===== DETAIL MODAL (Full Screen) ===== */}
       {showDetailModal && selectedCustomer && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <User size={20} className="modal-icon" />
+        <div className="aging-modal-overlay" onClick={closeModal}>
+          <div className="aging-modal-content aging-modal-detail" onClick={(e) => e.stopPropagation()}>
+            <div className="aging-modal-header">
+              <div className="aging-modal-header-left">
+                <User size={20} className="aging-modal-icon" />
                 <h3>Customer Details</h3>
               </div>
-              <button className="modal-close" onClick={closeModal}>
+              <button className="aging-modal-close" onClick={closeModal}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="aging-modal-body">
               <div className="customer-detail-header">
                 <div className="customer-detail-avatar">{selectedCustomer.customer.charAt(0)}</div>
                 <div className="customer-detail-info">
@@ -498,7 +498,7 @@ const AgingReport = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="aging-modal-footer">
               <button className="btn-cancel" onClick={closeModal}>Close</button>
             </div>
           </div>

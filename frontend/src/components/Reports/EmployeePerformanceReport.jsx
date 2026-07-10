@@ -596,21 +596,21 @@ const EmployeePerformanceReport = () => {
       {/* ===== RENDER TABLE BASED ON ACTIVE TAB ===== */}
       {renderTable()}
 
-      {/* ===== ACCOUNT DETAIL MODAL ===== */}
+      {/* ===== ACCOUNT DETAIL MODAL (Full Screen) ===== */}
       {showAccountModal && selectedAccount && (
-        <div className="modal-overlay" onClick={() => setShowAccountModal(false)}>
-          <div className="modal-content account-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <User size={20} className="modal-icon" />
+        <div className="epr-modal-overlay" onClick={() => setShowAccountModal(false)}>
+          <div className="epr-modal-content epr-modal-account" onClick={(e) => e.stopPropagation()}>
+            <div className="epr-modal-header">
+              <div className="epr-modal-header-left">
+                <User size={20} className="epr-modal-icon" />
                 <h3>Account Details - {selectedAccount.caseNo}</h3>
               </div>
-              <button className="modal-close" onClick={() => setShowAccountModal(false)}>
+              <button className="epr-modal-close" onClick={() => setShowAccountModal(false)}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="epr-modal-body">
               {/* Customer Info */}
               <div className="account-detail-header">
                 <div className="account-detail-avatar">{selectedAccount.customer.charAt(0)}</div>
@@ -714,7 +714,7 @@ const EmployeePerformanceReport = () => {
               )}
             </div>
 
-            <div className="modal-footer">
+            <div className="epr-modal-footer">
               <button className="btn-cancel" onClick={() => setShowAccountModal(false)}>Close</button>
             </div>
           </div>

@@ -392,21 +392,21 @@ const Salary = () => {
         </table>
       </div>
 
-      {/* ===== HISTORY MODAL ===== */}
+      {/* ===== HISTORY MODAL (full screen) ===== */}
       {showHistoryModal && selectedEmployee && (
-        <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
-          <div className="modal-content history-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <Clock size={20} className="modal-icon" />
+        <div className="salary-modal-overlay" onClick={() => setShowHistoryModal(false)}>
+          <div className="salary-modal-content salary-modal-history" onClick={(e) => e.stopPropagation()}>
+            <div className="salary-modal-header">
+              <div className="salary-modal-header-left">
+                <Clock size={20} className="salary-modal-icon" />
                 <h3>Salary History</h3>
               </div>
-              <button className="modal-close" onClick={() => setShowHistoryModal(false)}>
+              <button className="salary-modal-close" onClick={() => setShowHistoryModal(false)}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="salary-modal-body">
               <div className="employee-detail-header">
                 <div className="emp-detail-avatar">{selectedEmployee.name.charAt(0)}</div>
                 <div className="emp-detail-info">
@@ -502,28 +502,28 @@ const Salary = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="salary-modal-footer">
               <button className="btn-cancel" onClick={() => setShowHistoryModal(false)}>Close</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ===== ADVANCE MODAL ===== */}
+      {/* ===== ADVANCE MODAL (full screen) ===== */}
       {showAdvanceModal && selectedEmployee && (
-        <div className="modal-overlay" onClick={() => setShowAdvanceModal(false)}>
-          <div className="modal-content advance-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <Wallet size={20} className="modal-icon" />
+        <div className="salary-modal-overlay" onClick={() => setShowAdvanceModal(false)}>
+          <div className="salary-modal-content salary-modal-advance" onClick={(e) => e.stopPropagation()}>
+            <div className="salary-modal-header">
+              <div className="salary-modal-header-left">
+                <Wallet size={20} className="salary-modal-icon" />
                 <h3>Give Advance</h3>
               </div>
-              <button className="modal-close" onClick={() => setShowAdvanceModal(false)}>
+              <button className="salary-modal-close" onClick={() => setShowAdvanceModal(false)}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="salary-modal-body">
               <div className="employee-detail-header small">
                 <div className="emp-detail-avatar small">{selectedEmployee.name.charAt(0)}</div>
                 <div className="emp-detail-info">
@@ -583,7 +583,7 @@ const Salary = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="salary-modal-footer">
               <button className="btn-cancel" onClick={() => setShowAdvanceModal(false)}>Cancel</button>
               <button className="btn-advance-save" onClick={() => handleAddAdvance(selectedEmployee.id)}>
                 Give Advance
@@ -593,21 +593,21 @@ const Salary = () => {
         </div>
       )}
 
-      {/* ===== EDIT MODAL ===== */}
+      {/* ===== EDIT MODAL (full screen) ===== */}
       {showEditModal && editingEmployee && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content edit-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <Edit size={20} className="modal-icon" />
+        <div className="salary-modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="salary-modal-content salary-modal-edit" onClick={(e) => e.stopPropagation()}>
+            <div className="salary-modal-header">
+              <div className="salary-modal-header-left">
+                <Edit size={20} className="salary-modal-icon" />
                 <h3>Edit Salary</h3>
               </div>
-              <button className="modal-close" onClick={() => setShowEditModal(false)}>
+              <button className="salary-modal-close" onClick={() => setShowEditModal(false)}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="salary-modal-body">
               <div className="employee-detail-header small">
                 <div className="emp-detail-avatar small">{editingEmployee.name.charAt(0)}</div>
                 <div className="emp-detail-info">
@@ -637,7 +637,7 @@ const Salary = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="salary-modal-footer">
               <button className="btn-cancel" onClick={() => setShowEditModal(false)}>Cancel</button>
               <button 
                 className="btn-save" 

@@ -626,19 +626,19 @@ const Recovery = () => {
       </div>
 
       {showInstallmentModal && selectedRecovery && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content installment-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <Clock size={20} className="modal-icon" />
+        <div className="rec-modal-overlay" onClick={closeModal}>
+          <div className="rec-modal-content rec-modal-installment" onClick={(e) => e.stopPropagation()}>
+            <div className="rec-modal-header">
+              <div className="rec-modal-header-left">
+                <Clock size={20} className="rec-modal-icon" />
                 <h3>Installment History</h3>
               </div>
-              <button className="modal-close" onClick={closeModal}>
+              <button className="rec-modal-close" onClick={closeModal}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="rec-modal-body">
               <div className="employee-detail-header">
                 <div className="emp-detail-avatar">{selectedRecovery.customer.charAt(0)}</div>
                 <div className="emp-detail-info">
@@ -716,7 +716,7 @@ const Recovery = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="rec-modal-footer">
               <button className="btn-cancel" onClick={closeModal}>Close</button>
             </div>
           </div>
@@ -724,19 +724,19 @@ const Recovery = () => {
       )}
 
       {showPayModal && selectedRecovery && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content pay-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <Wallet size={20} className="modal-icon" />
+        <div className="rec-modal-overlay" onClick={closeModal}>
+          <div className="rec-modal-content rec-modal-pay" onClick={(e) => e.stopPropagation()}>
+            <div className="rec-modal-header">
+              <div className="rec-modal-header-left">
+                <Wallet size={20} className="rec-modal-icon" />
                 <h3>Pay Installment</h3>
               </div>
-              <button className="modal-close" onClick={closeModal}>
+              <button className="rec-modal-close" onClick={closeModal}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="rec-modal-body">
               <div className="employee-detail-header small">
                 <div className="emp-detail-avatar small">{selectedRecovery.customer.charAt(0)}</div>
                 <div className="emp-detail-info">
@@ -808,7 +808,7 @@ const Recovery = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="rec-modal-footer">
               <button className="btn-cancel" onClick={closeModal}>Cancel</button>
               <button className="btn-pay-save" onClick={handlePayInstallment}>
                 <CheckCircle size={16} />
@@ -820,19 +820,19 @@ const Recovery = () => {
       )}
 
       {showEditModal && selectedRecovery && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content edit-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                <Edit size={20} className="modal-icon" />
+        <div className="rec-modal-overlay" onClick={closeModal}>
+          <div className="rec-modal-content rec-modal-edit" onClick={(e) => e.stopPropagation()}>
+            <div className="rec-modal-header">
+              <div className="rec-modal-header-left">
+                <Edit size={20} className="rec-modal-icon" />
                 <h3>Edit Installment</h3>
               </div>
-              <button className="modal-close" onClick={closeModal}>
+              <button className="rec-modal-close" onClick={closeModal}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
+            <div className="rec-modal-body">
               <div className="employee-detail-header small">
                 <div className="emp-detail-avatar small">{selectedRecovery.customer.charAt(0)}</div>
                 <div className="emp-detail-info">
@@ -894,7 +894,7 @@ const Recovery = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
+            <div className="rec-modal-footer">
               <button className="btn-cancel" onClick={closeModal}>Cancel</button>
               <button className="btn-edit-save" onClick={handleEditInstallment}>
                 <Save size={16} />
