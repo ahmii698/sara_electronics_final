@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle, AreaChart } from 'lucide-react';
 import './EmployeeReport.css';
 
 const EmployeeReport = () => {
@@ -26,6 +26,7 @@ const EmployeeReport = () => {
       branch: 1,
       role: 'employee',
       joiningDate: '2025-01-15',
+      salary: 45000,
       monthlyData: {
         '2026-01': { accountsOpened: 12, recoveryAmount: 45000, leaves: 2, commission: 24000, fuelExpense: 1500, extraEarnings: 5000 },
         '2026-02': { accountsOpened: 15, recoveryAmount: 52000, leaves: 1, commission: 30000, fuelExpense: 1800, extraEarnings: 7000 },
@@ -47,6 +48,7 @@ const EmployeeReport = () => {
       branch: 2,
       role: 'manager',
       joiningDate: '2025-03-01',
+      salary: 38000,
       monthlyData: {
         '2026-01': { accountsOpened: 8, recoveryAmount: 32000, leaves: 1, commission: 16000, fuelExpense: 1000, extraEarnings: 2000 },
         '2026-02': { accountsOpened: 10, recoveryAmount: 40000, leaves: 2, commission: 20000, fuelExpense: 1300, extraEarnings: 3500 },
@@ -68,6 +70,7 @@ const EmployeeReport = () => {
       branch: 1,
       role: 'employee',
       joiningDate: '2025-06-01',
+      salary: 52000,
       monthlyData: {
         '2026-01': { accountsOpened: 5, recoveryAmount: 18000, leaves: 4, commission: 10000, fuelExpense: 800, extraEarnings: 1000 },
         '2026-02': { accountsOpened: 7, recoveryAmount: 25000, leaves: 2, commission: 14000, fuelExpense: 1000, extraEarnings: 2000 },
@@ -89,6 +92,7 @@ const EmployeeReport = () => {
       branch: 2,
       role: 'employee',
       joiningDate: '2025-08-01',
+      salary: 41000,
       monthlyData: {
         '2026-01': { accountsOpened: 6, recoveryAmount: 22000, leaves: 2, commission: 12000, fuelExpense: 900, extraEarnings: 1500 },
         '2026-02': { accountsOpened: 8, recoveryAmount: 28000, leaves: 1, commission: 16000, fuelExpense: 1100, extraEarnings: 2000 },
@@ -125,6 +129,13 @@ const EmployeeReport = () => {
     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
   };
 
+  const getCurrentMonth = () => {
+    const now = new Date();
+    return now.toLocaleString('default', { month: 'long' });
+  };
+
+  const currentMonth = getCurrentMonth();
+
   const filteredEmployees = employees.filter(emp => {
     const searchMatch = emp.name.toLowerCase().includes(search.toLowerCase());
     const branchMatch = branchFilter === 'all' || emp.branch === parseInt(branchFilter);
@@ -146,12 +157,23 @@ const EmployeeReport = () => {
     return data;
   };
 
+  // ===== CHART TYPES =====
+  const chartTypes = [
+    { id: 'bar', label: 'Bar', icon: BarChart },
+    { id: 'line', label: 'Line', icon: LineChart },
+    { id: 'pie', label: 'Pie', icon: PieChart },
+    { id: 'area', label: 'Area', icon: Activity },
+    { id: 'stacked', label: 'Stacked', icon: BarChart },
+  ];
+
+  // ===== RENDER DIFFERENT CHARTS =====
   const renderEmployeeChart = () => {
     if (!selectedEmployee) return null;
     
     const empData = getEmployeeChartData(selectedEmployee);
     const maxVal = Math.max(...empData.accounts, ...empData.recovery.map(v => v/1000), ...empData.commission.map(v => v/1000), 1);
 
+    // ===== BAR CHART =====
     if (modalChartType === 'bar') {
       return (
         <div className="modal-chart-container">
@@ -177,15 +199,6 @@ const EmployeeReport = () => {
                     </div>
                     <span className="bar-label">Rec</span>
                   </div>
-                  <div className="chart-bar-wrapper">
-                    <div 
-                      className="chart-bar bar-light" 
-                      style={{ height: `${((empData.commission[index]) / maxVal / 1000) * 140}px` }}
-                    >
-                      <span className="bar-value">{(empData.commission[index]/1000).toFixed(1)}k</span>
-                    </div>
-                    <span className="bar-label">Com</span>
-                  </div>
                 </div>
                 <div className="chart-bar-labels">
                   <span className="chart-label">{label}</span>
@@ -196,12 +209,12 @@ const EmployeeReport = () => {
           <div className="chart-legend">
             <span><span className="legend-dot gold"></span> Accounts</span>
             <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
-            <span><span className="legend-dot light"></span> Commission (PKR'000)</span>
           </div>
         </div>
       );
     }
 
+    // ===== LINE CHART =====
     if (modalChartType === 'line') {
       return (
         <div className="modal-chart-container">
@@ -227,13 +240,91 @@ const EmployeeReport = () => {
                 strokeWidth="3"
                 strokeDasharray="5,5"
               />
-              <polyline
-                points={empData.commission.map((val, i) => 
-                  `${(i / (empData.commission.length - 1)) * 600},${200 - ((val/1000) / maxVal) * 170}`
-                ).join(' ')}
-                fill="none"
-                stroke="#E8D5A3"
-                strokeWidth="3"
+              {empData.labels.map((label, i) => (
+                <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="195" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
+              ))}
+            </svg>
+            <div className="chart-legend">
+              <span><span className="legend-dot gold"></span> Accounts</span>
+              <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ===== PIE CHART =====
+    if (modalChartType === 'pie') {
+      const totalAccounts = empData.accounts.reduce((a, b) => a + b, 0);
+      const totalRecovery = empData.recovery.reduce((a, b) => a + b, 0);
+      const pieData = [
+        { label: 'Total Accounts', value: totalAccounts, color: '#C9A84C' },
+        { label: 'Total Recovery', value: totalRecovery / 1000, color: '#1A2A4A' },
+      ];
+      const total = pieData.reduce((a, b) => a + b.value, 0);
+      let cumulative = 0;
+
+      return (
+        <div className="modal-chart-container">
+          <div className="chart-pie-container">
+            <div className="pie-chart">
+              <svg viewBox="0 0 220 220">
+                {pieData.map((item, index) => {
+                  const percentage = (item.value / total) * 100;
+                  const dashArray = (percentage / 100) * 534.07;
+                  const offset = cumulative;
+                  cumulative += dashArray;
+                  return (
+                    <circle
+                      key={index}
+                      cx="110" cy="110" r="85"
+                      fill="none"
+                      stroke={item.color}
+                      strokeWidth="45"
+                      strokeDasharray={`${dashArray} 534.07`}
+                      strokeDashoffset={`-${offset}`}
+                      transform="rotate(-90 110 110)"
+                    />
+                  );
+                })}
+                <text x="110" y="105" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#0A1628">
+                  Total
+                </text>
+                <text x="110" y="125" textAnchor="middle" fontSize="11" fill="#6b7280">
+                  {totalAccounts} Acc / {(totalRecovery/1000).toFixed(1)}k Rec
+                </text>
+              </svg>
+            </div>
+            <div className="chart-legend">
+              <span><span className="legend-dot gold"></span> Accounts ({totalAccounts})</span>
+              <span><span className="legend-dot dark"></span> Recovery ({(totalRecovery/1000).toFixed(1)}k)</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ===== AREA CHART =====
+    if (modalChartType === 'area') {
+      return (
+        <div className="modal-chart-container">
+          <div className="chart-area-container-custom">
+            <svg viewBox="0 0 600 200" className="chart-svg">
+              <polygon
+                points={`0,200 ${empData.accounts.map((val, i) => 
+                  `${(i / (empData.accounts.length - 1)) * 600},${200 - (val / maxVal) * 170}`
+                ).join(' ')} 600,200`}
+                fill="rgba(201, 168, 76, 0.3)"
+                stroke="#C9A84C"
+                strokeWidth="2"
+              />
+              <polygon
+                points={`0,200 ${empData.recovery.map((val, i) => 
+                  `${(i / (empData.recovery.length - 1)) * 600},${200 - ((val/1000) / maxVal) * 170}`
+                ).join(' ')} 600,200`}
+                fill="rgba(26, 42, 74, 0.3)"
+                stroke="#1A2A4A"
+                strokeWidth="2"
               />
               {empData.labels.map((label, i) => (
                 <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="195" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
@@ -242,8 +333,44 @@ const EmployeeReport = () => {
             <div className="chart-legend">
               <span><span className="legend-dot gold"></span> Accounts</span>
               <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
-              <span><span className="legend-dot light"></span> Commission (PKR'000)</span>
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ===== STACKED BAR CHART =====
+    if (modalChartType === 'stacked') {
+      return (
+        <div className="modal-chart-container">
+          <div className="chart-stacked-container">
+            {empData.labels.map((label, index) => {
+              const accHeight = (empData.accounts[index] / maxVal) * 140;
+              const recHeight = ((empData.recovery[index] / 1000) / maxVal) * 140;
+              return (
+                <div key={index} className="stacked-bar-group">
+                  <div className="stacked-bar-wrapper">
+                    <div 
+                      className="stacked-bar rec-bar" 
+                      style={{ height: `${recHeight}px` }}
+                    >
+                      <span className="stacked-value">{(empData.recovery[index]/1000).toFixed(1)}k</span>
+                    </div>
+                    <div 
+                      className="stacked-bar acc-bar" 
+                      style={{ height: `${accHeight}px` }}
+                    >
+                      <span className="stacked-value">{empData.accounts[index]}</span>
+                    </div>
+                  </div>
+                  <span className="stacked-label">{label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="chart-legend">
+            <span><span className="legend-dot gold"></span> Accounts</span>
+            <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
           </div>
         </div>
       );
@@ -268,14 +395,43 @@ const EmployeeReport = () => {
   };
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
-  const modalChartTypes = [
-    { id: 'bar', label: 'Bar', icon: BarChart },
-    { id: 'line', label: 'Line', icon: LineChart },
-  ];
 
   const totalRecovery = filteredEmployees.reduce((sum, e) => sum + e.totalRecovery, 0);
   const totalCommission = filteredEmployees.reduce((sum, e) => sum + e.totalCommission, 0);
   const totalAccounts = filteredEmployees.reduce((sum, e) => sum + e.totalAccounts, 0);
+  const totalEmployees = filteredEmployees.length;
+
+  const getCurrentMonthAccounts = (emp) => {
+    const now = new Date();
+    const currentMonthNum = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const key = `${currentYear}-${String(currentMonthNum).padStart(2, '0')}`;
+    return emp.monthlyData[key]?.accountsOpened || 0;
+  };
+
+  const getDueAccounts = (emp) => {
+    let dueCount = 0;
+    Object.values(emp.monthlyData).forEach(data => {
+      if (data.recoveryAmount > 0) dueCount++;
+    });
+    return dueCount;
+  };
+
+  const getEmployeeStats = (emp) => {
+    const currentAccounts = getCurrentMonthAccounts(emp);
+    const dueAccounts = getDueAccounts(emp);
+    const monthlyRecovery = emp.monthlyData[`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`]?.recoveryAmount || 0;
+
+    return [
+      { label: 'Total Accounts', value: emp.totalAccounts, color: '#1E1B4B' },
+      { label: `New Accounts (${currentMonth})`, value: currentAccounts, color: '#2563eb' },
+      { label: 'Monthly Recovery', value: `PKR ${monthlyRecovery.toLocaleString()}`, color: '#C9A84C' },
+      { label: 'Due Accounts', value: dueAccounts, color: '#f59e0b' },
+      { label: 'Salary', value: `PKR ${emp.salary.toLocaleString()}`, color: '#065f46' },
+      { label: 'Commission', value: `PKR ${emp.totalCommission.toLocaleString()}`, color: '#2563eb' },
+      { label: 'Leaves', value: emp.totalLeaves, color: '#dc2626' },
+    ];
+  };
 
   return (
     <div className="employee-report-container">
@@ -325,7 +481,7 @@ const EmployeeReport = () => {
           <div className="summary-icon users"><Users size={20} /></div>
           <div className="summary-info">
             <span className="summary-label">Total Employees</span>
-            <span className="summary-value">{filteredEmployees.length}</span>
+            <span className="summary-value">{totalEmployees}</span>
           </div>
         </div>
         <div className="summary-card">
@@ -364,21 +520,17 @@ const EmployeeReport = () => {
               <tr>
                 <th>#</th>
                 <th>Employee</th>
-                <th>Branch</th>
-                <th>Role</th>
                 <th>Accounts</th>
                 <th>Recovery</th>
                 <th>Commission</th>
                 <th>Leaves</th>
-                <th>Fuel</th>
-                <th>Extra</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="no-data">
+                  <td colSpan="7" className="no-data">
                     <div className="no-data-content">
                       <AlertCircle size={24} />
                       <p>No employees found</p>
@@ -395,14 +547,10 @@ const EmployeeReport = () => {
                         {emp.name}
                       </div>
                     </td>
-                    <td><span className="branch-badge">Branch {emp.branch}</span></td>
-                    <td><span className="role-badge">{emp.role}</span></td>
                     <td className="highlight-number">{emp.totalAccounts}</td>
                     <td>PKR {emp.totalRecovery.toLocaleString()}</td>
                     <td>PKR {emp.totalCommission.toLocaleString()}</td>
                     <td>{emp.totalLeaves}</td>
-                    <td>PKR {emp.totalFuel.toLocaleString()}</td>
-                    <td>PKR {emp.totalExtra.toLocaleString()}</td>
                     <td>
                       <button className="btn-view-detail" onClick={() => openDetailModal(emp)}>
                         <Eye size={15} />
@@ -440,38 +588,22 @@ const EmployeeReport = () => {
                 </div>
               </div>
 
-              <div className="detail-summary">
-                <div className="detail-summary-item">
-                  <span>Accounts</span>
-                  <strong>{selectedEmployee.totalAccounts}</strong>
-                </div>
-                <div className="detail-summary-item">
-                  <span>Recovery</span>
-                  <strong>PKR {selectedEmployee.totalRecovery.toLocaleString()}</strong>
-                </div>
-                <div className="detail-summary-item">
-                  <span>Commission</span>
-                  <strong>PKR {selectedEmployee.totalCommission.toLocaleString()}</strong>
-                </div>
-                <div className="detail-summary-item">
-                  <span>Leaves</span>
-                  <strong>{selectedEmployee.totalLeaves}</strong>
-                </div>
-                <div className="detail-summary-item">
-                  <span>Fuel Expense</span>
-                  <strong>PKR {selectedEmployee.totalFuel.toLocaleString()}</strong>
-                </div>
-                <div className="detail-summary-item">
-                  <span>Extra Earnings</span>
-                  <strong>PKR {selectedEmployee.totalExtra.toLocaleString()}</strong>
-                </div>
+              {/* ===== 7 CARDS ===== */}
+              <div className="detail-summary-7">
+                {getEmployeeStats(selectedEmployee).map((stat, index) => (
+                  <div key={index} className="detail-summary-item" style={{ borderTopColor: stat.color }}>
+                    <span>{stat.label}</span>
+                    <strong>{stat.value}</strong>
+                  </div>
+                ))}
               </div>
 
+              {/* ===== MULTIPLE CHARTS ===== */}
               <div className="modal-chart-section">
                 <div className="modal-chart-header">
                   <h4>Performance Trend (Self-Comparison)</h4>
                   <div className="modal-chart-type-selector">
-                    {modalChartTypes.map((type) => (
+                    {chartTypes.map((type) => (
                       <button
                         key={type.id}
                         className={`modal-chart-type-btn ${modalChartType === type.id ? 'active' : ''}`}
@@ -500,8 +632,6 @@ const EmployeeReport = () => {
                         <th>Recovery</th>
                         <th>Commission</th>
                         <th>Leaves</th>
-                        <th>Fuel</th>
-                        <th>Extra</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -512,8 +642,6 @@ const EmployeeReport = () => {
                           <td>PKR {data.recoveryAmount.toLocaleString()}</td>
                           <td>PKR {data.commission.toLocaleString()}</td>
                           <td>{data.leaves}</td>
-                          <td>PKR {data.fuelExpense.toLocaleString()}</td>
-                          <td>PKR {data.extraEarnings.toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -10,6 +10,11 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
+  background: white;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid #f3f4f6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .header-left {
@@ -18,11 +23,30 @@
   gap: 0.15rem;
 }
 
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .dashboard-header h2 {
   font-size: 1.5rem;
   font-weight: 700;
   color: #0A1628;
   margin: 0;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #22c55e;
+  background: #dcfce7;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid #bbf7d0;
 }
 
 .branch-label {
@@ -62,12 +86,66 @@
   gap: 0.3rem;
 }
 
-.stats-grid {
+/* ===== 4 STATS CARDS ===== */
+.stats-grid-4 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
 }
 
+.stat-card-4 {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #f3f4f6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s;
+}
+
+.stat-card-4:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.stat-card-4-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.75rem;
+  background: rgba(30, 27, 75, 0.08);
+  color: #1E1B4B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-card-4-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-card-4-label {
+  font-size: 0.65rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card-4-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0A1628;
+}
+
+.stat-card-4-sub {
+  font-size: 0.6rem;
+  color: #9ca3af;
+}
+
+/* ===== CHART SECTION ===== */
 .chart-section {
   background: white;
   border-radius: 1rem;
@@ -464,6 +542,12 @@
   background: #1E1B4B;
 }
 
+@media (max-width: 1024px) {
+  .stats-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 992px) {
   .performers-stock-grid {
     grid-template-columns: 1fr;
@@ -471,6 +555,10 @@
 }
 
 @media (max-width: 768px) {
+  .stats-grid-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+  
   .dashboard-bottom {
     grid-template-columns: 1fr;
   }
@@ -497,9 +585,18 @@
   .low-stock-table tbody td {
     padding: 0.3rem 0.3rem;
   }
+  
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 480px) {
+  .stats-grid-4 {
+    grid-template-columns: 1fr;
+  }
+  
   .chart-bar {
     width: 16px;
   }
@@ -518,9 +615,5 @@
   
   .chart-bars {
     height: 150px;
-  }
-  
-  .stats-grid {
-    grid-template-columns: 1fr 1fr;
   }
 }

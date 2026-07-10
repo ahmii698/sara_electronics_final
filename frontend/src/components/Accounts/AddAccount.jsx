@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield } from 'lucide-react';
 import './AddAccount.css';
 
 const AddAccount = () => {
@@ -9,9 +9,255 @@ const AddAccount = () => {
   const [existingAccounts, setExistingAccounts] = useState([]);
   const [userRole, setUserRole] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const [voiceFiles, setVoiceFiles] = useState([]);
   const [playingIndex, setPlayingIndex] = useState(null);
+
+  // ===== COMPLETE SYSTEM DATA =====
+  const systemData = {
+    // Existing customers with their accounts
+    customers: [
+      { 
+        id: 1, 
+        name: 'Ahmed Khan', 
+        cnic: '12345-6789012-3', 
+        phone: '0300-1234567',
+        address: 'House #12, Street 5, Lahore',
+        branch: 1,
+        hasAccount: true,
+        isGuarantorFor: ['Usman Malik', 'Bilal Ahmed']
+      },
+      { 
+        id: 2, 
+        name: 'Sara Ali', 
+        cnic: '12345-6789012-4', 
+        phone: '0300-7654321',
+        address: 'House #34, Street 8, Lahore',
+        branch: 2,
+        hasAccount: true,
+        isGuarantorFor: []
+      },
+      { 
+        id: 3, 
+        name: 'Usman Malik', 
+        cnic: '12345-6789012-6', 
+        phone: '0300-2345678',
+        address: 'House #78, Street 12, Lahore',
+        branch: 1,
+        hasAccount: true,
+        isGuarantorFor: []
+      },
+      { 
+        id: 4, 
+        name: 'Fatima Noor', 
+        cnic: '12345-6789012-7', 
+        phone: '0300-8765432',
+        address: 'House #90, Street 15, Lahore',
+        branch: 2,
+        hasAccount: true,
+        isGuarantorFor: []
+      },
+      { 
+        id: 5, 
+        name: 'Bilal Ahmed', 
+        cnic: '12345-6789012-8', 
+        phone: '0300-3456789',
+        address: 'House #12, Street 20, Lahore',
+        branch: 1,
+        hasAccount: true,
+        isGuarantorFor: []
+      },
+      { 
+        id: 6, 
+        name: 'Hina Riaz', 
+        cnic: '12345-6789012-9', 
+        phone: '0300-6543210',
+        address: 'House #34, Street 25, Lahore',
+        branch: 2,
+        hasAccount: true,
+        isGuarantorFor: []
+      },
+      { 
+        id: 7, 
+        name: 'Ali Raza', 
+        cnic: '12345-6789012-0', 
+        phone: '0300-4567890',
+        address: 'House #56, Street 30, Lahore',
+        branch: 1,
+        hasAccount: true,
+        isGuarantorFor: []
+      },
+    ],
+    // Guarantor records
+    guarantorRecords: [
+      { 
+        guarantorCNIC: '12345-6789012-4', 
+        guarantorName: 'Sara Ali',
+        customerCNIC: '12345-6789012-3',
+        customerName: 'Ahmed Khan',
+        branch: 1
+      },
+      { 
+        guarantorCNIC: '12345-6789012-5', 
+        guarantorName: 'Zainab Khan',
+        customerCNIC: '12345-6789012-3',
+        customerName: 'Ahmed Khan',
+        branch: 1
+      },
+      { 
+        guarantorCNIC: '12345-6789012-7', 
+        guarantorName: 'Fatima Noor',
+        customerCNIC: '12345-6789012-6',
+        customerName: 'Usman Malik',
+        branch: 1
+      },
+      { 
+        guarantorCNIC: '12345-6789012-9', 
+        guarantorName: 'Hina Riaz',
+        customerCNIC: '12345-6789012-8',
+        customerName: 'Bilal Ahmed',
+        branch: 1
+      },
+    ]
+  };
+
+  // ===== GET ALL CNICS IN SYSTEM =====
+  const getAllCNICs = () => {
+    return systemData.customers.map(c => c.cnic);
+  };
+
+  // ===== GET CUSTOMER BY CNIC =====
+  const getCustomerByCNIC = (cnic) => {
+    return systemData.customers.find(c => c.cnic === cnic);
+  };
+
+  // ===== GET GUARANTOR RECORDS BY CNIC =====
+  const getGuarantorRecordsByCNIC = (cnic) => {
+    return systemData.guarantorRecords.filter(g => g.guarantorCNIC === cnic);
+  };
+
+  // ===== GET GUARANTOR RECORDS FOR CUSTOMER =====
+  const getGuarantorRecordsForCustomer = (customerCNIC) => {
+    return systemData.guarantorRecords.filter(g => g.customerCNIC === customerCNIC);
+  };
+
+  // ===== CHECK IF CNIC EXISTS (Customer) =====
+  const checkCustomerExists = (cnic) => {
+    if (!cnic || cnic.length < 5) return null;
+    return getCustomerByCNIC(cnic);
+  };
+
+  // ===== CHECK IF CNIC IS A GUARANTOR =====
+  const checkIfGuarantor = (cnic) => {
+    if (!cnic || cnic.length < 5) return null;
+    const records = getGuarantorRecordsByCNIC(cnic);
+    if (records.length > 0) {
+      return records;
+    }
+    return null;
+  };
+
+  // ===== CHECK IF CUSTOMER HAS GUARANTORS =====
+  const checkCustomerGuarantors = (cnic) => {
+    if (!cnic || cnic.length < 5) return null;
+    const records = getGuarantorRecordsForCustomer(cnic);
+    if (records.length > 0) {
+      return records;
+    }
+    return null;
+  };
+
+  // ===== SHOW TOAST =====
+  const showToast = (message, type = 'warning', details = null) => {
+    setToast({ message, type, details });
+  };
+
+  // ===== CHECK ON CNIC BLUR =====
+  const handleCnicBlur = () => {
+    if (!formData.cnic || formData.cnic.length < 5) return;
+    
+    // Check if customer exists
+    const customer = checkCustomerExists(formData.cnic);
+    if (customer) {
+      showToast(
+        `⚠️ This CNIC (${formData.cnic}) already exists! Customer: ${customer.name}`,
+        'warning'
+      );
+      return;
+    }
+
+    // Check if this CNIC is a guarantor for someone
+    const guarantorRecords = checkIfGuarantor(formData.cnic);
+    if (guarantorRecords) {
+      const details = guarantorRecords.map(g => 
+        `• Guarantor for: ${g.customerName} (${g.customerCNIC}) - Branch ${g.branch}`
+      ).join('\n');
+      showToast(
+        `ℹ️ This person (${formData.cnic}) is already a guarantor for ${guarantorRecords.length} customer(s)!`,
+        'info',
+        details
+      );
+      return;
+    }
+
+    // Check if this customer has guarantors
+    const customerGuarantors = checkCustomerGuarantors(formData.cnic);
+    if (customerGuarantors) {
+      const details = customerGuarantors.map(g => 
+        `• ${g.guarantorName} (${g.guarantorCNIC})`
+      ).join('\n');
+      showToast(
+        `ℹ️ This customer (${formData.cnic}) already has ${customerGuarantors.length} guarantor(s)!`,
+        'info',
+        details
+      );
+    }
+  };
+
+  // ===== CHECK GUARANTOR CNIC ON BLUR =====
+  const handleGuarantorCnicBlur = (index) => {
+    const cnic = formData.guarantors[index].cnic;
+    if (!cnic || cnic.length < 5) return;
+
+    // Check if this CNIC is already a customer
+    const customer = checkCustomerExists(cnic);
+    if (customer) {
+      showToast(
+        `ℹ️ Guarantor CNIC (${cnic}) belongs to existing customer: ${customer.name}`,
+        'info'
+      );
+      return;
+    }
+
+    // Check if this CNIC is already a guarantor for someone else
+    const guarantorRecords = checkIfGuarantor(cnic);
+    if (guarantorRecords) {
+      const details = guarantorRecords.map(g => 
+        `• Already guarantor for: ${g.customerName} (${g.customerCNIC})`
+      ).join('\n');
+      showToast(
+        `⚠️ This CNIC (${cnic}) is already a guarantor for ${guarantorRecords.length} customer(s)!`,
+        'warning',
+        details
+      );
+      return;
+    }
+
+    // Check if this person has their own account
+    const existingCustomer = getCustomerByCNIC(cnic);
+    if (existingCustomer) {
+      showToast(
+        `ℹ️ ${existingCustomer.name} (${cnic}) already has an account in the system!`,
+        'info'
+      );
+    }
+  };
+
+  // ===== Check if customer has existing guarantors (on name change) =====
+  const handleNameChange = () => {
+    // This will be called when we check if the customer already exists
+  };
 
   const allEmployees = [
     { id: 1, name: 'Ahmed Khan', branch: 1 },
@@ -64,6 +310,14 @@ const AddAccount = () => {
   const chalanBackRef = useRef(null);
   const voiceFileRef = useRef(null);
   const guarantorRefs = useRef([]);
+
+  // ===== TOAST TIMER =====
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -276,6 +530,28 @@ const AddAccount = () => {
 
   return (
     <div className="add-account-container">
+      {/* ===== TOAST NOTIFICATION ===== */}
+      {toast && (
+        <div className={`toast-notification ${toast.type}`}>
+          <div className="toast-content">
+            {toast.type === 'warning' ? <AlertCircle size={20} /> : <Shield size={20} />}
+            <div>
+              <span>{toast.message}</span>
+              {toast.details && (
+                <div className="toast-details">
+                  {toast.details.split('\n').map((line, i) => (
+                    <div key={i} className="toast-detail-line">{line}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <button className="toast-close" onClick={() => setToast(null)}>
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       <div className="page-header">
         <div className="header-title-group">
           <h3>Create New Account</h3>
@@ -341,7 +617,14 @@ const AddAccount = () => {
                 <label>Full Name *</label>
                 <div className="input-with-icon">
                   <User size={18} />
-                  <input type="text" name="name" className="form-input" placeholder="Enter customer full name" value={formData.name} onChange={handleChange} />
+                  <input 
+                    type="text" 
+                    name="name" 
+                    className="form-input" 
+                    placeholder="Enter customer full name" 
+                    value={formData.name} 
+                    onChange={handleChange} 
+                  />
                 </div>
                 {errors.name && <span className="error-text">{errors.name}</span>}
               </div>
@@ -349,15 +632,31 @@ const AddAccount = () => {
                 <label>CNIC *</label>
                 <div className="input-with-icon">
                   <CreditCard size={18} />
-                  <input type="text" name="cnic" className="form-input" placeholder="XXXXX-XXXXXXX-X" value={formData.cnic} onChange={handleChange} />
+                  <input 
+                    type="text" 
+                    name="cnic" 
+                    className="form-input" 
+                    placeholder="XXXXX-XXXXXXX-X" 
+                    value={formData.cnic} 
+                    onChange={handleChange} 
+                    onBlur={handleCnicBlur}
+                  />
                 </div>
                 {errors.cnic && <span className="error-text">{errors.cnic}</span>}
+                <small className="field-hint">System will check if this CNIC already exists or is a guarantor</small>
               </div>
               <div className="form-group">
                 <label>Phone Number *</label>
                 <div className="input-with-icon">
                   <Phone size={18} />
-                  <input type="tel" name="phone" className="form-input" placeholder="03XX-XXXXXXX" value={formData.phone} onChange={handleChange} />
+                  <input 
+                    type="tel" 
+                    name="phone" 
+                    className="form-input" 
+                    placeholder="03XX-XXXXXXX" 
+                    value={formData.phone} 
+                    onChange={handleChange} 
+                  />
                 </div>
                 {errors.phone && <span className="error-text">{errors.phone}</span>}
               </div>
@@ -382,7 +681,14 @@ const AddAccount = () => {
                 <label>Address *</label>
                 <div className="input-with-icon">
                   <MapPin size={18} />
-                  <input type="text" name="address" className="form-input" placeholder="Enter complete address" value={formData.address} onChange={handleChange} />
+                  <input 
+                    type="text" 
+                    name="address" 
+                    className="form-input" 
+                    placeholder="Enter complete address" 
+                    value={formData.address} 
+                    onChange={handleChange} 
+                  />
                 </div>
                 {errors.address && <span className="error-text">{errors.address}</span>}
               </div>
@@ -390,7 +696,14 @@ const AddAccount = () => {
                 <label>Work / Occupation *</label>
                 <div className="input-with-icon">
                   <Briefcase size={18} />
-                  <input type="text" name="work" className="form-input" placeholder="Enter work/occupation" value={formData.work} onChange={handleChange} />
+                  <input 
+                    type="text" 
+                    name="work" 
+                    className="form-input" 
+                    placeholder="Enter work/occupation" 
+                    value={formData.work} 
+                    onChange={handleChange} 
+                  />
                 </div>
                 {errors.work && <span className="error-text">{errors.work}</span>}
               </div>
@@ -531,10 +844,35 @@ const AddAccount = () => {
                     {g.name && g.cnic && g.cnicFront && g.cnicBack && <span className="filled-badge"><CheckCircle size={12} /> Complete</span>}
                   </div>
                   <div className="guarantor-grid">
-                    <input type="text" className="form-input" placeholder="Full Name" value={g.name} onChange={(e) => handleGuarantorChange(index, 'name', e.target.value)} />
-                    <input type="text" className="form-input" placeholder="CNIC" value={g.cnic} onChange={(e) => handleGuarantorChange(index, 'cnic', e.target.value)} />
-                    <input type="tel" className="form-input" placeholder="Phone" value={g.phone} onChange={(e) => handleGuarantorChange(index, 'phone', e.target.value)} />
-                    <input type="text" className="form-input" placeholder="Address" value={g.address} onChange={(e) => handleGuarantorChange(index, 'address', e.target.value)} />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Full Name" 
+                      value={g.name} 
+                      onChange={(e) => handleGuarantorChange(index, 'name', e.target.value)} 
+                    />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="CNIC" 
+                      value={g.cnic} 
+                      onChange={(e) => handleGuarantorChange(index, 'cnic', e.target.value)} 
+                      onBlur={() => handleGuarantorCnicBlur(index)}
+                    />
+                    <input 
+                      type="tel" 
+                      className="form-input" 
+                      placeholder="Phone" 
+                      value={g.phone} 
+                      onChange={(e) => handleGuarantorChange(index, 'phone', e.target.value)} 
+                    />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Address" 
+                      value={g.address} 
+                      onChange={(e) => handleGuarantorChange(index, 'address', e.target.value)} 
+                    />
                   </div>
                   <div className="guarantor-images">
                     <div className="guarantor-image-box">
@@ -562,6 +900,7 @@ const AddAccount = () => {
                       <input type="file" ref={(el) => { if (!guarantorRefs.current[index]) guarantorRefs.current[index] = {}; guarantorRefs.current[index].back = el; }} accept="image/*" onChange={(e) => handleGuarantorFileUpload(e, index, 'cnicBack')} style={{ display: 'none' }} />
                     </div>
                   </div>
+                  <small className="field-hint">System will check if this CNIC is already a customer or guarantor</small>
                 </div>
               ))}
               {errors.guarantors && <span className="error-text">{errors.guarantors}</span>}

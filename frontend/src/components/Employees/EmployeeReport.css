@@ -275,7 +275,7 @@
 .employee-report-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1000px;
+  min-width: 700px;
 }
 
 .employee-report-table thead {
@@ -367,25 +367,6 @@
   color: #1E1B4B;
 }
 
-.branch-badge {
-  background: rgba(30, 27, 75, 0.08);
-  color: #1E1B4B;
-  padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.65rem;
-  font-weight: 600;
-}
-
-.role-badge {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
-  padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
 .btn-view-detail {
   padding: 0.25rem 0.6rem;
   border-radius: 0.4rem;
@@ -406,7 +387,40 @@
   transform: scale(1.05);
 }
 
-/* ===== MODAL - FULL SCREEN (SCOPED TO EMPLOYEE REPORT ONLY) ===== */
+/* ===== 7 CARDS IN MODAL ===== */
+.detail-summary-7 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #f8f9fa;
+  border-radius: 0.75rem;
+  width: 100%;
+}
+
+.detail-summary-item {
+  text-align: center;
+  padding: 0.25rem 0;
+  border-top: 3px solid #1E1B4B;
+}
+
+.detail-summary-item span {
+  display: block;
+  font-size: 0.55rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-summary-item strong {
+  display: block;
+  font-size: 0.9rem;
+  color: #0A1628;
+  margin-top: 0.1rem;
+}
+
+/* ===== MODAL - FULL SCREEN ===== */
 .empreport-modal-overlay {
   position: fixed;
   top: 0;
@@ -558,36 +572,6 @@
   display: block;
 }
 
-.detail-summary {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  border-radius: 0.75rem;
-  width: 100%;
-}
-
-.detail-summary-item {
-  text-align: center;
-}
-
-.detail-summary-item span {
-  display: block;
-  font-size: 0.6rem;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.detail-summary-item strong {
-  display: block;
-  font-size: 1.05rem;
-  color: #0A1628;
-  margin-top: 0.1rem;
-}
-
 .modal-chart-section {
   margin-bottom: 1.5rem;
   padding: 1.5rem;
@@ -703,10 +687,6 @@
   background: #1E1B4B;
 }
 
-.modal-chart-container .chart-bar.bar-light {
-  background: #E8D5A3;
-}
-
 .modal-chart-container .bar-value {
   font-size: 0.55rem;
   color: white;
@@ -771,10 +751,6 @@
   background: #1E1B4B;
 }
 
-.legend-dot.light {
-  background: #E8D5A3;
-}
-
 .monthly-breakdown {
   margin-top: 0.5rem;
   width: 100%;
@@ -809,7 +785,7 @@
 .monthly-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 700px;
+  min-width: 500px;
 }
 
 .monthly-table th {
@@ -878,13 +854,15 @@
   background: #f3f4f6;
 }
 
+@media (max-width: 1200px) {
+  .detail-summary-7 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 @media (max-width: 1024px) {
   .summary-cards {
     grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .detail-summary {
-    grid-template-columns: repeat(3, 1fr);
   }
   
   .modal-chart-container .chart-bar {
@@ -894,7 +872,7 @@
 
 @media (max-width: 768px) {
   .employee-report-table {
-    min-width: 800px;
+    min-width: 600px;
   }
   
   .employee-report-table th,
@@ -903,9 +881,10 @@
     font-size: 0.75rem;
   }
   
-  .detail-summary {
+  .detail-summary-7 {
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
+    padding: 0.75rem 1rem;
   }
 
   .empreport-modal-header {
@@ -956,7 +935,7 @@
   }
   
   .monthly-table {
-    min-width: 500px;
+    min-width: 400px;
   }
   
   .monthly-table th,
@@ -970,7 +949,7 @@
     grid-template-columns: 1fr;
   }
   
-  .detail-summary {
+  .detail-summary-7 {
     grid-template-columns: repeat(2, 1fr);
   }
   
@@ -1044,4 +1023,120 @@
     padding: 0.2rem 0.4rem;
     font-size: 0.7rem;
   }
+}
+
+/* Add these styles for stacked chart */
+.chart-stacked-container {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  width: 100%;
+  height: 220px;
+  padding: 0 1rem;
+}
+
+.stacked-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.stacked-bar-wrapper {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  height: 180px;
+  width: 40px;
+}
+
+.stacked-bar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  transition: height 0.6s ease;
+  min-height: 10px;
+  position: relative;
+}
+
+.stacked-bar.acc-bar {
+  background: #C9A84C;
+}
+
+.stacked-bar.rec-bar {
+  background: #1A2A4A;
+}
+
+.stacked-value {
+  font-size: 0.45rem;
+  color: white;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.stacked-label {
+  font-size: 0.6rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Pie chart styles */
+.chart-pie-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.pie-chart {
+  width: 220px;
+  height: 220px;
+}
+
+/* Area chart custom */
+.chart-area-container-custom {
+  width: 100%;
+  padding: 0.2rem;
+}
+
+/* Chart legend */
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.chart-legend span {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.legend-dot.gold {
+  background: #C9A84C;
+}
+
+.legend-dot.dark {
+  background: #1A2A4A;
+}
+
+.legend-dot.light {
+  background: #E8D5A3;
 }

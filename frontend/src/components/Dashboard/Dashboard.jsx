@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import StatsCard from './StatsCard';
-import { Users, Package, DollarSign, TrendingUp, BarChart, LineChart, PieChart, Activity, Award, AlertTriangle, Building, Home, UserCheck } from 'lucide-react';
+import { Users, Package, DollarSign, TrendingUp, BarChart, LineChart, PieChart, Activity, Award, AlertTriangle, Building, Home, UserCheck, Calendar, Clock } from 'lucide-react';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -20,6 +20,14 @@ const Dashboard = () => {
     }
   }, []);
 
+  // ===== GET CURRENT MONTH =====
+  const getCurrentMonth = () => {
+    const now = new Date();
+    return now.toLocaleString('default', { month: 'long' });
+  };
+
+  const currentMonth = getCurrentMonth();
+
   const branchData = {
     1: {
       name: 'Branch 1',
@@ -27,6 +35,8 @@ const Dashboard = () => {
       products: 1856,
       revenue: 28400000,
       recoveryRate: 92,
+      newAccounts: 18,
+      monthlyRecovery: 420000,
       chartData: {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
         values: [120, 150, 180, 200, 220, 250]
@@ -53,6 +63,8 @@ const Dashboard = () => {
       products: 1600,
       revenue: 26320000,
       recoveryRate: 78,
+      newAccounts: 12,
+      monthlyRecovery: 350000,
       chartData: {
         labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
         values: [80, 100, 130, 160, 180, 210]
@@ -81,6 +93,8 @@ const Dashboard = () => {
     products: 3456,
     revenue: 54720000,
     recoveryRate: 87,
+    newAccounts: 30,
+    monthlyRecovery: 770000,
     chartData: {
       labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
       values: [200, 250, 310, 360, 400, 460]
@@ -264,18 +278,44 @@ const Dashboard = () => {
     return null;
   };
 
+  // ===== 4 CARDS =====
   const stats = [
-    { label: 'Total Customers', value: data.customers.toLocaleString(), icon: Users },
-    { label: 'Products in Stock', value: data.products.toLocaleString(), icon: Package },
-    { label: 'Revenue', value: `PKR ${(data.revenue).toLocaleString()}`, icon: DollarSign },
-    { label: 'Recovery Rate', value: `${data.recoveryRate}%`, icon: TrendingUp },
+    { 
+      label: 'Total Customers', 
+      value: data.customers.toLocaleString(), 
+      icon: Users,
+      subtitle: `Branch ${selectedBranch === 'all' ? 'All Branches' : selectedBranch}`
+    },
+    { 
+      label: `New Accounts (${currentMonth})`, 
+      value: data.newAccounts || 0, 
+      icon: Calendar,
+      subtitle: 'This month'
+    },
+    { 
+      label: 'Total Sales', 
+      value: `PKR ${(data.revenue).toLocaleString()}`, 
+      icon: DollarSign,
+      subtitle: 'Lifetime revenue'
+    },
+    { 
+      label: 'Monthly Recovery', 
+      value: `PKR ${(data.monthlyRecovery || 0).toLocaleString()}`, 
+      icon: TrendingUp,
+      subtitle: `${currentMonth} recovery`
+    },
   ];
 
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
         <div className="header-left">
-          <h2>Dashboard</h2>
+          <div className="header-title-group">
+            <h2>Dashboard</h2>
+            <span className="live-badge">
+              <Clock size={12} /> Live
+            </span>
+          </div>
           <p className="branch-label">
             <Building size={16} />
             {data.name}
@@ -304,9 +344,19 @@ const Dashboard = () => {
         )}
       </div>
 
-      <div className="stats-grid">
+      {/* ===== 4 STATS CARDS ===== */}
+      <div className="stats-grid-4">
         {stats.map((stat, index) => (
-          <StatsCard key={index} {...stat} />
+          <div key={index} className="stat-card-4">
+            <div className="stat-card-4-icon">
+              <stat.icon size={24} />
+            </div>
+            <div className="stat-card-4-info">
+              <span className="stat-card-4-label">{stat.label}</span>
+              <span className="stat-card-4-value">{stat.value}</span>
+              <span className="stat-card-4-sub">{stat.subtitle}</span>
+            </div>
+          </div>
         ))}
       </div>
 
