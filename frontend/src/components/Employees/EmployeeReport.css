@@ -1140,3 +1140,49 @@
 .legend-dot.light {
   background: #E8D5A3;
 }
+
+/* ===== SUMMARY CARDS - EMPLOYEE 3 CARDS ===== */
+.summary-cards.employee-cards {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.summary-cards.employee-cards .summary-card {
+  min-width: 0;
+}
+
+.summary-card .summary-icon.users {
+  background: rgba(30, 27, 75, 0.08);
+  color: #1E1B4B;
+}
+
+.summary-card .summary-icon.recovery {
+  background: rgba(201, 168, 76, 0.12);
+  color: #C9A84C;
+}
+
+.summary-card .summary-icon.commission {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.summary-card .summary-icon.accounts {
+  background: rgba(16, 185, 129, 0.1);
+  color: #065f46;
+}
+
+.summary-card .summary-icon.overdue {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .summary-cards.employee-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-cards.employee-cards {
+    grid-template-columns: 1fr;
+  }
+}

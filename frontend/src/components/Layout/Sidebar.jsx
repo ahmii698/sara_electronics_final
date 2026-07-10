@@ -47,15 +47,24 @@ const Sidebar = () => {
       </div>
 
       <nav className="sidebar-nav">
-        {/* ===== EMPLOYEE - SIRF OVERDUE INSTALLMENTS ===== */}
+        {/* ===== EMPLOYEE - OVERDUE INSTALLMENTS AUR EMPLOYEE REPORT ===== */}
         {isEmployee && (
-          <NavLink
-            to="/overdue-installments"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <Clock size={20} />
-            <span>Overdue Installments</span>
-          </NavLink>
+          <>
+            <NavLink
+              to="/overdue-installments"
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Clock size={20} />
+              <span>Overdue Installments</span>
+            </NavLink>
+            <NavLink
+              to="/employee-report"
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <BarChart3 size={20} />
+              <span>Employee Report</span>
+            </NavLink>
+          </>
         )}
 
         {/* ===== DASHBOARD - SIRF ADMIN ===== */}
@@ -101,40 +110,7 @@ const Sidebar = () => {
           </div>
         )}
 
-        {/* ===== OVERDUE INSTALLMENTS - ADMIN AUR MANAGER DONO ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/overdue-installments"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <Clock size={20} />
-            <span>Overdue Installments</span>
-          </NavLink>
-        )}
-
-        {/* ===== AGING REPORT - ADMIN AUR MANAGER DONO ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/aging-report"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <AlertTriangle size={20} />
-            <span>Aging Report</span>
-          </NavLink>
-        )}
-
-        {/* ===== EMPLOYEE PERFORMANCE REPORT - ADMIN AUR MANAGER DONO ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/employee-performance"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <TrendingUp size={20} />
-            <span>Employee Performance</span>
-          </NavLink>
-        )}
-
-        {/* ===== EMPLOYEE REPORT - ADMIN AUR MANAGER DONO ===== */}
+        {/* ===== EMPLOYEE REPORT - ADMIN AUR MANAGER ===== */}
         {(isAdmin || isManager) && (
           <NavLink
             to="/employee-report"
@@ -145,7 +121,40 @@ const Sidebar = () => {
           </NavLink>
         )}
 
-        {/* ===== ADD ACCOUNT - ADMIN AUR MANAGER DONO ===== */}
+        {/* ===== OVERDUE INSTALLMENTS - ADMIN AUR MANAGER ===== */}
+        {(isAdmin || isManager) && (
+          <NavLink
+            to="/overdue-installments"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <Clock size={20} />
+            <span>Overdue Installments</span>
+          </NavLink>
+        )}
+
+        {/* ===== AGING REPORT - ADMIN AUR MANAGER ===== */}
+        {(isAdmin || isManager) && (
+          <NavLink
+            to="/aging-report"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <AlertTriangle size={20} />
+            <span>Aging Report</span>
+          </NavLink>
+        )}
+
+        {/* ===== EMPLOYEE PERFORMANCE REPORT - ADMIN AUR MANAGER ===== */}
+        {(isAdmin || isManager) && (
+          <NavLink
+            to="/employee-performance"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <TrendingUp size={20} />
+            <span>Employee Performance</span>
+          </NavLink>
+        )}
+
+        {/* ===== ADD ACCOUNT - ADMIN AUR MANAGER ===== */}
         {(isAdmin || isManager) && (
           <NavLink
             to="/add-account"
@@ -156,7 +165,7 @@ const Sidebar = () => {
           </NavLink>
         )}
 
-        {/* ===== RECOVERY - ADMIN AUR MANAGER DONO ===== */}
+        {/* ===== RECOVERY - ADMIN AUR MANAGER ===== */}
         {(isAdmin || isManager) && (
           <NavLink
             to="/recovery"
@@ -167,7 +176,7 @@ const Sidebar = () => {
           </NavLink>
         )}
 
-        {/* ===== EMPLOYEES - ADMIN AUR MANAGER DONO ===== */}
+        {/* ===== EMPLOYEES - ADMIN AUR MANAGER ===== */}
         {(isAdmin || isManager) && (
           <NavLink
             to="/employees/add"

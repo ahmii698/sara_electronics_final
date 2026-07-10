@@ -433,6 +433,21 @@ const EmployeeReport = () => {
     ];
   };
 
+  // ===== CHECK IF USER IS EMPLOYEE =====
+  const isEmployee = userRole === 'employee';
+
+  // ===== SUMMARY CARDS - EMPLOYEE KO SIRF 3 CARDS =====
+  const summaryCards = isEmployee ? [
+    { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#1E1B4B', className: 'accounts' },
+    { label: 'Recovery Due', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', className: 'recovery' },
+    { label: 'Overdue', value: filteredEmployees.filter(e => e.totalLeaves > 0).length, icon: AlertCircle, color: '#dc2626', className: 'overdue' },
+  ] : [
+    { label: 'Total Employees', value: totalEmployees, icon: Users, color: '#1E1B4B', className: 'users' },
+    { label: 'Total Recovery', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', className: 'recovery' },
+    { label: 'Total Commission', value: `PKR ${totalCommission.toLocaleString()}`, icon: Award, color: '#2563eb', className: 'commission' },
+    { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#065f46', className: 'accounts' },
+  ];
+
   return (
     <div className="employee-report-container">
       <div className="report-header">
@@ -467,7 +482,7 @@ const EmployeeReport = () => {
           />
         </div>
 
-        {!userBranch && (
+        {!userBranch && !isEmployee && (
           <div className="branch-filters">
             <button className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`} onClick={() => setBranchFilter('all')}>All</button>
             <button className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`} onClick={() => setBranchFilter('1')}>Branch 1</button>
@@ -476,35 +491,19 @@ const EmployeeReport = () => {
         )}
       </div>
 
-      <div className="summary-cards">
-        <div className="summary-card">
-          <div className="summary-icon users"><Users size={20} /></div>
-          <div className="summary-info">
-            <span className="summary-label">Total Employees</span>
-            <span className="summary-value">{totalEmployees}</span>
+      {/* ===== SUMMARY CARDS - EMPLOYEE KE LIYE 3, BAAQI KE LIYE 4 ===== */}
+      <div className={`summary-cards ${isEmployee ? 'employee-cards' : ''}`}>
+        {summaryCards.map((card, index) => (
+          <div key={index} className="summary-card" style={{ borderTopColor: card.color }}>
+            <div className={`summary-icon ${card.className}`}>
+              <card.icon size={20} />
+            </div>
+            <div className="summary-info">
+              <span className="summary-label">{card.label}</span>
+              <span className="summary-value">{card.value}</span>
+            </div>
           </div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon recovery"><DollarSign size={20} /></div>
-          <div className="summary-info">
-            <span className="summary-label">Total Recovery</span>
-            <span className="summary-value">PKR {totalRecovery.toLocaleString()}</span>
-          </div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon commission"><Award size={20} /></div>
-          <div className="summary-info">
-            <span className="summary-label">Total Commission</span>
-            <span className="summary-value">PKR {totalCommission.toLocaleString()}</span>
-          </div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-icon accounts"><Briefcase size={20} /></div>
-          <div className="summary-info">
-            <span className="summary-label">Total Accounts</span>
-            <span className="summary-value">{totalAccounts}</span>
-          </div>
-        </div>
+        ))}
       </div>
 
       <div className="employee-table-wrap">

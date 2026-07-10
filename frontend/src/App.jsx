@@ -25,9 +25,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" />;
   }
 
-  // Employee - SIRF Overdue Installments allow
+  // Employee - Overdue Installments aur Employee Report allow
   if (user.role === 'employee') {
-    if (location.pathname === '/overdue-installments') {
+    if (location.pathname === '/overdue-installments' || 
+        location.pathname === '/employee-report') {
       return children;
     }
     return <Navigate to="/overdue-installments" />;
@@ -112,6 +113,8 @@ const App = () => {
                 <Route path="/recovery" element={<Recovery />} />
                 <Route path="/employees/add" element={<AddEmployee />} />
                 <Route path="/employee-expenses" element={<EmployeeExpenses />} />
+                
+                {/* ===== EMPLOYEE REPORT - ADMIN, MANAGER, EMPLOYEE SABKO ===== */}
                 <Route path="/employee-report" element={<EmployeeReport />} />
                 
                 {/* ===== OVERDUE INSTALLMENTS - SABKO ===== */}
