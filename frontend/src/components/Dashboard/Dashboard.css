@@ -1,28 +1,28 @@
 /* ============================================ */
-/* ===== DASHBOARD.CSS - FINAL FIX ===== */
+/* ===== DASHBOARD.CSS - FINAL (Desktop + Mobile) ===== */
 /* ============================================ */
 
 .dashboard-container {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.5rem;
   width: 100%;
   max-width: 100%;
-  padding: 0 !important;
-  margin: 0 !important;
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
 }
 
-/* ===== HEADER ===== */
+/* ===== HEADER - DESKTOP ===== */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 1rem;
   background: white;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 1rem;
   border: 1px solid #f3f4f6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   width: 100%;
@@ -32,18 +32,18 @@
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
 }
 
 .header-title-group {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .dashboard-header h2 {
-  font-size: 1.1rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #0A1628;
   margin: 0;
@@ -52,47 +52,62 @@
 .live-badge {
   display: flex;
   align-items: center;
-  gap: 0.2rem;
-  font-size: 0.5rem;
+  gap: 0.3rem;
+  font-size: 0.6rem;
   font-weight: 600;
   color: #22c55e;
   background: #dcfce7;
-  padding: 0.1rem 0.4rem;
+  padding: 0.2rem 0.6rem;
   border-radius: 9999px;
   border: 1px solid #bbf7d0;
   white-space: nowrap;
 }
 
 .live-badge svg {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 
 .branch-label {
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: #6b7280;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 
 .branch-label svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+}
+
+.branch-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: white;
+  font-size: 0.875rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.branch-select:focus {
+  border-color: #1E1B4B;
+  box-shadow: 0 0 0 3px rgba(30, 27, 75, 0.2);
 }
 
 .manager-badge {
-  padding: 0.2rem 0.6rem;
+  padding: 0.4rem 1rem;
   background: #ede9fe;
   color: #1E1B4B;
-  border-radius: 0.5rem;
-  font-size: 0.65rem;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 600;
   border: 1px solid #c4b5fd;
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.3rem;
   white-space: nowrap;
 }
 
@@ -101,11 +116,11 @@
   height: 14px;
 }
 
-/* ===== 4 STATS CARDS ===== */
+/* ===== 4 STATS CARDS - DESKTOP ===== */
 .stats-grid-4 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
+  gap: 1rem;
   width: 100%;
   box-sizing: border-box;
 }
@@ -113,10 +128,10 @@
 .stat-card-4 {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
   background: white;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   border: 1px solid #f3f4f6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   transition: all 0.3s;
@@ -126,14 +141,14 @@
 }
 
 .stat-card-4:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .stat-card-4-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 0.4rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 0.75rem;
   background: rgba(30, 27, 75, 0.08);
   color: #1E1B4B;
   display: flex;
@@ -143,8 +158,8 @@
 }
 
 .stat-card-4-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
 }
 
 .stat-card-4-info {
@@ -155,15 +170,15 @@
 }
 
 .stat-card-4-label {
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   white-space: nowrap;
 }
 
 .stat-card-4-value {
-  font-size: 1rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: #0A1628;
   white-space: nowrap;
@@ -172,16 +187,16 @@
 }
 
 .stat-card-4-sub {
-  font-size: 0.45rem;
+  font-size: 0.6rem;
   color: #9ca3af;
   white-space: nowrap;
 }
 
-/* ===== CHART SECTION ===== */
+/* ===== CHART SECTION - DESKTOP ===== */
 .chart-section {
   background: white;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  padding: 1.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #f3f4f6;
   width: 100%;
@@ -193,33 +208,33 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.5rem;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .chart-header h3 {
   font-weight: 600;
   color: #0A1628;
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 1rem;
 }
 
 .chart-type-selector {
   display: flex;
-  gap: 0.2rem;
+  gap: 0.3rem;
   flex-wrap: wrap;
 }
 
 .chart-type-btn {
   display: flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 0.3rem;
+  gap: 0.3rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
   border: 1px solid #e5e7eb;
   background: white;
   color: #6b7280;
-  font-size: 0.55rem;
+  font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.3s;
   white-space: nowrap;
@@ -236,12 +251,12 @@
 }
 
 .chart-type-btn svg {
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
 }
 
 .chart-container {
-  min-height: 180px;
+  min-height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -249,14 +264,14 @@
   overflow: hidden;
 }
 
-/* ===== CHART BAR ===== */
+/* ===== CHART BAR - DESKTOP ===== */
 .chart-bar-container {
   display: flex;
   justify-content: space-around;
   align-items: flex-end;
   width: 100%;
-  height: 180px;
-  padding: 0 0.15rem;
+  height: 240px;
+  padding: 0 0.5rem;
   box-sizing: border-box;
 }
 
@@ -264,7 +279,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.5rem;
   flex: 1;
   height: 100%;
   justify-content: flex-end;
@@ -273,26 +288,26 @@
 .chart-bars {
   display: flex;
   align-items: flex-end;
-  gap: 0.2rem;
-  height: 150px;
+  gap: 0.5rem;
+  height: 200px;
 }
 
 .chart-bar-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.05rem;
+  gap: 0.15rem;
 }
 
 .chart-bar {
-  width: 24px;
-  border-radius: 3px 3px 0 0;
+  width: 32px;
+  border-radius: 4px 4px 0 0;
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   transition: height 0.6s ease;
-  min-height: 6px;
+  min-height: 10px;
 }
 
 .chart-bar.bar-gold {
@@ -304,22 +319,22 @@
 }
 
 .bar-value {
-  font-size: 0.45rem;
+  font-size: 0.6rem;
   color: white;
   font-weight: 600;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .bar-label {
-  font-size: 0.45rem;
+  font-size: 0.6rem;
   color: #6b7280;
   font-weight: 600;
 }
 
-/* ===== CHART LINE ===== */
+/* ===== CHART LINE - DESKTOP ===== */
 .chart-line-container {
   width: 100%;
-  padding: 0.15rem;
+  padding: 0.5rem;
   box-sizing: border-box;
 }
 
@@ -329,12 +344,12 @@
   max-width: 100%;
 }
 
-/* ===== CHART LEGEND ===== */
+/* ===== CHART LEGEND - DESKTOP ===== */
 .chart-legend {
   display: flex;
   justify-content: center;
-  gap: 0.75rem;
-  margin-top: 0.4rem;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
   flex-wrap: wrap;
 }
 
@@ -344,10 +359,10 @@
 
 .legend-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  margin-right: 0.2rem;
+  margin-right: 0.3rem;
 }
 
 .legend-dot.gold {
@@ -362,27 +377,27 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
+  gap: 1rem;
   width: 100%;
 }
 
 .pie-chart {
-  width: 160px;
-  height: 160px;
+  width: 220px;
+  height: 220px;
   max-width: 100%;
 }
 
 .chart-area-container {
   width: 100%;
-  padding: 0.15rem;
+  padding: 0.5rem;
   box-sizing: border-box;
 }
 
-/* ===== PERFORMERS & REVENUE GRID ===== */
+/* ===== PERFORMERS & REVENUE GRID - DESKTOP ===== */
 .performers-revenue-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: 1.5rem;
   align-items: stretch;
   width: 100%;
   box-sizing: border-box;
@@ -390,39 +405,39 @@
 
 .performers-section {
   background: white;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  padding: 1.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #f3f4f6;
   width: 100%;
   box-sizing: border-box;
-  min-height: 200px;
+  min-height: 280px;
 }
 
 .performers-section h3 {
   font-weight: 600;
   color: #0A1628;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
+  gap: 0.5rem;
+  font-size: 1rem;
 }
 
 .performers-section h3 svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .performer-card {
-  padding: 0.15rem 0;
+  padding: 0.5rem 0;
 }
 
 .performer-card h4 {
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #1E1B4B;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.75rem;
 }
 
 .performer-table {
@@ -432,16 +447,16 @@
 
 .performer-table thead th {
   text-align: left;
-  font-size: 0.5rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   color: #6b7280;
-  padding: 0.15rem 0.2rem;
+  padding: 0.3rem 0.4rem;
   border-bottom: 2px solid #e5e7eb;
 }
 
 .performer-table tbody td {
-  padding: 0.2rem 0.2rem;
-  font-size: 0.7rem;
+  padding: 0.4rem 0.4rem;
+  font-size: 0.85rem;
   color: #1f2937;
   border-bottom: 1px solid #f3f4f6;
 }
@@ -453,7 +468,7 @@
 .performer-table .rank-col {
   font-weight: 700;
   color: #1E1B4B;
-  width: 20px;
+  width: 30px;
 }
 
 .performer-table .count-col {
@@ -462,16 +477,16 @@
   text-align: right;
 }
 
-/* ===== REVENUE SECTION ===== */
+/* ===== REVENUE SECTION - DESKTOP ===== */
 .revenue-section {
   background: white;
-  border-radius: 0.75rem;
-  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  padding: 1.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #f3f4f6;
   width: 100%;
   box-sizing: border-box;
-  min-height: 200px;
+  min-height: 280px;
 }
 
 .revenue-header {
@@ -479,7 +494,7 @@
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .revenue-header h3 {
@@ -488,28 +503,28 @@
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.8rem;
+  gap: 0.5rem;
+  font-size: 1rem;
 }
 
 .revenue-header h3 svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 .expand-btn {
   background: none;
   border: 1px solid #e5e7eb;
-  border-radius: 0.3rem;
-  padding: 0.1rem 0.3rem;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
   cursor: pointer;
   color: #6b7280;
   transition: all 0.3s;
 }
 
 .expand-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
 }
 
 .expand-btn:hover {
@@ -519,18 +534,18 @@
 .revenue-bars {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 1rem;
 }
 
 .branch-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.2rem 0.3rem;
-  border-radius: 0.3rem;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
   transition: background 0.3s;
-  font-size: 0.65rem;
+  font-size: 0.85rem;
 }
 
 .branch-row:hover {
@@ -539,11 +554,11 @@
 
 .branch-row .bar-track {
   flex: 1;
-  height: 0.35rem;
+  height: 0.5rem;
   background: #e5e7eb;
   border-radius: 9999px;
   overflow: hidden;
-  min-width: 15px;
+  min-width: 30px;
 }
 
 .branch-row .bar-fill {
@@ -560,10 +575,10 @@
   background: #1E1B4B;
 }
 
-/* ===== BRANCH OVERVIEW EXPANDED ===== */
+/* ===== BRANCH OVERVIEW EXPANDED - DESKTOP ===== */
 .branch-overview-expanded {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
   border-top: 2px solid #f3f4f6;
   animation: slideDown 0.3s ease;
 }
@@ -580,22 +595,22 @@
 }
 
 .branch-overview-header h4 {
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #1E1B4B;
-  margin-bottom: 0.3rem;
+  margin-bottom: 1rem;
 }
 
 .branch-overview-details {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.5rem;
 }
 
 .overview-item {
   display: flex;
   justify-content: space-between;
-  padding: 0.2rem 0;
+  padding: 0.5rem 0;
   border-bottom: 1px solid #f3f4f6;
 }
 
@@ -605,17 +620,17 @@
 
 .overview-item.profit {
   border-top: 2px solid #1E1B4B;
-  padding-top: 0.3rem;
-  margin-top: 0.1rem;
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 .overview-label {
-  font-size: 0.65rem;
+  font-size: 0.85rem;
   color: #6b7280;
 }
 
 .overview-value {
-  font-size: 0.65rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #1f2937;
 }
@@ -623,107 +638,423 @@
 .overview-value.profit {
   color: #22c55e;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 1rem;
 }
 
 /* ============================================ */
-/* ===== RESPONSIVE ===== */
+/* ===== RESPONSIVE - TABLET (1024px) ===== */
 /* ============================================ */
-
-/* Tablet */
 @media (max-width: 1024px) {
   .dashboard-container {
-    gap: 0.5rem;
+    gap: 1rem;
   }
   
   .stats-grid-4 {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.4rem;
+    gap: 0.75rem;
   }
   
   .stat-card-4 {
-    padding: 0.4rem 0.6rem;
+    padding: 1rem 1.25rem;
   }
   
   .stat-card-4-value {
-    font-size: 0.9rem;
+    font-size: 1.1rem;
   }
   
   .chart-bar {
-    width: 20px;
+    width: 28px;
   }
   
   .performers-revenue-grid {
-    gap: 0.5rem;
+    gap: 1rem;
+  }
+  
+  .performers-section,
+  .revenue-section {
+    min-height: auto;
   }
 }
 
-/* Mobile */
+/* ============================================ */
+/* ===== RESPONSIVE - MOBILE (768px) ===== */
+/* ============================================ */
 @media (max-width: 768px) {
   .dashboard-container {
-    gap: 0.4rem;
+    gap: 0.75rem;
   }
   
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
-    padding: 0.5rem 0.6rem;
-    gap: 0.3rem;
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
   }
   
   .dashboard-header h2 {
-    font-size: 0.9rem;
+    font-size: 1.2rem;
   }
   
   .stats-grid-4 {
     grid-template-columns: 1fr 1fr;
-    gap: 0.3rem;
+    gap: 0.5rem;
   }
   
   .stat-card-4 {
-    padding: 0.35rem 0.4rem;
-    gap: 0.3rem;
-    border-radius: 0.4rem;
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
   }
   
   .stat-card-4-icon {
-    width: 28px;
-    height: 28px;
+    width: 40px;
+    height: 40px;
   }
   
   .stat-card-4-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .stat-card-4-value {
+    font-size: 1rem;
+  }
+  
+  .stat-card-4-label {
+    font-size: 0.55rem;
+  }
+  
+  .chart-section {
+    padding: 1rem;
+  }
+  
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .chart-header h3 {
+    font-size: 0.9rem;
+  }
+  
+  .chart-type-selector {
+    width: 100%;
+  }
+  
+  .chart-type-btn {
+    font-size: 0.65rem;
+    padding: 0.3rem 0.6rem;
+  }
+  
+  .chart-type-btn svg {
     width: 14px;
     height: 14px;
   }
   
-  .stat-card-4-value {
+  .chart-bar-container {
+    height: 200px;
+  }
+  
+  .chart-bars {
+    height: 160px;
+  }
+  
+  .chart-bar {
+    width: 22px;
+  }
+  
+  .bar-value {
+    font-size: 0.5rem;
+  }
+  
+  .bar-label {
+    font-size: 0.5rem;
+  }
+  
+  .performers-revenue-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .performers-section,
+  .revenue-section {
+    min-height: auto;
+    padding: 1rem;
+  }
+  
+  .performers-section h3,
+  .revenue-header h3 {
+    font-size: 0.9rem;
+  }
+  
+  .performer-table tbody td {
     font-size: 0.75rem;
+    padding: 0.3rem 0.3rem;
   }
   
-  .stat-card-4-label {
-    font-size: 0.4rem;
+  .performer-table thead th {
+    font-size: 0.55rem;
+    padding: 0.2rem 0.3rem;
   }
   
-  .stat-card-4-sub {
-    font-size: 0.38rem;
+  .branch-row {
+    font-size: 0.75rem;
+    padding: 0.3rem;
+    gap: 0.5rem;
   }
   
-  .chart-section {
-    padding: 0.5rem;
+  .branch-row .bar-track {
+    height: 0.4rem;
   }
   
-  .chart-header h3 {
+  .pie-chart {
+    width: 180px;
+    height: 180px;
+  }
+  
+  .chart-legend {
+    gap: 0.75rem;
+  }
+  
+  .chart-legend span {
+    font-size: 0.7rem;
+  }
+}
+
+/* ============================================ */
+/* ===== RESPONSIVE - MOBILE SMALL (480px) ===== */
+/* ============================================ */
+@media (max-width: 480px) {
+  .dashboard-container {
+    gap: 0.5rem;
+  }
+  
+  .dashboard-header {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+  }
+  
+  .dashboard-header h2 {
+    font-size: 1rem;
+  }
+  
+  .live-badge {
+    font-size: 0.5rem;
+    padding: 0.15rem 0.4rem;
+  }
+  
+  .live-badge svg {
+    width: 10px;
+    height: 10px;
+  }
+  
+  .branch-label {
     font-size: 0.7rem;
   }
   
+  .branch-label svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .manager-badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.6rem;
+  }
+  
+  .manager-badge svg {
+    width: 12px;
+    height: 12px;
+  }
+  
+  .stats-grid-4 {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+  
+  .stat-card-4 {
+    padding: 0.5rem 0.6rem;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+  }
+  
+  .stat-card-4-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 0.5rem;
+  }
+  
+  .stat-card-4-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .stat-card-4-value {
+    font-size: 0.85rem;
+  }
+  
+  .stat-card-4-label {
+    font-size: 0.5rem;
+  }
+  
+  .stat-card-4-sub {
+    font-size: 0.5rem;
+  }
+  
+  .chart-section {
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+  }
+  
+  .chart-header h3 {
+    font-size: 0.8rem;
+  }
+  
   .chart-type-btn {
-    font-size: 0.45rem;
-    padding: 0.15rem 0.3rem;
+    font-size: 0.55rem;
+    padding: 0.2rem 0.4rem;
   }
   
   .chart-type-btn svg {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
+  }
+  
+  .chart-container {
+    min-height: 200px;
+  }
+  
+  .chart-bar-container {
+    height: 160px;
+    padding: 0 0.25rem;
+  }
+  
+  .chart-bars {
+    height: 130px;
+    gap: 0.15rem;
+  }
+  
+  .chart-bar {
+    width: 16px;
+    min-height: 6px;
+  }
+  
+  .bar-value {
+    font-size: 0.4rem;
+    margin-top: 2px;
+  }
+  
+  .bar-label {
+    font-size: 0.45rem;
+  }
+  
+  .performers-section,
+  .revenue-section {
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+  }
+  
+  .performers-section h3,
+  .revenue-header h3 {
+    font-size: 0.8rem;
+  }
+  
+  .performers-section h3 svg,
+  .revenue-header h3 svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .performer-card h4 {
+    font-size: 0.75rem;
+  }
+  
+  .performer-table tbody td {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.2rem;
+  }
+  
+  .performer-table thead th {
+    font-size: 0.5rem;
+    padding: 0.15rem 0.2rem;
+  }
+  
+  .performer-table .rank-col {
+    width: 20px;
+  }
+  
+  .branch-row {
+    font-size: 0.65rem;
+    padding: 0.25rem;
+    gap: 0.3rem;
+  }
+  
+  .branch-row .bar-track {
+    height: 0.3rem;
+    min-width: 20px;
+  }
+  
+  .expand-btn {
+    padding: 0.15rem 0.35rem;
+  }
+  
+  .expand-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .pie-chart {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .chart-legend {
+    gap: 0.5rem;
+  }
+  
+  .chart-legend span {
+    font-size: 0.6rem;
+  }
+  
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .overview-item {
+    padding: 0.3rem 0;
+  }
+  
+  .overview-label,
+  .overview-value {
+    font-size: 0.7rem;
+  }
+  
+  .overview-value.profit {
+    font-size: 0.8rem;
+  }
+  
+  .branch-overview-expanded {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+  
+  .branch-overview-header h4 {
+    font-size: 0.75rem;
+  }
+}
+
+/* ============================================ */
+/* ===== RESPONSIVE - EXTRA SMALL (360px) ===== */
+/* ============================================ */
+@media (max-width: 360px) {
+  .stats-grid-4 {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+  
+  .stat-card-4 {
+    padding: 0.4rem 0.5rem;
   }
   
   .chart-bar-container {
@@ -735,276 +1066,18 @@
   }
   
   .chart-bar {
-    width: 16px;
-  }
-  
-  .bar-value {
-    font-size: 0.35rem;
-  }
-  
-  .bar-label {
-    font-size: 0.35rem;
-  }
-  
-  .performers-revenue-grid {
-    grid-template-columns: 1fr;
-    gap: 0.4rem;
-  }
-  
-  .performers-section,
-  .revenue-section {
-    padding: 0.5rem;
-    min-height: auto;
-  }
-  
-  .performers-section h3,
-  .revenue-header h3 {
-    font-size: 0.7rem;
-  }
-  
-  .performer-table tbody td {
-    font-size: 0.55rem;
-    padding: 0.15rem 0.15rem;
-  }
-  
-  .performer-table thead th {
-    font-size: 0.4rem;
-    padding: 0.1rem 0.15rem;
-  }
-  
-  .branch-row {
-    font-size: 0.55rem;
-    padding: 0.15rem;
-  }
-  
-  .pie-chart {
-    width: 130px;
-    height: 130px;
-  }
-  
-  .chart-legend span {
-    font-size: 0.5rem;
-  }
-  
-  .legend-dot {
-    width: 6px;
-    height: 6px;
-  }
-}
-
-/* Mobile Small */
-@media (max-width: 480px) {
-  .dashboard-container {
-    gap: 0.3rem;
-  }
-  
-  .dashboard-header {
-    padding: 0.4rem 0.5rem;
-  }
-  
-  .dashboard-header h2 {
-    font-size: 0.8rem;
-  }
-  
-  .live-badge {
-    font-size: 0.4rem;
-    padding: 0.08rem 0.3rem;
-  }
-  
-  .live-badge svg {
-    width: 8px;
-    height: 8px;
-  }
-  
-  .branch-label {
-    font-size: 0.55rem;
-  }
-  
-  .branch-label svg {
-    width: 12px;
-    height: 12px;
-  }
-  
-  .stats-grid-4 {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.2rem;
-  }
-  
-  .stat-card-4 {
-    padding: 0.25rem 0.3rem;
-    gap: 0.2rem;
-    border-radius: 0.3rem;
-  }
-  
-  .stat-card-4-icon {
-    width: 22px;
-    height: 22px;
-    border-radius: 0.3rem;
-  }
-  
-  .stat-card-4-icon svg {
-    width: 12px;
-    height: 12px;
-  }
-  
-  .stat-card-4-value {
-    font-size: 0.65rem;
-  }
-  
-  .stat-card-4-label {
-    font-size: 0.35rem;
-  }
-  
-  .stat-card-4-sub {
-    font-size: 0.32rem;
-  }
-  
-  .chart-section {
-    padding: 0.4rem;
-  }
-  
-  .chart-header h3 {
-    font-size: 0.6rem;
-  }
-  
-  .chart-type-btn {
-    font-size: 0.4rem;
-    padding: 0.1rem 0.25rem;
-  }
-  
-  .chart-type-btn svg {
-    width: 8px;
-    height: 8px;
-  }
-  
-  .chart-bar-container {
-    height: 120px;
-  }
-  
-  .chart-bars {
-    height: 95px;
-    gap: 0.08rem;
-  }
-  
-  .chart-bar {
-    width: 12px;
-    min-height: 3px;
-  }
-  
-  .bar-value {
-    font-size: 0.3rem;
-  }
-  
-  .bar-label {
-    font-size: 0.3rem;
-  }
-  
-  .performers-section,
-  .revenue-section {
-    padding: 0.4rem;
-  }
-  
-  .performers-section h3,
-  .revenue-header h3 {
-    font-size: 0.6rem;
-  }
-  
-  .performers-section h3 svg,
-  .revenue-header h3 svg {
-    width: 12px;
-    height: 12px;
-  }
-  
-  .performer-card h4 {
-    font-size: 0.55rem;
-  }
-  
-  .performer-table tbody td {
-    font-size: 0.5rem;
-    padding: 0.1rem 0.1rem;
-  }
-  
-  .performer-table thead th {
-    font-size: 0.35rem;
-    padding: 0.08rem 0.1rem;
-  }
-  
-  .performer-table .rank-col {
-    width: 15px;
-  }
-  
-  .branch-row {
-    font-size: 0.5rem;
-    padding: 0.1rem;
-    gap: 0.2rem;
-  }
-  
-  .branch-row .bar-track {
-    height: 0.2rem;
-    min-width: 10px;
-  }
-  
-  .expand-btn svg {
-    width: 10px;
-    height: 10px;
-  }
-  
-  .pie-chart {
-    width: 100px;
-    height: 100px;
-  }
-  
-  .chart-legend span {
-    font-size: 0.4rem;
-  }
-  
-  .overview-label,
-  .overview-value {
-    font-size: 0.5rem;
-  }
-  
-  .overview-value.profit {
-    font-size: 0.6rem;
-  }
-  
-  .branch-overview-expanded {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-  }
-}
-
-/* Extra Small */
-@media (max-width: 360px) {
-  .stats-grid-4 {
-    grid-template-columns: 1fr;
-    gap: 0.2rem;
-  }
-  
-  .stat-card-4 {
-    padding: 0.2rem 0.25rem;
-  }
-  
-  .chart-bar-container {
-    height: 100px;
-  }
-  
-  .chart-bars {
-    height: 80px;
-  }
-  
-  .chart-bar {
-    width: 10px;
+    width: 14px;
   }
   
   .chart-container {
-    min-height: 120px;
+    min-height: 160px;
   }
   
   .dashboard-header h2 {
-    font-size: 0.7rem;
+    font-size: 0.9rem;
   }
   
   .performers-revenue-grid {
-    gap: 0.3rem;
+    gap: 0.5rem;
   }
 }

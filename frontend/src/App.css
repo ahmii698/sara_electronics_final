@@ -1,5 +1,5 @@
 /* ============================================ */
-/* ===== APP.CSS - FINAL FIX ===== */
+/* ===== APP.CSS - FINAL (Desktop + Mobile) ===== */
 /* ============================================ */
 
 /* ===== RESET & BASE ===== */
@@ -31,7 +31,7 @@ body,
   background: #f8f9fa;
 }
 
-/* ===== MAIN CONTENT ===== */
+/* ===== MAIN CONTENT - DESKTOP ===== */
 .main-content {
   flex: 1;
   padding: 0;
@@ -47,17 +47,17 @@ body,
   flex-direction: column;
 }
 
-/* ===== PAGE CONTENT - ZERO PADDING ===== */
+/* ===== PAGE CONTENT - DESKTOP ===== */
 .page-content {
   flex: 1;
-  padding: 0 !important;
+  padding: 1rem 1.5rem;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
-/* ===== SABHI PAGES KA CONTAINER ===== */
+/* ===== SABHI PAGES KA CONTAINER - DESKTOP ===== */
 .dashboard-container,
 .employee-performance-container,
 .extra-expenses-container,
@@ -72,12 +72,14 @@ body,
 .fixed-expense-container {
   width: 100%;
   max-width: 100%;
-  padding: 0.5rem !important;
-  margin: 0 !important;
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
 }
 
-/* ===== RESPONSIVE - TABLET (1024px) ===== */
+/* ============================================ */
+/* ===== TABLET (1024px) ===== */
+/* ============================================ */
 @media (max-width: 1024px) {
   .main-content {
     margin-left: 14rem;
@@ -85,23 +87,14 @@ body,
     max-width: calc(100% - 14rem);
   }
   
-  .dashboard-container,
-  .employee-performance-container,
-  .extra-expenses-container,
-  .employee-report-container,
-  .overdue-installments-container,
-  .aging-report-container,
-  .add-account-container,
-  .recovery-container,
-  .employees-container,
-  .finance-container,
-  .salary-container,
-  .fixed-expense-container {
-    padding: 0.4rem !important;
+  .page-content {
+    padding: 0.75rem 1rem;
   }
 }
 
-/* ===== RESPONSIVE - MOBILE (768px) ===== */
+/* ============================================ */
+/* ===== MOBILE (768px) - SIDEBAR HIDDEN ===== */
+/* ============================================ */
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0 !important;
@@ -109,61 +102,26 @@ body,
     max-width: 100% !important;
   }
   
-  .dashboard-container,
-  .employee-performance-container,
-  .extra-expenses-container,
-  .employee-report-container,
-  .overdue-installments-container,
-  .aging-report-container,
-  .add-account-container,
-  .recovery-container,
-  .employees-container,
-  .finance-container,
-  .salary-container,
-  .fixed-expense-container {
-    padding: 0.3rem !important;
+  .page-content {
+    padding: 0.5rem 0.75rem;
   }
 }
 
-/* ===== RESPONSIVE - MOBILE SMALL (480px) ===== */
+/* ============================================ */
+/* ===== MOBILE SMALL (480px) ===== */
+/* ============================================ */
 @media (max-width: 480px) {
-  .main-content {
-    margin-left: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  
-  .dashboard-container,
-  .employee-performance-container,
-  .extra-expenses-container,
-  .employee-report-container,
-  .overdue-installments-container,
-  .aging-report-container,
-  .add-account-container,
-  .recovery-container,
-  .employees-container,
-  .finance-container,
-  .salary-container,
-  .fixed-expense-container {
-    padding: 0.2rem !important;
+  .page-content {
+    padding: 0.25rem 0.5rem;
   }
 }
 
+/* ============================================ */
 /* ===== EXTRA SMALL (360px) ===== */
+/* ============================================ */
 @media (max-width: 360px) {
-  .dashboard-container,
-  .employee-performance-container,
-  .extra-expenses-container,
-  .employee-report-container,
-  .overdue-installments-container,
-  .aging-report-container,
-  .add-account-container,
-  .recovery-container,
-  .employees-container,
-  .finance-container,
-  .salary-container,
-  .fixed-expense-container {
-    padding: 0.1rem !important;
+  .page-content {
+    padding: 0.15rem 0.3rem;
   }
 }
 

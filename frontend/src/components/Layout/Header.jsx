@@ -29,10 +29,8 @@ const Header = () => {
       <header className="header employee-header">
         <div className="employee-header-left">
           <div className="employee-brand">
-      
             <span className="brand-panel">EMPLOYEE PANEL</span>
           </div>
-         
         </div>
         <div className="employee-header-right">
           <div className="header-user">
@@ -53,7 +51,7 @@ const Header = () => {
     );
   }
 
-  // ===== ADMIN/MANAGER HEADER =====
+  // ===== ADMIN/MANAGER HEADER - LEFT SIDE FIXED =====
   return (
     <header className="header">
       <div className="header-left">

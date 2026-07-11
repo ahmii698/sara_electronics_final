@@ -16,7 +16,6 @@ const AddAccount = () => {
 
   // ===== COMPLETE SYSTEM DATA =====
   const systemData = {
-    // Existing customers with their accounts
     customers: [
       { 
         id: 1, 
@@ -89,7 +88,6 @@ const AddAccount = () => {
         isGuarantorFor: []
       },
     ],
-    // Guarantor records
     guarantorRecords: [
       { 
         guarantorCNIC: '12345-6789012-4', 
@@ -122,33 +120,27 @@ const AddAccount = () => {
     ]
   };
 
-  // ===== GET ALL CNICS IN SYSTEM =====
   const getAllCNICs = () => {
     return systemData.customers.map(c => c.cnic);
   };
 
-  // ===== GET CUSTOMER BY CNIC =====
   const getCustomerByCNIC = (cnic) => {
     return systemData.customers.find(c => c.cnic === cnic);
   };
 
-  // ===== GET GUARANTOR RECORDS BY CNIC =====
   const getGuarantorRecordsByCNIC = (cnic) => {
     return systemData.guarantorRecords.filter(g => g.guarantorCNIC === cnic);
   };
 
-  // ===== GET GUARANTOR RECORDS FOR CUSTOMER =====
   const getGuarantorRecordsForCustomer = (customerCNIC) => {
     return systemData.guarantorRecords.filter(g => g.customerCNIC === customerCNIC);
   };
 
-  // ===== CHECK IF CNIC EXISTS (Customer) =====
   const checkCustomerExists = (cnic) => {
     if (!cnic || cnic.length < 5) return null;
     return getCustomerByCNIC(cnic);
   };
 
-  // ===== CHECK IF CNIC IS A GUARANTOR =====
   const checkIfGuarantor = (cnic) => {
     if (!cnic || cnic.length < 5) return null;
     const records = getGuarantorRecordsByCNIC(cnic);
@@ -158,7 +150,6 @@ const AddAccount = () => {
     return null;
   };
 
-  // ===== CHECK IF CUSTOMER HAS GUARANTORS =====
   const checkCustomerGuarantors = (cnic) => {
     if (!cnic || cnic.length < 5) return null;
     const records = getGuarantorRecordsForCustomer(cnic);
@@ -168,16 +159,13 @@ const AddAccount = () => {
     return null;
   };
 
-  // ===== SHOW TOAST =====
   const showToast = (message, type = 'warning', details = null) => {
     setToast({ message, type, details });
   };
 
-  // ===== CHECK ON CNIC BLUR =====
   const handleCnicBlur = () => {
     if (!formData.cnic || formData.cnic.length < 5) return;
     
-    // Check if customer exists
     const customer = checkCustomerExists(formData.cnic);
     if (customer) {
       showToast(
@@ -187,7 +175,6 @@ const AddAccount = () => {
       return;
     }
 
-    // Check if this CNIC is a guarantor for someone
     const guarantorRecords = checkIfGuarantor(formData.cnic);
     if (guarantorRecords) {
       const details = guarantorRecords.map(g => 
@@ -201,7 +188,6 @@ const AddAccount = () => {
       return;
     }
 
-    // Check if this customer has guarantors
     const customerGuarantors = checkCustomerGuarantors(formData.cnic);
     if (customerGuarantors) {
       const details = customerGuarantors.map(g => 
@@ -215,12 +201,10 @@ const AddAccount = () => {
     }
   };
 
-  // ===== CHECK GUARANTOR CNIC ON BLUR =====
   const handleGuarantorCnicBlur = (index) => {
     const cnic = formData.guarantors[index].cnic;
     if (!cnic || cnic.length < 5) return;
 
-    // Check if this CNIC is already a customer
     const customer = checkCustomerExists(cnic);
     if (customer) {
       showToast(
@@ -230,7 +214,6 @@ const AddAccount = () => {
       return;
     }
 
-    // Check if this CNIC is already a guarantor for someone else
     const guarantorRecords = checkIfGuarantor(cnic);
     if (guarantorRecords) {
       const details = guarantorRecords.map(g => 
@@ -244,7 +227,6 @@ const AddAccount = () => {
       return;
     }
 
-    // Check if this person has their own account
     const existingCustomer = getCustomerByCNIC(cnic);
     if (existingCustomer) {
       showToast(
@@ -254,10 +236,7 @@ const AddAccount = () => {
     }
   };
 
-  // ===== Check if customer has existing guarantors (on name change) =====
-  const handleNameChange = () => {
-    // This will be called when we check if the customer already exists
-  };
+  const handleNameChange = () => {};
 
   const allEmployees = [
     { id: 1, name: 'Ahmed Khan', branch: 1 },
@@ -311,7 +290,6 @@ const AddAccount = () => {
   const voiceFileRef = useRef(null);
   const guarantorRefs = useRef([]);
 
-  // ===== TOAST TIMER =====
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 8000);
@@ -612,6 +590,7 @@ const AddAccount = () => {
               <span className="step-badge">Required</span>
             </div>
 
+            {/* ===== FORM GRID - ADDRESS AUR WORK KO SAME LINE MAIN ===== */}
             <div className="form-grid">
               <div className="form-group">
                 <label>Full Name *</label>
@@ -677,7 +656,8 @@ const AddAccount = () => {
                   <small className="field-hint">Branch locked to {branchLabel}</small>
                 )}
               </div>
-              <div className="form-group full-width">
+              {/* ===== ADDRESS - PHONE NUMBER KI TARAH (2 COLUMN) ===== */}
+              <div className="form-group">
                 <label>Address *</label>
                 <div className="input-with-icon">
                   <MapPin size={18} />
@@ -692,7 +672,8 @@ const AddAccount = () => {
                 </div>
                 {errors.address && <span className="error-text">{errors.address}</span>}
               </div>
-              <div className="form-group full-width">
+              {/* ===== WORK - BRANCH KI TARAH (2 COLUMN) ===== */}
+              <div className="form-group">
                 <label>Work / Occupation *</label>
                 <div className="input-with-icon">
                   <Briefcase size={18} />
