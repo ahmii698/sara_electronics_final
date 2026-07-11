@@ -64,6 +64,12 @@
   margin: 0;
 }
 
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .btn-add-user {
   display: flex;
   align-items: center;
@@ -80,6 +86,27 @@
 }
 
 .btn-add-user:hover {
+  background: #2a265a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(30, 27, 75, 0.3);
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #1E1B4B;
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.85rem;
+}
+
+.btn-export:hover {
   background: #2a265a;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(30, 27, 75, 0.3);
@@ -116,13 +143,13 @@
   border-top-color: #1E1B4B;
 }
 .users-stat-card.admins {
-  border-top-color: #dc2626;
+  border-top-color: #22c55e;
 }
 .users-stat-card.managers {
   border-top-color: #f59e0b;
 }
 .users-stat-card.employees {
-  border-top-color: #2563eb;
+  border-top-color: #C9A84C;
 }
 .users-stat-card.active-users {
   border-top-color: #22c55e;
@@ -210,6 +237,7 @@
 .filter-group {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .filter-select {
@@ -227,6 +255,10 @@
 .filter-select:focus {
   border-color: #1E1B4B;
   box-shadow: 0 0 0 3px rgba(30, 27, 75, 0.12);
+}
+
+.filter-select.date-filter {
+  min-width: 120px;
 }
 
 /* ===== TABLE ===== */
@@ -313,6 +345,38 @@
   border-bottom: none;
 }
 
+/* ===== CLIENTS TABLE ===== */
+.clients-table .case-number {
+  font-weight: 600;
+  color: #1E1B4B;
+}
+
+.clients-table .amount {
+  font-weight: 500;
+}
+
+.clients-table .paid-amount {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.clients-table .balance-amount {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.overdue-row {
+  background: #fef2f2 !important;
+}
+
+.overdue-row td {
+  border-bottom-color: #fecaca !important;
+}
+
+.overdue-row:hover td {
+  background: #fde8e8 !important;
+}
+
 .no-data {
   text-align: center;
   padding: 2.5rem !important;
@@ -363,10 +427,19 @@
 .user-name {
   font-weight: 500;
   color: #0A1628;
+  display: block;
+}
+
+.client-branch {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.6rem;
+  color: #6b7280;
 }
 
 /* ===== BADGES ===== */
-.user-role-badge {
+.client-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
@@ -376,65 +449,40 @@
   font-weight: 600;
 }
 
-.user-role-badge.admin {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.user-role-badge.manager {
-  background: #fef3c7;
-  color: #92400e;
-}
-.user-role-badge.employee {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.user-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.6rem;
-  font-weight: 600;
-}
-
-.user-status-badge.active {
+.client-badge.paid {
   background: #d1fae5;
   color: #065f46;
 }
-.user-status-badge.inactive {
-  background: #f3f4f6;
-  color: #6b7280;
+.client-badge.unpaid {
+  background: #fee2e2;
+  color: #991b1b;
 }
-.user-status-badge.on-leave {
+.client-badge.partial {
   background: #fef3c7;
   color: #92400e;
 }
 
-.user-branch-badge {
+.account-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  font-size: 0.7rem;
-  color: #6b7280;
-  background: #f3f4f6;
   padding: 0.1rem 0.5rem;
   border-radius: 9999px;
+  font-size: 0.6rem;
+  font-weight: 600;
 }
 
-.date-info {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.7rem;
-  color: #4b5563;
+.account-status-badge.active {
+  background: #d1fae5;
+  color: #065f46;
 }
-
-.date-info svg {
-  color: #9ca3af;
-  width: 12px;
-  height: 12px;
+.account-status-badge.hold {
+  background: #fef3c7;
+  color: #92400e;
+}
+.account-status-badge.closed {
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 /* ===== ACTIONS ===== */
@@ -469,22 +517,6 @@
 }
 .btn-edit:hover {
   background: #fde68a;
-  transform: scale(1.05);
-}
-
-.btn-toggle {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-.btn-toggle.active {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.btn-toggle.inactive {
-  background: #d1fae5;
-  color: #065f46;
-}
-.btn-toggle:hover {
   transform: scale(1.05);
 }
 
@@ -609,25 +641,6 @@
   background: #f3f4f6;
 }
 
-.users-btn-save {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 1.5rem;
-  border-radius: 0.5rem;
-  background: #1E1B4B;
-  color: white;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.85rem;
-}
-
-.users-btn-save:hover {
-  background: #2a265a;
-}
-
 /* ===== USER DETAIL ===== */
 .user-detail-header {
   display: flex;
@@ -658,13 +671,6 @@
   font-weight: 600;
   color: #0A1628;
   margin: 0 0 0.2rem 0;
-}
-
-.user-detail-role,
-.user-detail-status,
-.user-detail-branch {
-  display: inline-block;
-  margin-right: 0.5rem;
 }
 
 .user-detail-branch {
@@ -702,45 +708,17 @@
   margin-top: 0.1rem;
 }
 
-/* ===== EDIT FORM ===== */
-.edit-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+.user-detail-item .paid-amount {
+  color: #065f46;
 }
 
-.edit-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.user-detail-item .balance-amount {
+  color: #dc2626;
 }
 
-.edit-form-group label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #374151;
-}
-
-.edit-form-input {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1.5px solid #d1d5db;
-  border-radius: 0.5rem;
-  outline: none;
-  font-size: 0.85rem;
-  transition: all 0.3s;
-  background: white;
-}
-
-.edit-form-input:focus {
-  border-color: #1E1B4B;
-  box-shadow: 0 0 0 3px rgba(30, 27, 75, 0.12);
-}
-
-.edit-form-input:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  background: #f3f4f6;
+.user-detail-item .overdue-text {
+  color: #dc2626;
+  font-weight: 700;
 }
 
 /* ============================================ */
@@ -785,16 +763,16 @@
     width: 100%;
   }
   
+  .filter-select.date-filter {
+    min-width: 100%;
+  }
+  
   .users-table {
     min-width: 700px;
   }
   
   .user-detail-grid {
     grid-template-columns: 1fr 1fr;
-  }
-  
-  .edit-form-grid {
-    grid-template-columns: 1fr;
   }
   
   .users-modal-content {
@@ -810,15 +788,20 @@
     flex-direction: column;
   }
   
-  .users-btn-cancel,
-  .users-btn-save {
+  .users-btn-cancel {
     width: 100%;
     justify-content: center;
   }
   
-  .btn-add-user {
+  .btn-add-user,
+  .btn-export {
     width: 100%;
     justify-content: center;
+  }
+  
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
   }
 }
 
@@ -853,210 +836,5 @@
   .action-group button svg {
     width: 12px;
     height: 12px;
-  }
-}
-/* Add these styles to existing Users.css */
-
-/* ===== TABS ===== */
-.users-tabs {
-  display: flex;
-  gap: 0.5rem;
-  background: white;
-  padding: 0.5rem;
-  border-radius: 1rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1.25rem;
-  border-radius: 0.75rem;
-  border: none;
-  background: transparent;
-  color: #6b7280;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.tab-btn:hover {
-  background: #f3f4f6;
-  color: #1f2937;
-}
-
-.tab-btn.active {
-  background: #1E1B4B;
-  color: white;
-  box-shadow: 0 4px 15px rgba(30, 27, 75, 0.3);
-}
-
-.tab-btn svg {
-  flex-shrink: 0;
-}
-
-/* ===== HEADER ACTIONS ===== */
-.header-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.btn-export {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1.25rem;
-  border-radius: 0.75rem;
-  background: #1E1B4B;
-  color: white;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.85rem;
-}
-
-.btn-export:hover {
-  background: #2a265a;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(30, 27, 75, 0.3);
-}
-
-/* ===== CLIENTS TABLE ===== */
-.clients-table .case-number {
-  font-weight: 600;
-  color: #1E1B4B;
-}
-
-.clients-table .amount {
-  font-weight: 500;
-}
-
-.clients-table .paid-amount {
-  color: #065f46;
-  font-weight: 600;
-}
-
-.clients-table .balance-amount {
-  color: #dc2626;
-  font-weight: 700;
-}
-
-.overdue-row {
-  background: #fef2f2 !important;
-}
-
-.overdue-row td {
-  border-bottom-color: #fecaca !important;
-}
-
-.overdue-row:hover td {
-  background: #fde8e8 !important;
-}
-
-/* ===== CLIENT BADGES ===== */
-.client-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.6rem;
-  font-weight: 600;
-}
-
-.client-badge.paid {
-  background: #d1fae5;
-  color: #065f46;
-}
-.client-badge.unpaid {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.client-badge.partial {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.account-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.6rem;
-  font-weight: 600;
-}
-
-.account-status-badge.active {
-  background: #d1fae5;
-  color: #065f46;
-}
-.account-status-badge.hold {
-  background: #fef3c7;
-  color: #92400e;
-}
-.account-status-badge.closed {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.client-branch {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-size: 0.6rem;
-  color: #6b7280;
-}
-
-.overdue-text {
-  color: #dc2626;
-  font-weight: 700;
-}
-
-/* ===== CLIENTS STATS ===== */
-.users-stats-grid.clients-stats .users-stat-card.admins {
-  border-top-color: #22c55e;
-}
-.users-stats-grid.clients-stats .users-stat-card.managers {
-  border-top-color: #f59e0b;
-}
-.users-stats-grid.clients-stats .users-stat-card.employees {
-  border-top-color: #C9A84C;
-}
-
-/* ===== DATE FILTER ===== */
-.filter-select.date-filter {
-  min-width: 120px;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-  .users-tabs {
-    flex-direction: column;
-  }
-  
-  .tab-btn {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .header-actions {
-    width: 100%;
-    flex-direction: column;
-  }
-  
-  .btn-add-user,
-  .btn-export {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .filter-select.date-filter {
-    min-width: 100%;
   }
 }
