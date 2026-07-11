@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import StatsCard from './StatsCard';
-import { Users, Package, DollarSign, TrendingUp, BarChart, LineChart, PieChart, Activity, Award, AlertTriangle, Building, Home, UserCheck, Calendar, Clock } from 'lucide-react';
+import { Users, Package, DollarSign, TrendingUp, BarChart, LineChart, PieChart, Activity, Award, AlertTriangle, Building, Home, UserCheck, Calendar, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -8,6 +8,7 @@ const Dashboard = () => {
   const [userRole, setUserRole] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
   const [selectedChart, setSelectedChart] = useState('bar');
+  const [showBranchOverview, setShowBranchOverview] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -46,16 +47,13 @@ const Dashboard = () => {
         { name: 'Usman Malik', accounts: 38 },
         { name: 'Bilal Ahmed', accounts: 32 },
       ],
-      lowStock: [
-        { name: 'Sony LED 65"', stock: 5, category: 'TV' },
-        { name: 'Dell Laptop', stock: 8, category: 'Computers' },
-        { name: 'Samsung Galaxy S24', stock: 10, category: 'Mobile' },
-      ],
-      recentTransactions: [
-        { customer: 'Ahmed Khan', amount: 12500, due: '2026-04-01' },
-        { customer: 'Usman Malik', amount: 8500, due: '2026-04-05' },
-        { customer: 'Bilal Ahmed', amount: 22000, due: '2026-04-10' },
-      ]
+      branchOverview: {
+        rent: 450000,
+        salaries: 1200000,
+        utilities: 180000,
+        otherExpenses: 150000,
+        profit: 26420000
+      }
     },
     2: {
       name: 'Branch 2',
@@ -74,16 +72,13 @@ const Dashboard = () => {
         { name: 'Fatima Noor', accounts: 36 },
         { name: 'Ali Raza', accounts: 29 },
       ],
-      lowStock: [
-        { name: 'LG Refrigerator', stock: 12, category: 'Appliances' },
-        { name: 'Apple iPhone 15', stock: 15, category: 'Mobile' },
-        { name: 'Sony Soundbar', stock: 23, category: 'Audio' },
-      ],
-      recentTransactions: [
-        { customer: 'Sara Ali', amount: 18000, due: '2026-04-02' },
-        { customer: 'Fatima Noor', amount: 15000, due: '2026-04-07' },
-        { customer: 'Ali Raza', amount: 9500, due: '2026-04-12' },
-      ]
+      branchOverview: {
+        rent: 380000,
+        salaries: 980000,
+        utilities: 150000,
+        otherExpenses: 120000,
+        profit: 24690000
+      }
     }
   };
 
@@ -104,17 +99,13 @@ const Dashboard = () => {
       { name: 'Sara Ali', accounts: 42 },
       { name: 'Usman Malik', accounts: 38 },
     ],
-    lowStock: [
-      { name: 'Sony LED 65"', stock: 5, category: 'TV' },
-      { name: 'Dell Laptop', stock: 8, category: 'Computers' },
-      { name: 'Samsung Galaxy S24', stock: 10, category: 'Mobile' },
-      { name: 'LG Refrigerator', stock: 12, category: 'Appliances' },
-    ],
-    recentTransactions: [
-      { customer: 'Ahmed Khan', amount: 12500, due: '2026-04-01' },
-      { customer: 'Sara Ali', amount: 18000, due: '2026-04-02' },
-      { customer: 'Usman Malik', amount: 8500, due: '2026-04-05' },
-    ]
+    branchOverview: {
+      rent: 830000,
+      salaries: 2180000,
+      utilities: 330000,
+      otherExpenses: 270000,
+      profit: 51110000
+    }
   };
 
   const getBranchData = () => {
@@ -306,6 +297,37 @@ const Dashboard = () => {
     },
   ];
 
+  // ===== BRANCH OVERVIEW WITH BREAKDOWN =====
+  const renderBranchOverview = () => {
+    const overview = data.branchOverview;
+    if (!overview) return null;
+
+    return (
+      <div className="branch-overview-details">
+        <div className="overview-item">
+          <span className="overview-label">Rent</span>
+          <span className="overview-value">PKR {overview.rent.toLocaleString()}</span>
+        </div>
+        <div className="overview-item">
+          <span className="overview-label">Salaries</span>
+          <span className="overview-value">PKR {overview.salaries.toLocaleString()}</span>
+        </div>
+        <div className="overview-item">
+          <span className="overview-label">Utilities</span>
+          <span className="overview-value">PKR {overview.utilities.toLocaleString()}</span>
+        </div>
+        <div className="overview-item">
+          <span className="overview-label">Other Expenses</span>
+          <span className="overview-value">PKR {overview.otherExpenses.toLocaleString()}</span>
+        </div>
+        <div className="overview-item profit">
+          <span className="overview-label">Net Profit</span>
+          <span className="overview-value profit">PKR {overview.profit.toLocaleString()}</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -321,17 +343,7 @@ const Dashboard = () => {
             {data.name}
           </p>
         </div>
-        {isAdmin && (
-          <select 
-            className="branch-select" 
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-          >
-            <option value="all">All Branches</option>
-            <option value="1">Branch 1</option>
-            <option value="2">Branch 2</option>
-          </select>
-        )}
+       
         {userRole === 'manager' && userBranch && (
           <span className="manager-badge">
             <Home size={14} /> Branch {userBranch}
@@ -381,9 +393,10 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ===== TOP PERFORMERS & LOW STOCK ===== */}
-      <div className="performers-stock-grid">
-        <div className="performers-section">
+      {/* ===== TOP PERFORMERS & REVENUE COMPARISON SIDE BY SIDE ===== */}
+      <div className="performers-revenue-grid">
+        {/* Top Performers - FIXED SIZE */}
+        <div className="performers-section fixed-height">
           <h3>
             <Award size={20} />
             Top Performers - This Month
@@ -411,67 +424,29 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="low-stock-section">
-          <h3>
-            <AlertTriangle size={20} />
-            Low Stock Alert
-          </h3>
-          <table className="low-stock-table">
-            <thead>
-              <tr>
-                <th>Product Name</th>
-                <th>Category</th>
-                <th>Stock</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.lowStock.map((product, index) => (
-                <tr key={index}>
-                  <td>{product.name}</td>
-                  <td>{product.category}</td>
-                  <td>{product.stock}</td>
-                  <td>
-                    <span className={`stock-badge ${product.stock < 10 ? 'critical' : 'warning'}`}>
-                      {product.stock < 10 ? 'Critical' : 'Warning'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="dashboard-bottom">
-        <div className="recent-card">
-          <h3>Recent Transactions</h3>
-          <div className="transaction-list">
-            {data.recentTransactions.map((item, index) => (
-              <div key={index} className="transaction-item">
-                <div>
-                  <p className="customer">{item.customer}</p>
-                  <p className="due">Due: {item.due}</p>
-                </div>
-                <span className="amount">PKR {item.amount.toLocaleString()}</span>
-              </div>
-            ))}
+        {/* Revenue Comparison with Expand */}
+        <div className="revenue-section">
+          <div className="revenue-header" onClick={() => setShowBranchOverview(!showBranchOverview)}>
+            <h3>
+              <DollarSign size={20} />
+              Revenue Comparison
+            </h3>
+            <button className="expand-btn">
+              {showBranchOverview ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
           </div>
-        </div>
-
-        <div className="recent-card">
-          <h3>Branch Overview</h3>
-          <div className="branch-overview">
+          
+          <div className="revenue-bars">
             {selectedBranch === 'all' ? (
               <>
-                <div className="branch-row">
+                <div className="branch-row" onClick={() => setSelectedBranch('1')} style={{ cursor: 'pointer' }}>
                   <span>Branch 1</span>
                   <div className="bar-track">
                     <div className="bar-fill dark" style={{ width: '65%' }}></div>
                   </div>
                   <span>PKR 28,400,000</span>
                 </div>
-                <div className="branch-row">
+                <div className="branch-row" onClick={() => setSelectedBranch('2')} style={{ cursor: 'pointer' }}>
                   <span>Branch 2</span>
                   <div className="bar-track">
                     <div className="bar-fill gold" style={{ width: '60%' }}></div>
@@ -489,6 +464,16 @@ const Dashboard = () => {
               </div>
             )}
           </div>
+
+          {/* Expanded Branch Overview - INSIDE revenue card */}
+          {showBranchOverview && (
+            <div className="branch-overview-expanded">
+              <div className="branch-overview-header">
+                <h4>Branch Overview</h4>
+              </div>
+              {renderBranchOverview()}
+            </div>
+          )}
         </div>
       </div>
     </div>

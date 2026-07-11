@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, DollarSign, Users, Briefcase, Calendar, Clock, Award, Building, Download, Eye, X, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, FileText, Filter } from 'lucide-react';
+import { Search, User, DollarSign, Users, Briefcase, Calendar, Clock, Award, Building, Download, Eye, X, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, FileText, Filter, ChevronDown } from 'lucide-react';
 import './EmployeePerformanceReport.css';
 
 const EmployeePerformanceReport = () => {
@@ -9,14 +9,47 @@ const EmployeePerformanceReport = () => {
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [activeTab, setActiveTab] = useState('total');
+  const [currentEmployeeId, setCurrentEmployeeId] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
       setUserBranch(user.branch);
+      if (user.employeeId) {
+        setCurrentEmployeeId(user.employeeId);
+        setSelectedEmployeeId(user.employeeId);
+      }
     }
   }, []);
+
+  const isEmployee = userRole === 'employee';
+  const isAdmin = userRole === 'admin';
+  const isManager = userRole === 'manager';
+
+  // ===== EMPLOYEES LIST FOR DROPDOWN =====
+  const employeesList = [
+    { id: 1, name: 'Ahmed Khan', branch: 1, role: 'employee' },
+    { id: 2, name: 'Sara Ali', branch: 2, role: 'manager' },
+    { id: 3, name: 'Usman Malik', branch: 1, role: 'employee' },
+    { id: 4, name: 'Fatima Noor', branch: 2, role: 'employee' },
+    { id: 5, name: 'Bilal Ahmed', branch: 1, role: 'employee' },
+    { id: 6, name: 'Hina Riaz', branch: 2, role: 'employee' },
+    { id: 7, name: 'Imran Ali', branch: 1, role: 'employee' },
+    { id: 8, name: 'Nadia Khan', branch: 2, role: 'employee' },
+  ];
+
+  // ===== FILTER EMPLOYEES BY BRANCH =====
+  const getFilteredEmployees = () => {
+    if (userBranch) {
+      return employeesList.filter(emp => emp.branch === parseInt(userBranch));
+    }
+    return employeesList;
+  };
+
+  const filteredEmployees = getFilteredEmployees();
 
   // ===== COMPLETE DATA WITH ACCOUNTS =====
   const [allData, setAllData] = useState({
@@ -39,6 +72,7 @@ const EmployeePerformanceReport = () => {
         phone: '0300-1234567',
         address: 'House #12, Street 5, Lahore',
         product: 'Samsung LED 55"',
+        employeeId: 1,
         guarantors: [
           { name: 'Ali Raza', cnic: '12345-6789012-4', phone: '0300-7654321', address: 'House #34, Street 8' },
           { name: 'Zainab Khan', cnic: '12345-6789012-5', phone: '0300-9876543', address: 'House #56, Street 10' }
@@ -66,6 +100,7 @@ const EmployeePerformanceReport = () => {
         phone: '0300-2345678',
         address: 'House #78, Street 12, Lahore',
         product: 'Dell Laptop',
+        employeeId: 1,
         guarantors: [
           { name: 'Fatima Noor', cnic: '12345-6789012-7', phone: '0300-8765432', address: 'House #90, Street 15' }
         ],
@@ -93,6 +128,7 @@ const EmployeePerformanceReport = () => {
         phone: '0300-3456789',
         address: 'House #12, Street 20, Lahore',
         product: 'Samsung Galaxy S24',
+        employeeId: 1,
         guarantors: [
           { name: 'Hina Riaz', cnic: '12345-6789012-9', phone: '0300-6543210', address: 'House #34, Street 25' }
         ],
@@ -117,6 +153,7 @@ const EmployeePerformanceReport = () => {
         phone: '0300-4567890',
         address: 'House #56, Street 30, Lahore',
         product: 'Apple iPhone 15',
+        employeeId: 2,
         guarantors: [],
         installments: [
           { month: 'Jan 2026', due: 5000, paid: 5000, status: 'paid' },
@@ -145,6 +182,7 @@ const EmployeePerformanceReport = () => {
         phone: '0300-5678901',
         address: 'House #45, Street 40, Lahore',
         product: 'LG Refrigerator',
+        employeeId: 1,
         guarantors: [],
         installments: [
           { month: 'Mar 2026', due: 3000, paid: 3000, status: 'paid' },
@@ -167,6 +205,7 @@ const EmployeePerformanceReport = () => {
         phone: '0300-6789012',
         address: 'House #67, Street 50, Lahore',
         product: 'Sony Soundbar',
+        employeeId: 2,
         guarantors: [],
         installments: [
           { month: 'Mar 2026', due: 25000, paid: 25000, status: 'paid' },
@@ -175,29 +214,69 @@ const EmployeePerformanceReport = () => {
     ]
   });
 
-  // ===== GET CURRENT MONTH ACCOUNTS =====
+  // ===== GET EMPLOYEE DATA =====
+  const getEmployeeAccounts = (employeeId) => {
+    if (!employeeId) return allData.accounts;
+    return allData.accounts.filter(acc => acc.employeeId === employeeId);
+  };
+
+  const getEmployeeStats = (employeeId) => {
+    const accounts = getEmployeeAccounts(employeeId);
+    const total = accounts.length;
+    const totalRecovery = accounts.reduce((sum, acc) => sum + acc.amount, 0);
+    const overdue = accounts.filter(acc => acc.balance > 0).length;
+    const paid = accounts.filter(acc => acc.status === 'paid').length;
+    const pending = accounts.filter(acc => acc.status === 'pending').length;
+    
+    // Current month accounts
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const newAccounts = accounts.filter(acc => {
+      const accDate = new Date(acc.date);
+      return accDate.getMonth() === currentMonth && accDate.getFullYear() === currentYear;
+    }).length;
+
+    return {
+      totalAccounts: total,
+      newAccounts: newAccounts,
+      totalRecovery: totalRecovery,
+      overdueAccounts: overdue,
+      paidAccounts: paid,
+      pendingAccounts: pending,
+      accounts: accounts
+    };
+  };
+
+  // ===== SELECTED EMPLOYEE DATA =====
+  const selectedEmployeeData = selectedEmployeeId ? getEmployeeStats(selectedEmployeeId) : getEmployeeStats(null);
+  const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);
+
+  // ===== FILTER ACCOUNTS =====
+  const filteredAccounts = selectedEmployeeData.accounts.filter(item => {
+    if (!isEmployee && search) {
+      return item.customer.toLowerCase().includes(search.toLowerCase()) ||
+        item.caseNo.toLowerCase().includes(search.toLowerCase()) ||
+        item.product.toLowerCase().includes(search.toLowerCase());
+    }
+    return true;
+  });
+
+  // ===== CURRENT MONTH ACCOUNTS =====
   const getCurrentMonthAccounts = () => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
-    return allData.accounts.filter(acc => {
+    return selectedEmployeeData.accounts.filter(acc => {
       const accDate = new Date(acc.date);
       return accDate.getMonth() === currentMonth && accDate.getFullYear() === currentYear;
     });
   };
 
   const currentMonthAccounts = getCurrentMonthAccounts();
-  const overdueAccounts = allData.accounts.filter(acc => acc.balance > 0);
-  const recoveryDue = allData.accounts.filter(acc => acc.balance > 0);
 
-  // ===== FILTER ACCOUNTS =====
-  const filteredAccounts = allData.accounts.filter(item => {
-    const searchMatch = item.customer.toLowerCase().includes(search.toLowerCase()) ||
-      item.caseNo.toLowerCase().includes(search.toLowerCase()) ||
-      item.product.toLowerCase().includes(search.toLowerCase());
-    return searchMatch;
-  });
+  // ===== OVERDUE ACCOUNTS =====
+  const overdueAccounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
 
   // ===== VIEW ACCOUNT DETAIL =====
   const openAccountModal = (account) => {
@@ -224,14 +303,46 @@ const EmployeePerformanceReport = () => {
     }
   };
 
-  const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
+  // ===== GET EMPLOYEE NAME =====
+  const getEmployeeName = (id) => {
+    const emp = employeesList.find(e => e.id === id);
+    return emp ? emp.name : 'All Employees';
+  };
 
   // ===== CARDS DATA =====
-  const cards = [
+  const cards = isEmployee ? [
+    { 
+      key: 'new', 
+      label: 'New Accounts', 
+      value: currentMonthAccounts.length,
+      icon: TrendingUp,
+      color: '#2563eb',
+      bg: 'rgba(37, 99, 235, 0.1)',
+      className: 'new-accounts-card'
+    },
+    { 
+      key: 'recovery', 
+      label: 'Recovery Due', 
+      value: `PKR ${selectedEmployeeData.totalRecovery.toLocaleString()}`,
+      icon: DollarSign,
+      color: '#C9A84C',
+      bg: 'rgba(201, 168, 76, 0.1)',
+      className: 'recovery-card'
+    },
+    { 
+      key: 'overdue', 
+      label: 'Overdue', 
+      value: overdueAccounts.length,
+      icon: AlertTriangle,
+      color: '#dc2626',
+      bg: 'rgba(220, 38, 38, 0.1)',
+      className: 'overdue-card-main'
+    },
+  ] : [
     { 
       key: 'total', 
       label: 'Total Accounts', 
-      value: allData.totalAccounts,
+      value: selectedEmployeeData.totalAccounts,
       icon: Users,
       color: '#1E1B4B',
       bg: 'rgba(30, 27, 75, 0.08)',
@@ -249,7 +360,7 @@ const EmployeePerformanceReport = () => {
     { 
       key: 'recovery', 
       label: 'Recovery Due', 
-      value: `PKR ${allData.totalRecovery.toLocaleString()}`,
+      value: `PKR ${selectedEmployeeData.totalRecovery.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
       bg: 'rgba(201, 168, 76, 0.1)',
@@ -266,9 +377,9 @@ const EmployeePerformanceReport = () => {
     },
   ];
 
-  // ===== RENDER TABLE BASED ON ACTIVE TAB =====
+  // ===== RENDER TABLE =====
   const renderTable = () => {
-    if (activeTab === 'total') {
+    if (activeTab === 'total' && !isEmployee) {
       return (
         <div className="table-container">
           <div className="table-header">
@@ -346,13 +457,14 @@ const EmployeePerformanceReport = () => {
     }
 
     if (activeTab === 'new') {
+      const accounts = isEmployee ? currentMonthAccounts : currentMonthAccounts;
       return (
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
               <FileText size={18} />
               <h3>New Accounts (This Month)</h3>
-              <span className="record-count">{currentMonthAccounts.length} accounts</span>
+              <span className="record-count">{accounts.length} accounts</span>
             </div>
           </div>
           <div className="table-scroll">
@@ -369,10 +481,10 @@ const EmployeePerformanceReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {currentMonthAccounts.length === 0 ? (
+                {accounts.length === 0 ? (
                   <tr><td colSpan="7" className="no-data">No new accounts this month</td></tr>
                 ) : (
-                  currentMonthAccounts.map((item) => (
+                  accounts.map((item) => (
                     <tr key={item.id}>
                       <td className="case-number">{item.caseNo}</td>
                       <td>
@@ -417,13 +529,14 @@ const EmployeePerformanceReport = () => {
     }
 
     if (activeTab === 'recovery') {
+      const accounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
       return (
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
               <FileText size={18} />
               <h3>Recovery Due</h3>
-              <span className="record-count">{recoveryDue.length} customers</span>
+              <span className="record-count">{accounts.length} customers</span>
             </div>
           </div>
           <div className="table-scroll">
@@ -441,10 +554,10 @@ const EmployeePerformanceReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {recoveryDue.length === 0 ? (
+                {accounts.length === 0 ? (
                   <tr><td colSpan="8" className="no-data">No recovery due</td></tr>
                 ) : (
-                  recoveryDue.map((item) => (
+                  accounts.map((item) => (
                     <tr key={item.id} className="overdue-row">
                       <td className="case-number">{item.caseNo}</td>
                       <td>
@@ -480,13 +593,14 @@ const EmployeePerformanceReport = () => {
     }
 
     if (activeTab === 'overdue') {
+      const accounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
       return (
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
               <FileText size={18} />
               <h3>Overdue Accounts</h3>
-              <span className="record-count">{overdueAccounts.length} customers</span>
+              <span className="record-count">{accounts.length} customers</span>
             </div>
           </div>
           <div className="table-scroll">
@@ -504,10 +618,10 @@ const EmployeePerformanceReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {overdueAccounts.length === 0 ? (
+                {accounts.length === 0 ? (
                   <tr><td colSpan="8" className="no-data">No overdue accounts</td></tr>
                 ) : (
-                  overdueAccounts.map((item) => (
+                  accounts.map((item) => (
                     <tr key={item.id} className="overdue-row">
                       <td className="case-number">{item.caseNo}</td>
                       <td>
@@ -550,32 +664,99 @@ const EmployeePerformanceReport = () => {
     return null;
   };
 
+  // ===== DEFAULT TAB =====
+  useEffect(() => {
+    if (isEmployee) {
+      setActiveTab('recovery');
+    } else {
+      setActiveTab('total');
+    }
+  }, [isEmployee, selectedEmployeeId]);
+
   return (
     <div className="employee-performance-container">
       {/* ===== HEADER ===== */}
       <div className="performance-header">
         <div className="header-left">
           <div className="header-title-group">
-            <h2>Employee Report</h2>
+            <h2>{isEmployee ? 'My Performance' : 'Employee Performance'}</h2>
             <span className="live-badge">
               <Clock size={12} /> Live
             </span>
           </div>
-          <p className="subtitle">Complete employee performance overview</p>
+          <p className="subtitle">
+            {isEmployee ? 'Your performance overview' : 'Employee performance overview'}
+          </p>
         </div>
-        <div className="search-wrapper">
-          <Search size={18} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by customer, case or product..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+
+        {/* ===== EMPLOYEE DROPDOWN - ADMIN/MANAGER KE LIYE ===== */}
+        {!isEmployee && (
+          <div className="employee-dropdown-wrapper">
+            <div 
+              className="employee-dropdown-toggle"
+              onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
+            >
+              <span>{selectedEmployee ? selectedEmployee.name : 'All Employees'}</span>
+              <ChevronDown size={18} />
+            </div>
+            {showEmployeeDropdown && (
+              <div className="employee-dropdown-list">
+                <div 
+                  className={`dropdown-item ${!selectedEmployeeId ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedEmployeeId(null);
+                    setShowEmployeeDropdown(false);
+                    setActiveTab('total');
+                  }}
+                >
+                  All Employees
+                </div>
+                {filteredEmployees.map(emp => (
+                  <div 
+                    key={emp.id}
+                    className={`dropdown-item ${selectedEmployeeId === emp.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedEmployeeId(emp.id);
+                      setShowEmployeeDropdown(false);
+                      setActiveTab('total');
+                    }}
+                  >
+                    {emp.name}
+                    <span className="dropdown-role">{emp.role}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== SEARCH - ADMIN/MANAGER KE LIYE ===== */}
+        {!isEmployee && (
+          <div className="search-wrapper">
+            <Search size={18} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search by customer, case or product..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
-      {/* ===== 4 STATS CARDS ===== */}
-      <div className="stats-grid-4">
+      {/* ===== SELECTED EMPLOYEE NAME - ADMIN/MANAGER ===== */}
+      {!isEmployee && selectedEmployee && (
+        <div className="selected-employee-info">
+          <div className="selected-employee-avatar">{selectedEmployee.name.charAt(0)}</div>
+          <div className="selected-employee-details">
+            <span className="selected-employee-name">{selectedEmployee.name}</span>
+            <span className="selected-employee-role">{selectedEmployee.role} • Branch {selectedEmployee.branch}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ===== STATS CARDS ===== */}
+      <div className={`stats-grid-4 ${isEmployee ? 'employee-stats' : ''}`}>
         {cards.map((card) => (
           <div 
             key={card.key}
@@ -593,10 +774,10 @@ const EmployeePerformanceReport = () => {
         ))}
       </div>
 
-      {/* ===== RENDER TABLE BASED ON ACTIVE TAB ===== */}
+      {/* ===== RENDER TABLE ===== */}
       {renderTable()}
 
-      {/* ===== ACCOUNT DETAIL MODAL (Full Screen) ===== */}
+      {/* ===== ACCOUNT DETAIL MODAL ===== */}
       {showAccountModal && selectedAccount && (
         <div className="epr-modal-overlay" onClick={() => setShowAccountModal(false)}>
           <div className="epr-modal-content epr-modal-account" onClick={(e) => e.stopPropagation()}>

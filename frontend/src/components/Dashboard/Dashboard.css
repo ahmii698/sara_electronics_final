@@ -326,19 +326,23 @@
   padding: 0.5rem;
 }
 
-/* ===== PERFORMERS & STOCK GRID ===== */
-.performers-stock-grid {
+/* ===== PERFORMERS & REVENUE GRID ===== */
+.performers-revenue-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
+  align-items: flex-start;
 }
 
+/* Top Performers - FIXED HEIGHT */
 .performers-section {
   background: white;
   border-radius: 1rem;
   padding: 1.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #f3f4f6;
+  height: 100%;
+  min-height: 280px;
 }
 
 .performers-section h3 {
@@ -398,116 +402,49 @@
   text-align: right;
 }
 
-.low-stock-section {
+/* Revenue Section */
+.revenue-section {
   background: white;
   border-radius: 1rem;
   padding: 1.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #f3f4f6;
+  height: 100%;
+  min-height: 280px;
 }
 
-.low-stock-section h3 {
-  font-weight: 600;
-  color: #dc2626;
+.revenue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
   margin-bottom: 1rem;
+}
+
+.revenue-header h3 {
+  font-weight: 600;
+  color: #0A1628;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.low-stock-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.low-stock-table thead th {
-  text-align: left;
-  font-size: 0.65rem;
-  text-transform: uppercase;
+.expand-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
   color: #6b7280;
-  padding: 0.5rem 0.5rem;
-  border-bottom: 2px solid #e5e7eb;
+  transition: all 0.3s;
 }
 
-.low-stock-table tbody td {
-  padding: 0.5rem 0.5rem;
-  font-size: 0.85rem;
-  color: #1f2937;
-  border-bottom: 1px solid #f3f4f6;
+.expand-btn:hover {
+  background: #f3f4f6;
 }
 
-.low-stock-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.stock-badge {
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.15rem 0.6rem;
-  border-radius: 9999px;
-}
-
-.stock-badge.critical {
-  background: #dc2626;
-  color: white;
-}
-
-.stock-badge.warning {
-  background: #f59e0b;
-  color: white;
-}
-
-.dashboard-bottom {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-.recent-card {
-  background: white;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f3f4f6;
-}
-
-.recent-card h3 {
-  font-weight: 600;
-  color: #0A1628;
-  margin-bottom: 1rem;
-}
-
-.transaction-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-radius: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.transaction-item:last-child {
-  margin-bottom: 0;
-}
-
-.transaction-item .customer {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: #1f2937;
-}
-
-.transaction-item .due {
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-.transaction-item .amount {
-  color: #1E1B4B;
-  font-weight: 600;
-}
-
-.branch-overview {
+.revenue-bars {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -518,6 +455,13 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: background 0.3s;
+}
+
+.branch-row:hover {
+  background: #f9fafb;
 }
 
 .branch-row .bar-track {
@@ -542,6 +486,73 @@
   background: #1E1B4B;
 }
 
+/* Branch Overview Expanded - INSIDE revenue card */
+.branch-overview-expanded {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f3f4f6;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.branch-overview-header h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1E1B4B;
+  margin-bottom: 1rem;
+}
+
+.branch-overview-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.overview-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.overview-item:last-child {
+  border-bottom: none;
+}
+
+.overview-item.profit {
+  border-top: 2px solid #1E1B4B;
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.overview-label {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.overview-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.overview-value.profit {
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
   .stats-grid-4 {
     grid-template-columns: repeat(2, 1fr);
@@ -549,18 +560,19 @@
 }
 
 @media (max-width: 992px) {
-  .performers-stock-grid {
+  .performers-revenue-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .performers-section,
+  .revenue-section {
+    min-height: auto;
   }
 }
 
 @media (max-width: 768px) {
   .stats-grid-4 {
     grid-template-columns: 1fr 1fr;
-  }
-  
-  .dashboard-bottom {
-    grid-template-columns: 1fr;
   }
   
   .chart-header {
@@ -575,15 +587,6 @@
   
   .chart-bar {
     width: 22px;
-  }
-  
-  .low-stock-table {
-    font-size: 0.8rem;
-  }
-  
-  .low-stock-table thead th,
-  .low-stock-table tbody td {
-    padding: 0.3rem 0.3rem;
   }
   
   .dashboard-header {

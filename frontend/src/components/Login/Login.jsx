@@ -153,7 +153,7 @@ const Login = ({ setIsLoggedIn }) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setIsLoggedIn(true);
         if (userData.role === 'employee') {
-          navigate('/employee-dashboard');
+          navigate('/employee-performance');  // ✅ YAHAN CHANGE KIYA
         } else {
           navigate('/');
         }
@@ -171,7 +171,8 @@ const Login = ({ setIsLoggedIn }) => {
         {/* ===== LOGO SECTION ===== */}
         <div className="login-logo">
           <img src={logo} alt="SARA Electronics" className="login-logo-img" />
-     
+          <h1 className="brand-title">SARA <span>Electronics</span></h1>
+          <p className="logo-subtitle">Admin Panel Login</p>
         </div>
 
         {/* ===== STEP 1: BRANCH SELECTION ===== */}
@@ -245,12 +246,7 @@ const Login = ({ setIsLoggedIn }) => {
               <input
                 type="email"
                 className="login-input"
-                placeholder={
-                  loginData.role === 'admin' ? 'xahmedmalik30600@gmail.com' :
-                  loginData.role === 'manager' ? 'manager1@gmail.com' :
-                  loginData.role === 'employee' ? 'empb1@gmail.com / empb2@gmail.com' :
-                  'Enter your email'
-                }
+                placeholder="Enter your email"
                 value={loginData.email}
                 onChange={(e) => {
                   setLoginData({ ...loginData, email: e.target.value });

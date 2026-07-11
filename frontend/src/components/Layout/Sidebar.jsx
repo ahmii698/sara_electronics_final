@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Package, DollarSign, Users, FileText, LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, BarChart3, Clock, LayoutDashboard, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Home, Package, DollarSign, Users, FileText, LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, BarChart3, Clock, LayoutDashboard, AlertTriangle, TrendingUp, PlusCircle } from 'lucide-react';
 import './Sidebar.css';
 import logo from '../../assets/logo.jpeg';
 
@@ -47,24 +47,15 @@ const Sidebar = () => {
       </div>
 
       <nav className="sidebar-nav">
-        {/* ===== EMPLOYEE - OVERDUE INSTALLMENTS AUR EMPLOYEE REPORT ===== */}
+        {/* ===== EMPLOYEE - SIRF MY PERFORMANCE ===== */}
         {isEmployee && (
-          <>
-            <NavLink
-              to="/overdue-installments"
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Clock size={20} />
-              <span>Overdue Installments</span>
-            </NavLink>
-            <NavLink
-              to="/employee-report"
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <BarChart3 size={20} />
-              <span>Employee Report</span>
-            </NavLink>
-          </>
+          <NavLink
+            to="/employee-performance"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <TrendingUp size={20} />
+            <span>My Performance</span>
+          </NavLink>
         )}
 
         {/* ===== DASHBOARD - SIRF ADMIN ===== */}
@@ -100,14 +91,19 @@ const Sidebar = () => {
               >
                 <span>Fixed Expenses</span>
               </NavLink>
-              <NavLink
-                to="/finance/extra"
-                className={({ isActive }) => `sub-nav-item ${isActive ? 'active' : ''}`}
-              >
-                <span>Extra Expenses</span>
-              </NavLink>
             </div>
           </div>
+        )}
+
+        {/* ===== EXTRA EXPENSES - ADMIN AUR MANAGER DONO (Finance se bahar) ===== */}
+        {(isAdmin || isManager) && (
+          <NavLink
+            to="/extra-expenses"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <PlusCircle size={20} />
+            <span>Extra Expenses</span>
+          </NavLink>
         )}
 
         {/* ===== EMPLOYEE REPORT - ADMIN AUR MANAGER ===== */}
@@ -118,6 +114,17 @@ const Sidebar = () => {
           >
             <BarChart3 size={20} />
             <span>Employee Report</span>
+          </NavLink>
+        )}
+
+        {/* ===== EMPLOYEE PERFORMANCE - ADMIN AUR MANAGER ===== */}
+        {(isAdmin || isManager) && (
+          <NavLink
+            to="/employee-performance"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <TrendingUp size={20} />
+            <span>Employee Performance</span>
           </NavLink>
         )}
 
@@ -140,17 +147,6 @@ const Sidebar = () => {
           >
             <AlertTriangle size={20} />
             <span>Aging Report</span>
-          </NavLink>
-        )}
-
-        {/* ===== EMPLOYEE PERFORMANCE REPORT - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/employee-performance"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <TrendingUp size={20} />
-            <span>Employee Performance</span>
           </NavLink>
         )}
 

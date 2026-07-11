@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle, AreaChart } from 'lucide-react';
+import { Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle, AreaChart, ChevronDown } from 'lucide-react';
 import './EmployeeReport.css';
 
 const EmployeeReport = () => {
@@ -10,6 +10,8 @@ const EmployeeReport = () => {
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [modalChartType, setModalChartType] = useState('bar');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -136,15 +138,33 @@ const EmployeeReport = () => {
 
   const currentMonth = getCurrentMonth();
 
-  const filteredEmployees = employees.filter(emp => {
-    const searchMatch = emp.name.toLowerCase().includes(search.toLowerCase());
-    const branchMatch = branchFilter === 'all' || emp.branch === parseInt(branchFilter);
-    let userBranchMatch = true;
+  // ===== FILTER EMPLOYEES BY BRANCH =====
+  const getFilteredEmployees = () => {
+    let filtered = employees;
     if (userBranch) {
-      userBranchMatch = emp.branch === parseInt(userBranch);
+      filtered = filtered.filter(emp => emp.branch === parseInt(userBranch));
     }
-    return searchMatch && branchMatch && userBranchMatch;
-  });
+    if (branchFilter !== 'all' && !userBranch) {
+      filtered = filtered.filter(emp => emp.branch === parseInt(branchFilter));
+    }
+    return filtered;
+  };
+
+  const filteredEmployees = getFilteredEmployees();
+
+  // ===== GET SELECTED EMPLOYEE DATA =====
+  const getSelectedEmployeeData = () => {
+    if (selectedEmployeeId) {
+      const emp = employees.find(e => e.id === selectedEmployeeId);
+      return emp || null;
+    }
+    return null;
+  };
+
+  const selectedEmployeeData = getSelectedEmployeeData();
+
+  // ===== FILTER FOR TABLE DISPLAY =====
+  const displayEmployees = selectedEmployeeData ? [selectedEmployeeData] : filteredEmployees;
 
   const getEmployeeChartData = (emp) => {
     const months = Object.keys(emp.monthlyData).sort();
@@ -173,7 +193,6 @@ const EmployeeReport = () => {
     const empData = getEmployeeChartData(selectedEmployee);
     const maxVal = Math.max(...empData.accounts, ...empData.recovery.map(v => v/1000), ...empData.commission.map(v => v/1000), 1);
 
-    // ===== BAR CHART =====
     if (modalChartType === 'bar') {
       return (
         <div className="modal-chart-container">
@@ -214,7 +233,7 @@ const EmployeeReport = () => {
       );
     }
 
-    // ===== LINE CHART =====
+    // Line, Pie, Area, Stacked charts remain same...
     if (modalChartType === 'line') {
       return (
         <div className="modal-chart-container">
@@ -253,7 +272,6 @@ const EmployeeReport = () => {
       );
     }
 
-    // ===== PIE CHART =====
     if (modalChartType === 'pie') {
       const totalAccounts = empData.accounts.reduce((a, b) => a + b, 0);
       const totalRecovery = empData.recovery.reduce((a, b) => a + b, 0);
@@ -304,7 +322,6 @@ const EmployeeReport = () => {
       );
     }
 
-    // ===== AREA CHART =====
     if (modalChartType === 'area') {
       return (
         <div className="modal-chart-container">
@@ -339,7 +356,6 @@ const EmployeeReport = () => {
       );
     }
 
-    // ===== STACKED BAR CHART =====
     if (modalChartType === 'stacked') {
       return (
         <div className="modal-chart-container">
@@ -396,10 +412,10 @@ const EmployeeReport = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
-  const totalRecovery = filteredEmployees.reduce((sum, e) => sum + e.totalRecovery, 0);
-  const totalCommission = filteredEmployees.reduce((sum, e) => sum + e.totalCommission, 0);
-  const totalAccounts = filteredEmployees.reduce((sum, e) => sum + e.totalAccounts, 0);
-  const totalEmployees = filteredEmployees.length;
+  const totalRecovery = displayEmployees.reduce((sum, e) => sum + e.totalRecovery, 0);
+  const totalCommission = displayEmployees.reduce((sum, e) => sum + e.totalCommission, 0);
+  const totalAccounts = displayEmployees.reduce((sum, e) => sum + e.totalAccounts, 0);
+  const totalEmployees = displayEmployees.length;
 
   const getCurrentMonthAccounts = (emp) => {
     const now = new Date();
@@ -433,20 +449,25 @@ const EmployeeReport = () => {
     ];
   };
 
-  // ===== CHECK IF USER IS EMPLOYEE =====
   const isEmployee = userRole === 'employee';
 
-  // ===== SUMMARY CARDS - EMPLOYEE KO SIRF 3 CARDS =====
+  // ===== SUMMARY CARDS =====
   const summaryCards = isEmployee ? [
     { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#1E1B4B', className: 'accounts' },
     { label: 'Recovery Due', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', className: 'recovery' },
-    { label: 'Overdue', value: filteredEmployees.filter(e => e.totalLeaves > 0).length, icon: AlertCircle, color: '#dc2626', className: 'overdue' },
+    { label: 'Overdue', value: displayEmployees.filter(e => e.totalLeaves > 0).length, icon: AlertCircle, color: '#dc2626', className: 'overdue' },
   ] : [
     { label: 'Total Employees', value: totalEmployees, icon: Users, color: '#1E1B4B', className: 'users' },
     { label: 'Total Recovery', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', className: 'recovery' },
     { label: 'Total Commission', value: `PKR ${totalCommission.toLocaleString()}`, icon: Award, color: '#2563eb', className: 'commission' },
     { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#065f46', className: 'accounts' },
   ];
+
+  // ===== GET EMPLOYEE NAME =====
+  const getEmployeeName = (id) => {
+    const emp = employees.find(e => e.id === id);
+    return emp ? emp.name : 'Select Employee';
+  };
 
   return (
     <div className="employee-report-container">
@@ -471,27 +492,88 @@ const EmployeeReport = () => {
         </button>
       </div>
 
-      <div className="report-controls">
-        <div className="search-wrapper">
-          <Search size={18} className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search employee..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {!userBranch && !isEmployee && (
-          <div className="branch-filters">
-            <button className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`} onClick={() => setBranchFilter('all')}>All</button>
-            <button className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`} onClick={() => setBranchFilter('1')}>Branch 1</button>
-            <button className={`filter-btn branch-2 ${branchFilter === '2' ? 'active' : ''}`} onClick={() => setBranchFilter('2')}>Branch 2</button>
+      {/* ===== DROPDOWN FOR EMPLOYEE SELECTION ===== */}
+      {!isEmployee && (
+        <div className="employee-dropdown-wrapper">
+          <div 
+            className="employee-dropdown-toggle"
+            onClick={() => setShowDropdown(!showDropdown)}
+          >
+            <span>{selectedEmployeeId ? getEmployeeName(selectedEmployeeId) : 'Select Employee...'}</span>
+            <ChevronDown size={18} />
           </div>
-        )}
-      </div>
+          {showDropdown && (
+            <div className="employee-dropdown-list">
+              <div 
+                className={`dropdown-item ${!selectedEmployeeId ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedEmployeeId(null);
+                  setShowDropdown(false);
+                }}
+              >
+                All Employees
+              </div>
+              {filteredEmployees.map(emp => (
+                <div 
+                  key={emp.id}
+                  className={`dropdown-item ${selectedEmployeeId === emp.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedEmployeeId(emp.id);
+                    setShowDropdown(false);
+                  }}
+                >
+                  <div className="dropdown-emp-info">
+                    <div className="dropdown-emp-avatar">{emp.name.charAt(0)}</div>
+                    <span>{emp.name}</span>
+                  </div>
+                  <span className="dropdown-role">{emp.role}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* ===== SUMMARY CARDS - EMPLOYEE KE LIYE 3, BAAQI KE LIYE 4 ===== */}
+      {/* ===== REPORT CONTROLS ===== */}
+      {!isEmployee && !selectedEmployeeId && (
+        <div className="report-controls">
+          <div className="search-wrapper">
+            <Search size={18} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search employee..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {!userBranch && (
+            <div className="branch-filters">
+              <button className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`} onClick={() => setBranchFilter('all')}>All</button>
+              <button className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`} onClick={() => setBranchFilter('1')}>Branch 1</button>
+              <button className={`filter-btn branch-2 ${branchFilter === '2' ? 'active' : ''}`} onClick={() => setBranchFilter('2')}>Branch 2</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== SELECTED EMPLOYEE NAME ===== */}
+      {!isEmployee && selectedEmployeeId && (
+        <div className="selected-employee-info">
+          <div className="selected-employee-avatar">
+            {employees.find(e => e.id === selectedEmployeeId)?.name.charAt(0)}
+          </div>
+          <div className="selected-employee-details">
+            <span className="selected-employee-name">
+              {employees.find(e => e.id === selectedEmployeeId)?.name}
+            </span>
+            <span className="selected-employee-role">
+              {employees.find(e => e.id === selectedEmployeeId)?.role} • Branch {employees.find(e => e.id === selectedEmployeeId)?.branch}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ===== SUMMARY CARDS ===== */}
       <div className={`summary-cards ${isEmployee ? 'employee-cards' : ''}`}>
         {summaryCards.map((card, index) => (
           <div key={index} className="summary-card" style={{ borderTopColor: card.color }}>
@@ -510,7 +592,7 @@ const EmployeeReport = () => {
         <div className="table-header-bar">
           <div className="table-header-left">
             <span>Employee Performance</span>
-            <span className="record-count">{filteredEmployees.length} records</span>
+            <span className="record-count">{displayEmployees.length} records</span>
           </div>
         </div>
         <div className="table-scroll">
@@ -527,7 +609,7 @@ const EmployeeReport = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredEmployees.length === 0 ? (
+              {displayEmployees.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="no-data">
                     <div className="no-data-content">
@@ -537,7 +619,7 @@ const EmployeeReport = () => {
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map((emp, index) => (
+                displayEmployees.map((emp, index) => (
                   <tr key={emp.id}>
                     <td className="text-gray">{index + 1}</td>
                     <td>
