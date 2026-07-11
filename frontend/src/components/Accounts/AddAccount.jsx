@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield } from 'lucide-react';
+import { Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle } from 'lucide-react';
 import './AddAccount.css';
 
 const AddAccount = () => {
@@ -10,6 +10,8 @@ const AddAccount = () => {
   const [userRole, setUserRole] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
   const [toast, setToast] = useState(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState('active');
 
   const [voiceFiles, setVoiceFiles] = useState([]);
   const [playingIndex, setPlayingIndex] = useState(null);
@@ -279,6 +281,7 @@ const AddAccount = () => {
     chalanBackPreview: '',
     accountType: 'regular',
     branch: 1,
+    status: 'active', // active or hold
   });
 
   const [errors, setErrors] = useState({});
@@ -482,14 +485,65 @@ const AddAccount = () => {
 
   const handleNext = () => { if (validateStep1()) setStep(2); };
   const handlePrev = () => setStep(1);
-  
-  const handleSubmit = (e) => {
+
+  // ===== HANDLE FINAL SUBMIT WITH STATUS POPUP =====
+  const handleFinalSubmit = (e) => {
     e.preventDefault();
     if (validateStep2()) {
-      console.log('Account Created:', formData);
-      console.log('Voice Files:', voiceFiles);
-      alert('Account created successfully!');
+      setShowStatusModal(true);
     }
+  };
+
+  // ===== CONFIRM WITH SELECTED STATUS =====
+  const confirmAccountCreation = () => {
+    const finalData = {
+      ...formData,
+      status: selectedStatus,
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log('Account Created:', finalData);
+    console.log('Voice Files:', voiceFiles);
+    console.log('Status:', selectedStatus);
+    
+    setShowStatusModal(false);
+    alert(`Account created successfully with status: ${selectedStatus.toUpperCase()}`);
+    
+    // Reset form
+    setFormData({
+      name: '',
+      cnic: '',
+      phone: '',
+      address: '',
+      work: '',
+      employeeId: '',
+      cnicFront: null,
+      cnicBack: null,
+      cnicFrontPreview: '',
+      cnicBackPreview: '',
+      guarantors: [
+        { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
+        { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
+        { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
+      ],
+      productType: 'new',
+      productName: '',
+      productPrice: '',
+      advanceAmount: '',
+      invoicePrice: '',
+      noOfInstallments: '',
+      dueDate: '',
+      installmentAmount: '',
+      chalanFront: null,
+      chalanBack: null,
+      chalanFrontPreview: '',
+      chalanBackPreview: '',
+      accountType: 'regular',
+      branch: userBranch || 1,
+      status: 'active',
+    });
+    setVoiceFiles([]);
+    setStep(1);
   };
 
   const getGuarantorCount = () => {
@@ -527,6 +581,69 @@ const AddAccount = () => {
           <button className="toast-close" onClick={() => setToast(null)}>
             <X size={18} />
           </button>
+        </div>
+      )}
+
+      {/* ===== STATUS SELECTION MODAL ===== */}
+      {showStatusModal && (
+        <div className="status-modal-overlay" onClick={() => setShowStatusModal(false)}>
+          <div className="status-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="status-modal-header">
+              <Shield size={24} className="status-modal-icon" />
+              <h3>Account Status</h3>
+              <button className="status-modal-close" onClick={() => setShowStatusModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="status-modal-body">
+              <p className="status-modal-text">
+                Select the status for this account:
+              </p>
+              <div className="status-options">
+                <label className={`status-option ${selectedStatus === 'active' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="accountStatus"
+                    value="active"
+                    checked={selectedStatus === 'active'}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                  />
+                  <div className="status-option-content">
+                    <PlayCircle size={24} className="status-option-icon active-icon" />
+                    <div>
+                      <span className="status-option-label">Active</span>
+                      <span className="status-option-desc">Account will be active immediately</span>
+                    </div>
+                  </div>
+                </label>
+                <label className={`status-option ${selectedStatus === 'hold' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="accountStatus"
+                    value="hold"
+                    checked={selectedStatus === 'hold'}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                  />
+                  <div className="status-option-content">
+                    <PauseCircle size={24} className="status-option-icon hold-icon" />
+                    <div>
+                      <span className="status-option-label">Hold</span>
+                      <span className="status-option-desc">Account will be placed on hold</span>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div className="status-modal-footer">
+              <button className="status-btn-cancel" onClick={() => setShowStatusModal(false)}>
+                Cancel
+              </button>
+              <button className="status-btn-confirm" onClick={confirmAccountCreation}>
+                <CheckCircle size={18} />
+                Create Account
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -581,7 +698,7 @@ const AddAccount = () => {
         )}
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleFinalSubmit}>
         {step === 1 && (
           <div className="step-content">
             <div className="step-header">
@@ -590,7 +707,6 @@ const AddAccount = () => {
               <span className="step-badge">Required</span>
             </div>
 
-            {/* ===== FORM GRID - ADDRESS AUR WORK KO SAME LINE MAIN ===== */}
             <div className="form-grid">
               <div className="form-group">
                 <label>Full Name *</label>
@@ -656,7 +772,6 @@ const AddAccount = () => {
                   <small className="field-hint">Branch locked to {branchLabel}</small>
                 )}
               </div>
-              {/* ===== ADDRESS - PHONE NUMBER KI TARAH (2 COLUMN) ===== */}
               <div className="form-group">
                 <label>Address *</label>
                 <div className="input-with-icon">
@@ -672,7 +787,6 @@ const AddAccount = () => {
                 </div>
                 {errors.address && <span className="error-text">{errors.address}</span>}
               </div>
-              {/* ===== WORK - BRANCH KI TARAH (2 COLUMN) ===== */}
               <div className="form-group">
                 <label>Work / Occupation *</label>
                 <div className="input-with-icon">

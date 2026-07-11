@@ -284,11 +284,40 @@
 @media (max-width: 480px) {
   .header {
     height: 3.5rem;
-    left: 0;
+    left: 0 !important;
+    padding-left: 3.25rem !important;
+    padding-right: 0.75rem !important;
   }
 
   .header.employee-header {
-    left: 0;
+    left: 0 !important;
+  }
+
+  .header-left {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .header-brand {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .header-brand .brand-name {
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-brand .brand-panel {
+    font-size: 0.4rem;
+  }
+
+  .header-branch {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.5rem;
+    white-space: nowrap;
   }
 
   .employee-brand .brand-panel {
@@ -304,16 +333,8 @@
     padding: 0.1rem 0.4rem;
   }
 
-  .header-brand .brand-panel {
-    font-size: 0.4rem;
-  }
-
-  .header-brand .brand-name {
-    font-size: 0.75rem;
-  }
-
-  .header-branch {
-    font-size: 0.6rem;
-    padding: 0.1rem 0.4rem;
+  .header-right {
+    gap: 0.5rem;
+    flex-shrink: 0;
   }
 }

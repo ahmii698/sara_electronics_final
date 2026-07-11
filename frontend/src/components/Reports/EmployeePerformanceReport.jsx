@@ -29,7 +29,6 @@ const EmployeePerformanceReport = () => {
   const isAdmin = userRole === 'admin';
   const isManager = userRole === 'manager';
 
-  // ===== EMPLOYEES LIST FOR DROPDOWN =====
   const employeesList = [
     { id: 1, name: 'Ahmed Khan', branch: 1, role: 'employee' },
     { id: 2, name: 'Sara Ali', branch: 2, role: 'manager' },
@@ -41,7 +40,6 @@ const EmployeePerformanceReport = () => {
     { id: 8, name: 'Nadia Khan', branch: 2, role: 'employee' },
   ];
 
-  // ===== FILTER EMPLOYEES BY BRANCH =====
   const getFilteredEmployees = () => {
     if (userBranch) {
       return employeesList.filter(emp => emp.branch === parseInt(userBranch));
@@ -51,7 +49,6 @@ const EmployeePerformanceReport = () => {
 
   const filteredEmployees = getFilteredEmployees();
 
-  // ===== COMPLETE DATA WITH ACCOUNTS =====
   const [allData, setAllData] = useState({
     totalAccounts: 45,
     newAccounts: 8,
@@ -214,7 +211,6 @@ const EmployeePerformanceReport = () => {
     ]
   });
 
-  // ===== GET EMPLOYEE DATA =====
   const getEmployeeAccounts = (employeeId) => {
     if (!employeeId) return allData.accounts;
     return allData.accounts.filter(acc => acc.employeeId === employeeId);
@@ -228,7 +224,6 @@ const EmployeePerformanceReport = () => {
     const paid = accounts.filter(acc => acc.status === 'paid').length;
     const pending = accounts.filter(acc => acc.status === 'pending').length;
     
-    // Current month accounts
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -248,11 +243,9 @@ const EmployeePerformanceReport = () => {
     };
   };
 
-  // ===== SELECTED EMPLOYEE DATA =====
   const selectedEmployeeData = selectedEmployeeId ? getEmployeeStats(selectedEmployeeId) : getEmployeeStats(null);
   const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);
 
-  // ===== FILTER ACCOUNTS =====
   const filteredAccounts = selectedEmployeeData.accounts.filter(item => {
     if (!isEmployee && search) {
       return item.customer.toLowerCase().includes(search.toLowerCase()) ||
@@ -262,7 +255,6 @@ const EmployeePerformanceReport = () => {
     return true;
   });
 
-  // ===== CURRENT MONTH ACCOUNTS =====
   const getCurrentMonthAccounts = () => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -274,17 +266,13 @@ const EmployeePerformanceReport = () => {
   };
 
   const currentMonthAccounts = getCurrentMonthAccounts();
-
-  // ===== OVERDUE ACCOUNTS =====
   const overdueAccounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
 
-  // ===== VIEW ACCOUNT DETAIL =====
   const openAccountModal = (account) => {
     setSelectedAccount(account);
     setShowAccountModal(true);
   };
 
-  // ===== GET STATUS COLOR =====
   const getStatusColor = (status) => {
     switch(status) {
       case 'paid': return '#22c55e';
@@ -303,13 +291,11 @@ const EmployeePerformanceReport = () => {
     }
   };
 
-  // ===== GET EMPLOYEE NAME =====
   const getEmployeeName = (id) => {
     const emp = employeesList.find(e => e.id === id);
     return emp ? emp.name : 'All Employees';
   };
 
-  // ===== CARDS DATA =====
   const cards = isEmployee ? [
     { 
       key: 'new', 
@@ -377,7 +363,6 @@ const EmployeePerformanceReport = () => {
     },
   ];
 
-  // ===== RENDER TABLE =====
   const renderTable = () => {
     if (activeTab === 'total' && !isEmployee) {
       return (
@@ -664,7 +649,6 @@ const EmployeePerformanceReport = () => {
     return null;
   };
 
-  // ===== DEFAULT TAB =====
   useEffect(() => {
     if (isEmployee) {
       setActiveTab('recovery');
@@ -675,7 +659,7 @@ const EmployeePerformanceReport = () => {
 
   return (
     <div className="employee-performance-container">
-      {/* ===== HEADER ===== */}
+      {/* HEADER */}
       <div className="performance-header">
         <div className="header-left">
           <div className="header-title-group">
@@ -689,7 +673,6 @@ const EmployeePerformanceReport = () => {
           </p>
         </div>
 
-        {/* ===== EMPLOYEE DROPDOWN - ADMIN/MANAGER KE LIYE ===== */}
         {!isEmployee && (
           <div className="employee-dropdown-wrapper">
             <div 
@@ -730,7 +713,6 @@ const EmployeePerformanceReport = () => {
           </div>
         )}
 
-        {/* ===== SEARCH - ADMIN/MANAGER KE LIYE ===== */}
         {!isEmployee && (
           <div className="search-wrapper">
             <Search size={18} className="search-icon" />
@@ -744,7 +726,6 @@ const EmployeePerformanceReport = () => {
         )}
       </div>
 
-      {/* ===== SELECTED EMPLOYEE NAME - ADMIN/MANAGER ===== */}
       {!isEmployee && selectedEmployee && (
         <div className="selected-employee-info">
           <div className="selected-employee-avatar">{selectedEmployee.name.charAt(0)}</div>
@@ -755,7 +736,6 @@ const EmployeePerformanceReport = () => {
         </div>
       )}
 
-      {/* ===== STATS CARDS ===== */}
       <div className={`stats-grid-4 ${isEmployee ? 'employee-stats' : ''}`}>
         {cards.map((card) => (
           <div 
@@ -774,10 +754,9 @@ const EmployeePerformanceReport = () => {
         ))}
       </div>
 
-      {/* ===== RENDER TABLE ===== */}
       {renderTable()}
 
-      {/* ===== ACCOUNT DETAIL MODAL ===== */}
+      {/* ===== ACCOUNT DETAIL MODAL - WITH PAY INPUT ===== */}
       {showAccountModal && selectedAccount && (
         <div className="epr-modal-overlay" onClick={() => setShowAccountModal(false)}>
           <div className="epr-modal-content epr-modal-account" onClick={(e) => e.stopPropagation()}>
@@ -855,44 +834,129 @@ const EmployeePerformanceReport = () => {
                 </div>
               )}
 
-              {/* Installment History */}
-              {selectedAccount.installments && selectedAccount.installments.length > 0 && (
-                <div className="installment-history">
-                  <div className="history-header">
-                    <h4>Installment History</h4>
-                    <span className="history-badge">{selectedAccount.installments.length} Months</span>
+              {/* ===== INSTALLMENT DETAILS WITH PAY INPUT ===== */}
+              <div className="installment-details-section">
+                <div className="section-header">
+                  <h4>Installment Details</h4>
+                </div>
+                
+                <div className="installment-details-grid">
+                  <div className="installment-detail-item">
+                    <span>Customer Name</span>
+                    <strong>{selectedAccount.customer}</strong>
                   </div>
-                  <div className="history-scroll">
-                    <table className="history-table">
-                      <thead>
-                        <tr>
-                          <th>Month</th>
-                          <th>Due (PKR)</th>
-                          <th>Paid (PKR)</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedAccount.installments.map((inst, index) => (
-                          <tr key={index} className={inst.status === 'unpaid' ? 'overdue-row' : ''}>
-                            <td className="month-cell">{inst.month}</td>
-                            <td>PKR {inst.due.toLocaleString()}</td>
-                            <td className={inst.paid >= inst.due ? 'paid-amount' : 'balance-amount'}>
-                              PKR {inst.paid.toLocaleString()}
-                            </td>
-                            <td>
-                              <span className={`status-badge ${inst.status}`}>
-                                {inst.status === 'paid' ? 'Paid' : 
-                                 inst.status === 'partial' ? 'Partial' : 'Unpaid'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="installment-detail-item">
+                    <span>Case No</span>
+                    <strong>{selectedAccount.caseNo}</strong>
+                  </div>
+                  <div className="installment-detail-item">
+                    <span>Due Date</span>
+                    <strong>
+                      {selectedAccount.installments && selectedAccount.installments.length > 0 ? 
+                        selectedAccount.installments.find(i => i.status === 'unpaid' || i.status === 'partial')?.month || 'N/A' 
+                        : 'N/A'}
+                    </strong>
+                  </div>
+                  <div className="installment-detail-item">
+                    <span>Installment</span>
+                    <strong>PKR {selectedAccount.monthly.toLocaleString()}</strong>
+                  </div>
+                  <div className="installment-detail-item">
+                    <span>Balance</span>
+                    <strong className="balance-amount">PKR {selectedAccount.balance.toLocaleString()}</strong>
+                  </div>
+                  <div className="installment-detail-item">
+                    <span>Mirror (Pending)</span>
+                    <strong className="balance-amount">
+                      PKR {
+                        selectedAccount.installments && selectedAccount.installments.length > 0 ?
+                        selectedAccount.installments
+                          .filter(i => i.status === 'unpaid' || i.status === 'partial')
+                          .reduce((sum, i) => sum + (i.due - i.paid), 0)
+                          .toLocaleString()
+                        : '0'
+                      }
+                    </strong>
                   </div>
                 </div>
-              )}
+
+                {/* ===== PAY NOW WITH INPUT FIELD ===== */}
+                {selectedAccount.balance > 0 && (
+                  <div className="pay-now-section">
+                    <div className="pay-now-row">
+                      <div className="pay-input-group">
+                        <span className="pay-currency">PKR</span>
+                        <input 
+                          type="number" 
+                          className="pay-amount-input"
+                          placeholder="Enter amount"
+                          min="1"
+                          max={selectedAccount.balance}
+                          defaultValue={selectedAccount.balance}
+                          id={`payAmount_${selectedAccount.id}`}
+                        />
+                      </div>
+                      <button 
+                        className="btn-pay-now-full"
+                        onClick={() => {
+                          const input = document.getElementById(`payAmount_${selectedAccount.id}`);
+                          const amount = parseInt(input.value);
+                          
+                          if (!amount || amount <= 0) {
+                            alert('Please enter a valid amount');
+                            return;
+                          }
+                          
+                          if (amount > selectedAccount.balance) {
+                            alert(`Amount cannot exceed balance: PKR ${selectedAccount.balance.toLocaleString()}`);
+                            return;
+                          }
+                          
+                          const newBalance = selectedAccount.balance - amount;
+                          const newPaid = selectedAccount.paid + amount;
+                          
+                          const updatedAccounts = allData.accounts.map(acc => {
+                            if (acc.id === selectedAccount.id) {
+                              return {
+                                ...acc,
+                                balance: newBalance,
+                                paid: newPaid,
+                                status: newBalance === 0 ? 'paid' : acc.status
+                              };
+                            }
+                            return acc;
+                          });
+                          
+                          setAllData({ ...allData, accounts: updatedAccounts });
+                          
+                          setSelectedAccount({
+                            ...selectedAccount,
+                            balance: newBalance,
+                            paid: newPaid,
+                            status: newBalance === 0 ? 'paid' : selectedAccount.status
+                          });
+                          
+                          alert(`Payment of PKR ${amount.toLocaleString()} successful!\nRemaining Balance: PKR ${newBalance.toLocaleString()}`);
+                        }}
+                      >
+                        <DollarSign size={18} />
+                        Pay Now
+                      </button>
+                    </div>
+                    <p className="pay-hint">Enter amount to pay (Max: PKR {selectedAccount.balance.toLocaleString()})</p>
+                  </div>
+                )}
+
+                {/* Description */}
+                <div className="installment-description">
+                  <label>Description</label>
+                  <textarea 
+                    className="description-textarea"
+                    placeholder="Add description here..."
+                    rows="3"
+                  ></textarea>
+                </div>
+              </div>
             </div>
 
             <div className="epr-modal-footer">

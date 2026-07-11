@@ -30,12 +30,12 @@ const EmployeeReport = () => {
       joiningDate: '2025-01-15',
       salary: 45000,
       monthlyData: {
-        '2026-01': { accountsOpened: 12, recoveryAmount: 45000, leaves: 2, commission: 24000, fuelExpense: 1500, extraEarnings: 5000 },
-        '2026-02': { accountsOpened: 15, recoveryAmount: 52000, leaves: 1, commission: 30000, fuelExpense: 1800, extraEarnings: 7000 },
-        '2026-03': { accountsOpened: 10, recoveryAmount: 38000, leaves: 3, commission: 20000, fuelExpense: 1200, extraEarnings: 3000 },
-        '2026-04': { accountsOpened: 18, recoveryAmount: 65000, leaves: 0, commission: 36000, fuelExpense: 2000, extraEarnings: 8000 },
-        '2026-05': { accountsOpened: 14, recoveryAmount: 48000, leaves: 2, commission: 28000, fuelExpense: 1600, extraEarnings: 4500 },
-        '2026-06': { accountsOpened: 20, recoveryAmount: 72000, leaves: 1, commission: 40000, fuelExpense: 2200, extraEarnings: 10000 },
+        '2026-01': { accountsOpened: 12, recoveryAmount: 45000, leaves: 2, commission: 24000, fuelExpense: 1500, extraEarnings: 5000, overdueAccounts: 3 },
+        '2026-02': { accountsOpened: 15, recoveryAmount: 52000, leaves: 1, commission: 30000, fuelExpense: 1800, extraEarnings: 7000, overdueAccounts: 2 },
+        '2026-03': { accountsOpened: 10, recoveryAmount: 38000, leaves: 3, commission: 20000, fuelExpense: 1200, extraEarnings: 3000, overdueAccounts: 4 },
+        '2026-04': { accountsOpened: 18, recoveryAmount: 65000, leaves: 0, commission: 36000, fuelExpense: 2000, extraEarnings: 8000, overdueAccounts: 1 },
+        '2026-05': { accountsOpened: 14, recoveryAmount: 48000, leaves: 2, commission: 28000, fuelExpense: 1600, extraEarnings: 4500, overdueAccounts: 2 },
+        '2026-06': { accountsOpened: 20, recoveryAmount: 72000, leaves: 1, commission: 40000, fuelExpense: 2200, extraEarnings: 10000, overdueAccounts: 0 },
       },
       totalAccounts: 89,
       totalRecovery: 320000,
@@ -52,12 +52,12 @@ const EmployeeReport = () => {
       joiningDate: '2025-03-01',
       salary: 38000,
       monthlyData: {
-        '2026-01': { accountsOpened: 8, recoveryAmount: 32000, leaves: 1, commission: 16000, fuelExpense: 1000, extraEarnings: 2000 },
-        '2026-02': { accountsOpened: 10, recoveryAmount: 40000, leaves: 2, commission: 20000, fuelExpense: 1300, extraEarnings: 3500 },
-        '2026-03': { accountsOpened: 12, recoveryAmount: 45000, leaves: 0, commission: 24000, fuelExpense: 1500, extraEarnings: 4000 },
-        '2026-04': { accountsOpened: 9, recoveryAmount: 35000, leaves: 3, commission: 18000, fuelExpense: 1100, extraEarnings: 2500 },
-        '2026-05': { accountsOpened: 11, recoveryAmount: 42000, leaves: 1, commission: 22000, fuelExpense: 1400, extraEarnings: 3000 },
-        '2026-06': { accountsOpened: 15, recoveryAmount: 55000, leaves: 0, commission: 30000, fuelExpense: 1800, extraEarnings: 5000 },
+        '2026-01': { accountsOpened: 8, recoveryAmount: 32000, leaves: 1, commission: 16000, fuelExpense: 1000, extraEarnings: 2000, overdueAccounts: 1 },
+        '2026-02': { accountsOpened: 10, recoveryAmount: 40000, leaves: 2, commission: 20000, fuelExpense: 1300, extraEarnings: 3500, overdueAccounts: 2 },
+        '2026-03': { accountsOpened: 12, recoveryAmount: 45000, leaves: 0, commission: 24000, fuelExpense: 1500, extraEarnings: 4000, overdueAccounts: 0 },
+        '2026-04': { accountsOpened: 9, recoveryAmount: 35000, leaves: 3, commission: 18000, fuelExpense: 1100, extraEarnings: 2500, overdueAccounts: 3 },
+        '2026-05': { accountsOpened: 11, recoveryAmount: 42000, leaves: 1, commission: 22000, fuelExpense: 1400, extraEarnings: 3000, overdueAccounts: 1 },
+        '2026-06': { accountsOpened: 15, recoveryAmount: 55000, leaves: 0, commission: 30000, fuelExpense: 1800, extraEarnings: 5000, overdueAccounts: 0 },
       },
       totalAccounts: 65,
       totalRecovery: 249000,
@@ -74,12 +74,12 @@ const EmployeeReport = () => {
       joiningDate: '2025-06-01',
       salary: 52000,
       monthlyData: {
-        '2026-01': { accountsOpened: 5, recoveryAmount: 18000, leaves: 4, commission: 10000, fuelExpense: 800, extraEarnings: 1000 },
-        '2026-02': { accountsOpened: 7, recoveryAmount: 25000, leaves: 2, commission: 14000, fuelExpense: 1000, extraEarnings: 2000 },
-        '2026-03': { accountsOpened: 8, recoveryAmount: 28000, leaves: 3, commission: 16000, fuelExpense: 1100, extraEarnings: 2500 },
-        '2026-04': { accountsOpened: 10, recoveryAmount: 35000, leaves: 1, commission: 20000, fuelExpense: 1300, extraEarnings: 3000 },
-        '2026-05': { accountsOpened: 6, recoveryAmount: 20000, leaves: 5, commission: 12000, fuelExpense: 900, extraEarnings: 1500 },
-        '2026-06': { accountsOpened: 9, recoveryAmount: 30000, leaves: 2, commission: 18000, fuelExpense: 1200, extraEarnings: 2500 },
+        '2026-01': { accountsOpened: 5, recoveryAmount: 18000, leaves: 4, commission: 10000, fuelExpense: 800, extraEarnings: 1000, overdueAccounts: 5 },
+        '2026-02': { accountsOpened: 7, recoveryAmount: 25000, leaves: 2, commission: 14000, fuelExpense: 1000, extraEarnings: 2000, overdueAccounts: 3 },
+        '2026-03': { accountsOpened: 8, recoveryAmount: 28000, leaves: 3, commission: 16000, fuelExpense: 1100, extraEarnings: 2500, overdueAccounts: 4 },
+        '2026-04': { accountsOpened: 10, recoveryAmount: 35000, leaves: 1, commission: 20000, fuelExpense: 1300, extraEarnings: 3000, overdueAccounts: 2 },
+        '2026-05': { accountsOpened: 6, recoveryAmount: 20000, leaves: 5, commission: 12000, fuelExpense: 900, extraEarnings: 1500, overdueAccounts: 6 },
+        '2026-06': { accountsOpened: 9, recoveryAmount: 30000, leaves: 2, commission: 18000, fuelExpense: 1200, extraEarnings: 2500, overdueAccounts: 3 },
       },
       totalAccounts: 45,
       totalRecovery: 156000,
@@ -96,12 +96,12 @@ const EmployeeReport = () => {
       joiningDate: '2025-08-01',
       salary: 41000,
       monthlyData: {
-        '2026-01': { accountsOpened: 6, recoveryAmount: 22000, leaves: 2, commission: 12000, fuelExpense: 900, extraEarnings: 1500 },
-        '2026-02': { accountsOpened: 8, recoveryAmount: 28000, leaves: 1, commission: 16000, fuelExpense: 1100, extraEarnings: 2000 },
-        '2026-03': { accountsOpened: 11, recoveryAmount: 42000, leaves: 0, commission: 22000, fuelExpense: 1500, extraEarnings: 3500 },
-        '2026-04': { accountsOpened: 7, recoveryAmount: 25000, leaves: 3, commission: 14000, fuelExpense: 1000, extraEarnings: 2000 },
-        '2026-05': { accountsOpened: 9, recoveryAmount: 32000, leaves: 2, commission: 18000, fuelExpense: 1200, extraEarnings: 2500 },
-        '2026-06': { accountsOpened: 12, recoveryAmount: 48000, leaves: 0, commission: 24000, fuelExpense: 1600, extraEarnings: 4000 },
+        '2026-01': { accountsOpened: 6, recoveryAmount: 22000, leaves: 2, commission: 12000, fuelExpense: 900, extraEarnings: 1500, overdueAccounts: 2 },
+        '2026-02': { accountsOpened: 8, recoveryAmount: 28000, leaves: 1, commission: 16000, fuelExpense: 1100, extraEarnings: 2000, overdueAccounts: 1 },
+        '2026-03': { accountsOpened: 11, recoveryAmount: 42000, leaves: 0, commission: 22000, fuelExpense: 1500, extraEarnings: 3500, overdueAccounts: 0 },
+        '2026-04': { accountsOpened: 7, recoveryAmount: 25000, leaves: 3, commission: 14000, fuelExpense: 1000, extraEarnings: 2000, overdueAccounts: 3 },
+        '2026-05': { accountsOpened: 9, recoveryAmount: 32000, leaves: 2, commission: 18000, fuelExpense: 1200, extraEarnings: 2500, overdueAccounts: 2 },
+        '2026-06': { accountsOpened: 12, recoveryAmount: 48000, leaves: 0, commission: 24000, fuelExpense: 1600, extraEarnings: 4000, overdueAccounts: 0 },
       },
       totalAccounts: 53,
       totalRecovery: 197000,
@@ -138,7 +138,6 @@ const EmployeeReport = () => {
 
   const currentMonth = getCurrentMonth();
 
-  // ===== FILTER EMPLOYEES BY BRANCH =====
   const getFilteredEmployees = () => {
     let filtered = employees;
     if (userBranch) {
@@ -152,7 +151,6 @@ const EmployeeReport = () => {
 
   const filteredEmployees = getFilteredEmployees();
 
-  // ===== GET SELECTED EMPLOYEE DATA =====
   const getSelectedEmployeeData = () => {
     if (selectedEmployeeId) {
       const emp = employees.find(e => e.id === selectedEmployeeId);
@@ -162,8 +160,6 @@ const EmployeeReport = () => {
   };
 
   const selectedEmployeeData = getSelectedEmployeeData();
-
-  // ===== FILTER FOR TABLE DISPLAY =====
   const displayEmployees = selectedEmployeeData ? [selectedEmployeeData] : filteredEmployees;
 
   const getEmployeeChartData = (emp) => {
@@ -173,11 +169,11 @@ const EmployeeReport = () => {
       accounts: months.map(m => emp.monthlyData[m].accountsOpened),
       recovery: months.map(m => emp.monthlyData[m].recoveryAmount),
       commission: months.map(m => emp.monthlyData[m].commission),
+      overdue: months.map(m => emp.monthlyData[m].overdueAccounts || 0),
     };
     return data;
   };
 
-  // ===== CHART TYPES =====
   const chartTypes = [
     { id: 'bar', label: 'Bar', icon: BarChart },
     { id: 'line', label: 'Line', icon: LineChart },
@@ -186,98 +182,136 @@ const EmployeeReport = () => {
     { id: 'stacked', label: 'Stacked', icon: BarChart },
   ];
 
-  // ===== RENDER DIFFERENT CHARTS =====
+  // ===== RENDER CHART WITH 3 BARS (Accounts, Recovery, Overdue) - FIXED =====
   const renderEmployeeChart = () => {
     if (!selectedEmployee) return null;
     
     const empData = getEmployeeChartData(selectedEmployee);
-    const maxVal = Math.max(...empData.accounts, ...empData.recovery.map(v => v/1000), ...empData.commission.map(v => v/1000), 1);
+    
+    // ALAG ALAG MAX VALUES
+    const maxAccounts = Math.max(...empData.accounts, 1);
+    const maxRecovery = Math.max(...empData.recovery.map(v => v/1000), 1);
+    const maxOverdue = Math.max(...empData.overdue, 1);
+
+    // HAR CHEEZ KA APNA HEIGHT CALCULATION
+    const getAccountsHeight = (val) => (val / maxAccounts) * 140;
+    const getRecoveryHeight = (val) => ((val/1000) / maxRecovery) * 140;
+    const getOverdueHeight = (val) => (val / maxOverdue) * 140;
 
     if (modalChartType === 'bar') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-bar-container">
+          <div className="chart-bar-container-3">
             {empData.labels.map((label, index) => (
-              <div key={index} className="chart-bar-group">
-                <div className="chart-bars">
-                  <div className="chart-bar-wrapper">
+              <div key={index} className="chart-bar-group-3">
+                <div className="chart-bars-3">
+                  {/* Accounts Bar - Gold */}
+                  <div className="chart-bar-wrapper-3">
                     <div 
-                      className="chart-bar bar-gold" 
-                      style={{ height: `${(empData.accounts[index] / maxVal) * 140}px` }}
+                      className="chart-bar-3 bar-accounts" 
+                      style={{ height: `${getAccountsHeight(empData.accounts[index])}px` }}
                     >
-                      <span className="bar-value">{empData.accounts[index]}</span>
+                      <span className="bar-value-3">{empData.accounts[index]}</span>
                     </div>
-                    <span className="bar-label">Acc</span>
+                    <span className="bar-label-3">Acc</span>
                   </div>
-                  <div className="chart-bar-wrapper">
+                  {/* Recovery Bar - Dark */}
+                  <div className="chart-bar-wrapper-3">
                     <div 
-                      className="chart-bar bar-dark" 
-                      style={{ height: `${((empData.recovery[index]) / maxVal / 1000) * 140}px` }}
+                      className="chart-bar-3 bar-recovery" 
+                      style={{ height: `${getRecoveryHeight(empData.recovery[index])}px` }}
                     >
-                      <span className="bar-value">{(empData.recovery[index]/1000).toFixed(1)}k</span>
+                      <span className="bar-value-3">{(empData.recovery[index]/1000).toFixed(1)}k</span>
                     </div>
-                    <span className="bar-label">Rec</span>
+                    <span className="bar-label-3">Rec</span>
+                  </div>
+                  {/* Overdue Bar - Red */}
+                  <div className="chart-bar-wrapper-3">
+                    <div 
+                      className="chart-bar-3 bar-overdue" 
+                      style={{ height: `${getOverdueHeight(empData.overdue[index])}px` }}
+                    >
+                      <span className="bar-value-3">{empData.overdue[index]}</span>
+                    </div>
+                    <span className="bar-label-3">OD</span>
                   </div>
                 </div>
-                <div className="chart-bar-labels">
-                  <span className="chart-label">{label}</span>
+                <div className="chart-bar-labels-3">
+                  <span className="chart-label-3">{label}</span>
                 </div>
               </div>
             ))}
           </div>
-          <div className="chart-legend">
-            <span><span className="legend-dot gold"></span> Accounts</span>
-            <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
+          <div className="chart-legend-3">
+            <span><span className="legend-dot-3 gold"></span> Accounts (max: {maxAccounts})</span>
+            <span><span className="legend-dot-3 dark"></span> Recovery (max: {maxRecovery.toFixed(1)}k)</span>
+            <span><span className="legend-dot-3 red"></span> Overdue (max: {maxOverdue})</span>
           </div>
         </div>
       );
     }
 
-    // Line, Pie, Area, Stacked charts remain same...
+    // Line chart - ab alag scales se
     if (modalChartType === 'line') {
       return (
         <div className="modal-chart-container">
           <div className="chart-line-container">
-            <svg viewBox="0 0 600 200" className="chart-svg">
+            <svg viewBox="0 0 600 220" className="chart-svg">
               {[0, 50, 100, 150, 200].map((y) => (
-                <line key={y} x1="0" y1={200 - y} x2="600" y2={200 - y} stroke="#e5e7eb" strokeWidth="1" />
+                <line key={y} x1="0" y1={220 - y} x2="600" y2={220 - y} stroke="#e5e7eb" strokeWidth="1" />
               ))}
+              {/* Accounts Line - Gold */}
               <polyline
                 points={empData.accounts.map((val, i) => 
-                  `${(i / (empData.accounts.length - 1)) * 600},${200 - (val / maxVal) * 170}`
+                  `${(i / (empData.accounts.length - 1)) * 600},${220 - (val / maxAccounts) * 190}`
                 ).join(' ')}
                 fill="none"
                 stroke="#C9A84C"
                 strokeWidth="3"
               />
+              {/* Recovery Line - Dark */}
               <polyline
                 points={empData.recovery.map((val, i) => 
-                  `${(i / (empData.recovery.length - 1)) * 600},${200 - ((val/1000) / maxVal) * 170}`
+                  `${(i / (empData.recovery.length - 1)) * 600},${220 - ((val/1000) / maxRecovery) * 190}`
                 ).join(' ')}
                 fill="none"
                 stroke="#1A2A4A"
                 strokeWidth="3"
                 strokeDasharray="5,5"
               />
+              {/* Overdue Line - Red */}
+              <polyline
+                points={empData.overdue.map((val, i) => 
+                  `${(i / (empData.overdue.length - 1)) * 600},${220 - (val / maxOverdue) * 190}`
+                ).join(' ')}
+                fill="none"
+                stroke="#dc2626"
+                strokeWidth="3"
+                strokeDasharray="2,4"
+              />
               {empData.labels.map((label, i) => (
-                <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="195" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
+                <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="215" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
               ))}
             </svg>
-            <div className="chart-legend">
-              <span><span className="legend-dot gold"></span> Accounts</span>
-              <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
+            <div className="chart-legend-3">
+              <span><span className="legend-dot-3 gold"></span> Accounts</span>
+              <span><span className="legend-dot-3 dark"></span> Recovery (PKR'000)</span>
+              <span><span className="legend-dot-3 red"></span> Overdue</span>
             </div>
           </div>
         </div>
       );
     }
 
+    // Pie chart
     if (modalChartType === 'pie') {
       const totalAccounts = empData.accounts.reduce((a, b) => a + b, 0);
       const totalRecovery = empData.recovery.reduce((a, b) => a + b, 0);
+      const totalOverdue = empData.overdue.reduce((a, b) => a + b, 0);
       const pieData = [
         { label: 'Total Accounts', value: totalAccounts, color: '#C9A84C' },
         { label: 'Total Recovery', value: totalRecovery / 1000, color: '#1A2A4A' },
+        { label: 'Total Overdue', value: totalOverdue, color: '#dc2626' },
       ];
       const total = pieData.reduce((a, b) => a + b.value, 0);
       let cumulative = 0;
@@ -305,88 +339,117 @@ const EmployeeReport = () => {
                     />
                   );
                 })}
-                <text x="110" y="105" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#0A1628">
+                <text x="110" y="100" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#0A1628">
                   Total
                 </text>
-                <text x="110" y="125" textAnchor="middle" fontSize="11" fill="#6b7280">
-                  {totalAccounts} Acc / {(totalRecovery/1000).toFixed(1)}k Rec
+                <text x="110" y="118" textAnchor="middle" fontSize="10" fill="#6b7280">
+                  {totalAccounts} Acc
+                </text>
+                <text x="110" y="132" textAnchor="middle" fontSize="10" fill="#6b7280">
+                  {(totalRecovery/1000).toFixed(1)}k Rec
+                </text>
+                <text x="110" y="146" textAnchor="middle" fontSize="10" fill="#dc2626">
+                  {totalOverdue} OD
                 </text>
               </svg>
             </div>
-            <div className="chart-legend">
-              <span><span className="legend-dot gold"></span> Accounts ({totalAccounts})</span>
-              <span><span className="legend-dot dark"></span> Recovery ({(totalRecovery/1000).toFixed(1)}k)</span>
+            <div className="chart-legend-3">
+              <span><span className="legend-dot-3 gold"></span> Accounts ({totalAccounts})</span>
+              <span><span className="legend-dot-3 dark"></span> Recovery ({(totalRecovery/1000).toFixed(1)}k)</span>
+              <span><span className="legend-dot-3 red"></span> Overdue ({totalOverdue})</span>
             </div>
           </div>
         </div>
       );
     }
 
+    // Area chart
     if (modalChartType === 'area') {
       return (
         <div className="modal-chart-container">
           <div className="chart-area-container-custom">
-            <svg viewBox="0 0 600 200" className="chart-svg">
+            <svg viewBox="0 0 600 220" className="chart-svg">
+              {/* Accounts Area */}
               <polygon
-                points={`0,200 ${empData.accounts.map((val, i) => 
-                  `${(i / (empData.accounts.length - 1)) * 600},${200 - (val / maxVal) * 170}`
-                ).join(' ')} 600,200`}
+                points={`0,220 ${empData.accounts.map((val, i) => 
+                  `${(i / (empData.accounts.length - 1)) * 600},${220 - (val / maxAccounts) * 190}`
+                ).join(' ')} 600,220`}
                 fill="rgba(201, 168, 76, 0.3)"
                 stroke="#C9A84C"
                 strokeWidth="2"
               />
+              {/* Recovery Area */}
               <polygon
-                points={`0,200 ${empData.recovery.map((val, i) => 
-                  `${(i / (empData.recovery.length - 1)) * 600},${200 - ((val/1000) / maxVal) * 170}`
-                ).join(' ')} 600,200`}
+                points={`0,220 ${empData.recovery.map((val, i) => 
+                  `${(i / (empData.recovery.length - 1)) * 600},${220 - ((val/1000) / maxRecovery) * 190}`
+                ).join(' ')} 600,220`}
                 fill="rgba(26, 42, 74, 0.3)"
                 stroke="#1A2A4A"
                 strokeWidth="2"
               />
+              {/* Overdue Area */}
+              <polygon
+                points={`0,220 ${empData.overdue.map((val, i) => 
+                  `${(i / (empData.overdue.length - 1)) * 600},${220 - (val / maxOverdue) * 190}`
+                ).join(' ')} 600,220`}
+                fill="rgba(220, 38, 38, 0.25)"
+                stroke="#dc2626"
+                strokeWidth="2"
+              />
               {empData.labels.map((label, i) => (
-                <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="195" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
+                <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="215" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
               ))}
             </svg>
-            <div className="chart-legend">
-              <span><span className="legend-dot gold"></span> Accounts</span>
-              <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
+            <div className="chart-legend-3">
+              <span><span className="legend-dot-3 gold"></span> Accounts</span>
+              <span><span className="legend-dot-3 dark"></span> Recovery (PKR'000)</span>
+              <span><span className="legend-dot-3 red"></span> Overdue</span>
             </div>
           </div>
         </div>
       );
     }
 
+    // Stacked chart
     if (modalChartType === 'stacked') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-stacked-container">
+          <div className="chart-stacked-container-3">
             {empData.labels.map((label, index) => {
-              const accHeight = (empData.accounts[index] / maxVal) * 140;
-              const recHeight = ((empData.recovery[index] / 1000) / maxVal) * 140;
+              const accH = getAccountsHeight(empData.accounts[index]);
+              const recH = getRecoveryHeight(empData.recovery[index]);
+              const odH = getOverdueHeight(empData.overdue[index]);
               return (
-                <div key={index} className="stacked-bar-group">
-                  <div className="stacked-bar-wrapper">
+                <div key={index} className="stacked-bar-group-3">
+                  <div className="stacked-bar-wrapper-3">
                     <div 
-                      className="stacked-bar rec-bar" 
-                      style={{ height: `${recHeight}px` }}
+                      className="stacked-bar-3 rec-bar-3" 
+                      style={{ height: `${recH}px` }}
                     >
-                      <span className="stacked-value">{(empData.recovery[index]/1000).toFixed(1)}k</span>
+                      <span className="stacked-value-3">{(empData.recovery[index]/1000).toFixed(1)}k</span>
                     </div>
                     <div 
-                      className="stacked-bar acc-bar" 
-                      style={{ height: `${accHeight}px` }}
+                      className="stacked-bar-3 od-bar-3" 
+                      style={{ height: `${odH}px` }}
                     >
-                      <span className="stacked-value">{empData.accounts[index]}</span>
+                      <span className="stacked-value-3">{empData.overdue[index]}</span>
+                    </div>
+                    <div 
+                      className="stacked-bar-3 acc-bar-3" 
+                      style={{ height: `${accH}px` }}
+                    >
+                      <span className="stacked-value-3">{empData.accounts[index]}</span>
                     </div>
                   </div>
-                  <span className="stacked-label">{label}</span>
+                  <span className="stacked-label-3">{label}</span>
                 </div>
               );
             })}
           </div>
-          <div className="chart-legend">
-            <span><span className="legend-dot gold"></span> Accounts</span>
-            <span><span className="legend-dot dark"></span> Recovery (PKR'000)</span>
+          <div className="chart-legend-3">
+            <span><span className="legend-dot-3 gold"></span> Accounts</span>
+            <span><span className="legend-dot-3 dark"></span> Recovery (PKR'000)</span>
+            <span><span className="legend-dot-3 red"></span> Overdue</span>
           </div>
         </div>
       );
@@ -451,7 +514,6 @@ const EmployeeReport = () => {
 
   const isEmployee = userRole === 'employee';
 
-  // ===== SUMMARY CARDS =====
   const summaryCards = isEmployee ? [
     { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#1E1B4B', className: 'accounts' },
     { label: 'Recovery Due', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', className: 'recovery' },
@@ -463,7 +525,6 @@ const EmployeeReport = () => {
     { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#065f46', className: 'accounts' },
   ];
 
-  // ===== GET EMPLOYEE NAME =====
   const getEmployeeName = (id) => {
     const emp = employees.find(e => e.id === id);
     return emp ? emp.name : 'Select Employee';
@@ -471,6 +532,7 @@ const EmployeeReport = () => {
 
   return (
     <div className="employee-report-container">
+      {/* Header */}
       <div className="report-header">
         <div className="header-left">
           <div className="header-title-group">
@@ -492,7 +554,7 @@ const EmployeeReport = () => {
         </button>
       </div>
 
-      {/* ===== DROPDOWN FOR EMPLOYEE SELECTION ===== */}
+      {/* Dropdown */}
       {!isEmployee && (
         <div className="employee-dropdown-wrapper">
           <div 
@@ -534,7 +596,7 @@ const EmployeeReport = () => {
         </div>
       )}
 
-      {/* ===== REPORT CONTROLS ===== */}
+      {/* Controls */}
       {!isEmployee && !selectedEmployeeId && (
         <div className="report-controls">
           <div className="search-wrapper">
@@ -556,7 +618,7 @@ const EmployeeReport = () => {
         </div>
       )}
 
-      {/* ===== SELECTED EMPLOYEE NAME ===== */}
+      {/* Selected Employee */}
       {!isEmployee && selectedEmployeeId && (
         <div className="selected-employee-info">
           <div className="selected-employee-avatar">
@@ -573,7 +635,7 @@ const EmployeeReport = () => {
         </div>
       )}
 
-      {/* ===== SUMMARY CARDS ===== */}
+      {/* Summary Cards */}
       <div className={`summary-cards ${isEmployee ? 'employee-cards' : ''}`}>
         {summaryCards.map((card, index) => (
           <div key={index} className="summary-card" style={{ borderTopColor: card.color }}>
@@ -588,6 +650,7 @@ const EmployeeReport = () => {
         ))}
       </div>
 
+      {/* Table */}
       <div className="employee-table-wrap">
         <div className="table-header-bar">
           <div className="table-header-left">
@@ -646,6 +709,7 @@ const EmployeeReport = () => {
         </div>
       </div>
 
+      {/* Modal */}
       {showDetailModal && selectedEmployee && (
         <div className="empreport-modal-overlay" onClick={closeModal}>
           <div className="empreport-modal-content empreport-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -669,7 +733,7 @@ const EmployeeReport = () => {
                 </div>
               </div>
 
-              {/* ===== 7 CARDS ===== */}
+              {/* 7 Cards */}
               <div className="detail-summary-7">
                 {getEmployeeStats(selectedEmployee).map((stat, index) => (
                   <div key={index} className="detail-summary-item" style={{ borderTopColor: stat.color }}>
@@ -679,7 +743,7 @@ const EmployeeReport = () => {
                 ))}
               </div>
 
-              {/* ===== MULTIPLE CHARTS ===== */}
+              {/* Chart Section */}
               <div className="modal-chart-section">
                 <div className="modal-chart-header">
                   <h4>Performance Trend (Self-Comparison)</h4>
@@ -699,6 +763,7 @@ const EmployeeReport = () => {
                 {renderEmployeeChart()}
               </div>
 
+              {/* Monthly Breakdown */}
               <div className="monthly-breakdown">
                 <div className="monthly-header">
                   <h4>Monthly Breakdown</h4>

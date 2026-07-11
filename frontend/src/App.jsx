@@ -14,6 +14,7 @@ import EmployeeReport from './components/Employees/EmployeeReport';
 import OverdueInstallments from './components/OverdueInstallments/OverdueInstallments';
 import AgingReport from './components/Reports/AgingReport';
 import EmployeePerformanceReport from './components/Reports/EmployeePerformanceReport';
+import UsersManagement from './components/Users/Users';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import './App.css';
@@ -110,6 +111,9 @@ const App = () => {
                 <Route path="/employee-performance" element={<EmployeePerformanceReport />} />
                 <Route path="/overdue-installments" element={<OverdueInstallments />} />
                 <Route path="/aging-report" element={<AgingReport />} />
+                
+                {/* ===== USERS ROUTE - ADMIN/MANAGER KE LIYE ===== */}
+              <Route path="/users" element={<UsersManagement />} />
 
                 <Route path="/login" element={<Navigate to="/" />} />
               </Routes>

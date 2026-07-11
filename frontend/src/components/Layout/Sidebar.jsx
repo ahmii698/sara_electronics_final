@@ -1,8 +1,13 @@
-// ===== SIDEBAR COMPONENT - UPDATED =====
+// ===== SIDEBAR COMPONENT - FIXED =====
 
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Package, DollarSign, Users, FileText, LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, BarChart3, Clock, LayoutDashboard, AlertTriangle, TrendingUp, PlusCircle, Menu, X } from 'lucide-react';
+import { 
+  Home, Package, DollarSign, Users as UsersIcon, FileText, 
+  LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, 
+  BarChart3, Clock, LayoutDashboard, AlertTriangle, 
+  TrendingUp, PlusCircle, Menu, X 
+} from 'lucide-react';
 import './Sidebar.css';
 import logo from '../../assets/logo.jpeg';
 
@@ -91,7 +96,8 @@ const Sidebar = () => {
       { path: '/aging-report', icon: AlertTriangle, label: 'Aging Report' },
       { path: '/add-account', icon: UserPlus, label: 'Add Account' },
       { path: '/recovery', icon: FileText, label: 'Recovery' },
-      { path: '/employees/add', icon: Users, label: 'Employees' }
+      { path: '/users', icon: UsersIcon, label: 'Users' },  // <-- UsersIcon use kiya
+      { path: '/employees/add', icon: UsersIcon, label: 'Employees' }  // <-- UsersIcon use kiya
     );
   }
 
