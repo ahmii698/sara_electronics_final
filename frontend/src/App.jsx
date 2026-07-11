@@ -16,6 +16,7 @@ import AgingReport from './components/Reports/AgingReport';
 import EmployeePerformanceReport from './components/Reports/EmployeePerformanceReport';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
+import './App.css';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -100,24 +101,14 @@ const App = () => {
                   } 
                 />
 
-                {/* ===== EXTRA EXPENSES - ADMIN AUR MANAGER (Finance se bahar) ===== */}
                 <Route path="/extra-expenses" element={<ExtraExpense />} />
-
                 <Route path="/add-account" element={<AddAccount />} />
                 <Route path="/recovery" element={<Recovery />} />
                 <Route path="/employees/add" element={<AddEmployee />} />
                 <Route path="/employee-expenses" element={<EmployeeExpenses />} />
-                
-                {/* ===== EMPLOYEE REPORT - ADMIN AUR MANAGER ===== */}
                 <Route path="/employee-report" element={<EmployeeReport />} />
-                
-                {/* ===== EMPLOYEE PERFORMANCE - ADMIN, MANAGER, EMPLOYEE SABKO ===== */}
                 <Route path="/employee-performance" element={<EmployeePerformanceReport />} />
-                
-                {/* ===== OVERDUE INSTALLMENTS - ADMIN AUR MANAGER (EMPLOYEE KE LIYE HATAYA) ===== */}
                 <Route path="/overdue-installments" element={<OverdueInstallments />} />
-
-                {/* ===== AGING REPORT - ADMIN AUR MANAGER ===== */}
                 <Route path="/aging-report" element={<AgingReport />} />
 
                 <Route path="/login" element={<Navigate to="/" />} />

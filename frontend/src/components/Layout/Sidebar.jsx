@@ -1,6 +1,8 @@
+// ===== SIDEBAR COMPONENT - UPDATED =====
+
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Package, DollarSign, Users, FileText, LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, BarChart3, Clock, LayoutDashboard, AlertTriangle, TrendingUp, PlusCircle } from 'lucide-react';
+import { Home, Package, DollarSign, Users, FileText, LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, BarChart3, Clock, LayoutDashboard, AlertTriangle, TrendingUp, PlusCircle, Menu, X } from 'lucide-react';
 import './Sidebar.css';
 import logo from '../../assets/logo.jpeg';
 
@@ -9,6 +11,8 @@ const Sidebar = () => {
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -16,6 +20,13 @@ const Sidebar = () => {
       setUserRole(user.role);
       setUserBranch(user.branch);
     }
+
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 480);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleLogout = () => {
@@ -25,176 +36,157 @@ const Sidebar = () => {
     window.location.reload();
   };
 
-  const toggleFinance = () => {
+  const toggleFinance = (e) => {
+    e.stopPropagation();
     setIsFinanceOpen(!isFinanceOpen);
+  };
+
+  const toggleSidebar = () => {
+    setIsMobileOpen(!isMobileOpen);
+  };
+
+  const closeSidebar = () => {
+    if (isMobile) {
+      setIsMobileOpen(false);
+    }
   };
 
   const isAdmin = userRole === 'admin';
   const isManager = userRole === 'manager';
   const isEmployee = userRole === 'employee';
 
+  // Navigation items
+  const navItems = [];
+
+  if (isEmployee) {
+    navItems.push({
+      path: '/employee-performance',
+      icon: TrendingUp,
+      label: 'My Performance'
+    });
+  }
+
+  if (isAdmin) {
+    navItems.push({
+      path: '/',
+      icon: Home,
+      label: 'Dashboard'
+    });
+  }
+
+  // Finance dropdown (admin only)
+  const financeItems = isAdmin ? [
+    { path: '/finance/salary', label: 'Employee Salary' },
+    { path: '/finance/fixed', label: 'Fixed Expenses' }
+  ] : [];
+
+  // Other items (admin & manager)
+  const otherItems = [];
+  if (isAdmin || isManager) {
+    otherItems.push(
+      { path: '/extra-expenses', icon: PlusCircle, label: 'Extra Expenses' },
+      { path: '/employee-report', icon: BarChart3, label: 'Employee Report' },
+      { path: '/employee-performance', icon: TrendingUp, label: 'Employee Performance' },
+      { path: '/overdue-installments', icon: Clock, label: 'Overdue Installments' },
+      { path: '/aging-report', icon: AlertTriangle, label: 'Aging Report' },
+      { path: '/add-account', icon: UserPlus, label: 'Add Account' },
+      { path: '/recovery', icon: FileText, label: 'Recovery' },
+      { path: '/employees/add', icon: Users, label: 'Employees' }
+    );
+  }
+
   return (
-    <div className="sidebar">
-      <div className="sidebar-logo">
-        <img src={logo} alt="SARA Electronics" className="logo-image" />
-        <h1 className="brand-title">SARA <span>Electronics</span></h1>
-        <p className="brand-subtitle">
-          {isEmployee ? 'EMPLOYEE PANEL' : isAdmin ? 'ADMIN PANEL' : 'MANAGER PANEL'}
-        </p>
-        {userBranch && (
-          <p className="brand-branch">Branch {userBranch}</p>
-        )}
-      </div>
+    <>
+      {/* Mobile Toggle Button */}
+      <button className="sidebar-toggle" onClick={toggleSidebar}>
+        {isMobileOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
 
-      <nav className="sidebar-nav">
-        {/* ===== EMPLOYEE - SIRF MY PERFORMANCE ===== */}
-        {isEmployee && (
-          <NavLink
-            to="/employee-performance"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <TrendingUp size={20} />
-            <span>My Performance</span>
-          </NavLink>
-        )}
+      {/* Sidebar */}
+      <div className={`sidebar ${isMobile ? (isMobileOpen ? 'open' : '') : ''}`}>
+        <div className="sidebar-logo">
+          <img src={logo} alt="SARA Electronics" className="logo-image" />
+          <h1 className="brand-title">SARA <span>Electronics</span></h1>
+          <p className="brand-subtitle">
+            {isEmployee ? 'EMPLOYEE PANEL' : isAdmin ? 'ADMIN PANEL' : 'MANAGER PANEL'}
+          </p>
+          {userBranch && (
+            <p className="brand-branch">Branch {userBranch}</p>
+          )}
+        </div>
 
-        {/* ===== DASHBOARD - SIRF ADMIN ===== */}
-        {isAdmin && (
-          <NavLink
-            to="/"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <Home size={20} />
-            <span>Dashboard</span>
-          </NavLink>
-        )}
+        <nav className="sidebar-nav">
+          {/* Regular Nav Items */}
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              onClick={closeSidebar}
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
 
-        {/* ===== FINANCE - SIRF ADMIN ===== */}
-        {isAdmin && (
-          <div className="nav-dropdown">
-            <div className={`nav-item dropdown-toggle ${isFinanceOpen ? 'active' : ''}`} onClick={toggleFinance}>
-              <DollarSign size={20} />
-              <span>Finance</span>
-              {isFinanceOpen ? <ChevronDown size={18} className="dropdown-icon" /> : <ChevronRight size={18} className="dropdown-icon" />}
-            </div>
-            
-            <div className={`sub-menu ${isFinanceOpen ? 'open' : ''}`}>
-              <NavLink
-                to="/finance/salary"
-                className={({ isActive }) => `sub-nav-item ${isActive ? 'active' : ''}`}
+          {/* Finance Dropdown (Admin only) */}
+          {isAdmin && financeItems.length > 0 && (
+            <div className="nav-dropdown">
+              <div 
+                className={`nav-item dropdown-toggle ${isFinanceOpen ? 'active' : ''}`} 
+                onClick={toggleFinance}
               >
-                <span>Employee Salary</span>
-              </NavLink>
-              <NavLink
-                to="/finance/fixed"
-                className={({ isActive }) => `sub-nav-item ${isActive ? 'active' : ''}`}
-              >
-                <span>Fixed Expenses</span>
-              </NavLink>
+                <DollarSign size={20} />
+                <span>Finance</span>
+                {isFinanceOpen ? <ChevronDown size={18} className="dropdown-icon" /> : <ChevronRight size={18} className="dropdown-icon" />}
+              </div>
+              
+              <div className={`sub-menu ${isFinanceOpen ? 'open' : ''}`}>
+                {financeItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => `sub-nav-item ${isActive ? 'active' : ''}`}
+                    onClick={closeSidebar}
+                  >
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* Other Items (Admin & Manager) */}
+          {otherItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              onClick={closeSidebar}
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user-info">
+            <span className="user-role">{userRole?.toUpperCase()}</span>
+            {userBranch && <span className="user-branch">Branch {userBranch}</span>}
           </div>
-        )}
-
-        {/* ===== EXTRA EXPENSES - ADMIN AUR MANAGER DONO (Finance se bahar) ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/extra-expenses"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <PlusCircle size={20} />
-            <span>Extra Expenses</span>
-          </NavLink>
-        )}
-
-        {/* ===== EMPLOYEE REPORT - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/employee-report"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <BarChart3 size={20} />
-            <span>Employee Report</span>
-          </NavLink>
-        )}
-
-        {/* ===== EMPLOYEE PERFORMANCE - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/employee-performance"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <TrendingUp size={20} />
-            <span>Employee Performance</span>
-          </NavLink>
-        )}
-
-        {/* ===== OVERDUE INSTALLMENTS - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/overdue-installments"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <Clock size={20} />
-            <span>Overdue Installments</span>
-          </NavLink>
-        )}
-
-        {/* ===== AGING REPORT - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/aging-report"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <AlertTriangle size={20} />
-            <span>Aging Report</span>
-          </NavLink>
-        )}
-
-        {/* ===== ADD ACCOUNT - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/add-account"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <UserPlus size={20} />
-            <span>Add Account</span>
-          </NavLink>
-        )}
-
-        {/* ===== RECOVERY - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/recovery"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <FileText size={20} />
-            <span>Recovery</span>
-          </NavLink>
-        )}
-
-        {/* ===== EMPLOYEES - ADMIN AUR MANAGER ===== */}
-        {(isAdmin || isManager) && (
-          <NavLink
-            to="/employees/add"
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-          >
-            <Users size={20} />
-            <span>Employees</span>
-          </NavLink>
-        )}
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="sidebar-user-info">
-          <span className="user-role">{userRole?.toUpperCase()}</span>
-          {userBranch && <span className="user-branch">Branch {userBranch}</span>}
-        </div>
-        <div className="nav-item logout-btn" onClick={handleLogout}>
-          <LogOut size={20} />
-          <span>Logout</span>
+          <div className="nav-item logout-btn" onClick={handleLogout}>
+            <LogOut size={20} />
+            <span>Logout</span>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Overlay for mobile */}
+      {isMobile && isMobileOpen && (
+        <div className="sidebar-overlay open" onClick={toggleSidebar}></div>
+      )}
+    </>
   );
 };
 
