@@ -291,26 +291,26 @@ const UsersManagement = () => {
   const getPaymentBadge = (status) => {
     switch(status) {
       case 'paid':
-        return <span className="client-badge paid"><CheckCircle size={12} /> Paid</span>;
+        return <span className="client-badge paid" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Paid</span>;
       case 'unpaid':
-        return <span className="client-badge unpaid"><XCircle size={12} /> Unpaid</span>;
+        return <span className="client-badge unpaid" style={{ fontWeight: 700 }}><XCircle size={12} /> Unpaid</span>;
       case 'partial':
-        return <span className="client-badge partial"><AlertCircle size={12} /> Partial</span>;
+        return <span className="client-badge partial" style={{ fontWeight: 700 }}><AlertCircle size={12} /> Partial</span>;
       default:
-        return <span className="client-badge">{status}</span>;
+        return <span className="client-badge" style={{ fontWeight: 700 }}>{status}</span>;
     }
   };
 
   const getAccountStatusBadge = (status) => {
     switch(status) {
       case 'active':
-        return <span className="account-status-badge active"><PlayCircle size={12} /> Active</span>;
+        return <span className="account-status-badge active" style={{ fontWeight: 700 }}><PlayCircle size={12} /> Active</span>;
       case 'hold':
-        return <span className="account-status-badge hold"><PauseCircle size={12} /> Hold</span>;
+        return <span className="account-status-badge hold" style={{ fontWeight: 700 }}><PauseCircle size={12} /> Hold</span>;
       case 'closed':
-        return <span className="account-status-badge closed"><XCircle size={12} /> Closed</span>;
+        return <span className="account-status-badge closed" style={{ fontWeight: 700 }}><XCircle size={12} /> Closed</span>;
       default:
-        return <span className="account-status-badge">{status}</span>;
+        return <span className="account-status-badge" style={{ fontWeight: 700 }}>{status}</span>;
     }
   };
 
@@ -341,6 +341,58 @@ const UsersManagement = () => {
   const isAdmin = userRole === 'admin';
   const isManager = userRole === 'manager';
 
+  // Colorful stats cards
+  const statCards = [
+    { 
+      label: 'Total Clients', 
+      value: totalClients, 
+      icon: UsersIcon, 
+      color: '#1E1B4B', 
+      bg: 'rgba(30,27,75,0.08)',
+      className: 'total'
+    },
+    { 
+      label: 'Active', 
+      value: totalActive, 
+      icon: PlayCircle, 
+      color: '#22c55e', 
+      bg: 'rgba(34,197,94,0.12)',
+      className: 'active-users'
+    },
+    { 
+      label: 'Hold', 
+      value: totalHold, 
+      icon: PauseCircle, 
+      color: '#f59e0b', 
+      bg: 'rgba(245,158,11,0.12)',
+      className: 'managers'
+    },
+    { 
+      label: 'Closed', 
+      value: totalClosed, 
+      icon: XCircle, 
+      color: '#6b7280', 
+      bg: 'rgba(107,114,128,0.1)',
+      className: 'inactive-users'
+    },
+    { 
+      label: 'Paid', 
+      value: totalPaid, 
+      icon: CheckCircle, 
+      color: '#22c55e', 
+      bg: 'rgba(34,197,94,0.12)',
+      className: 'admins'
+    },
+    { 
+      label: 'Balance', 
+      value: formatCurrency(totalBalance), 
+      icon: DollarSign, 
+      color: '#C9A84C', 
+      bg: 'rgba(201,168,76,0.12)',
+      className: 'employees'
+    },
+  ];
+
   // ===== RENDER CLIENTS TABLE =====
   const renderClientsTable = () => {
     const data = filteredData;
@@ -348,16 +400,16 @@ const UsersManagement = () => {
       <table className="users-table clients-table">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Client</th>
-            <th>Case #</th>
-            <th>Product</th>
-            <th>Total (PKR)</th>
-            <th>Paid (PKR)</th>
-            <th>Balance (PKR)</th>
-            <th>Payment</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th style={{ fontWeight: 800 }}>#</th>
+            <th style={{ fontWeight: 800 }}>Client</th>
+            <th style={{ fontWeight: 800 }}>Case #</th>
+            <th style={{ fontWeight: 800 }}>Product</th>
+            <th style={{ fontWeight: 800 }}>Total (PKR)</th>
+            <th style={{ fontWeight: 800 }}>Paid (PKR)</th>
+            <th style={{ fontWeight: 800 }}>Balance (PKR)</th>
+            <th style={{ fontWeight: 800 }}>Payment</th>
+            <th style={{ fontWeight: 800 }}>Status</th>
+            <th style={{ fontWeight: 800 }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -366,46 +418,46 @@ const UsersManagement = () => {
               <td colSpan="10" className="no-data">
                 <div className="no-data-content">
                   <UsersIcon size={32} />
-                  <p>No clients found</p>
+                  <p style={{ fontWeight: 600 }}>No clients found</p>
                 </div>
               </td>
             </tr>
           ) : (
             data.map((client, index) => (
-              <tr key={client.id} className={client.overdueDays > 30 ? 'overdue-row' : ''}>
-                <td className="text-gray">{index + 1}</td>
+              <tr key={client.id} className={`${client.overdueDays > 30 ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
                 <td>
                   <div className="user-name-cell">
-                    <div className="user-avatar">{client.name.charAt(0)}</div>
+                    <div className="user-avatar" style={{ fontWeight: 700 }}>{client.name.charAt(0)}</div>
                     <div>
-                      <span className="user-name">{client.name}</span>
-                      <span className="client-branch">
+                      <span className="user-name" style={{ fontWeight: 700 }}>{client.name}</span>
+                      <span className="client-branch" style={{ fontWeight: 500 }}>
                         <Building size={12} />
                         {getBranchName(client.branch)}
                       </span>
                     </div>
                   </div>
                 </td>
-                <td className="case-number">{client.caseNo}</td>
-                <td>{client.product}</td>
-                <td className="amount">{formatCurrency(client.totalAmount)}</td>
-                <td className="paid-amount">{formatCurrency(client.paidAmount)}</td>
-                <td className={client.balance > 0 ? 'balance-amount' : 'paid-amount'}>
+                <td className="case-number" style={{ fontWeight: 700 }}>{client.caseNo}</td>
+                <td style={{ fontWeight: 500 }}>{client.product}</td>
+                <td className="amount" style={{ fontWeight: 600 }}>{formatCurrency(client.totalAmount)}</td>
+                <td className="paid-amount" style={{ fontWeight: 700 }}>{formatCurrency(client.paidAmount)}</td>
+                <td className={client.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
                   {formatCurrency(client.balance)}
                 </td>
                 <td>{getPaymentBadge(client.paymentStatus)}</td>
                 <td>{getAccountStatusBadge(client.accountStatus)}</td>
                 <td>
                   <div className="action-group">
-                    <button className="btn-view" onClick={() => viewDetail(client)} title="View Details">
+                    <button className="btn-view" onClick={() => viewDetail(client)} title="View Details" style={{ fontWeight: 700 }}>
                       <Eye size={15} />
                     </button>
                     {isAdmin && (
                       <>
-                        <button className="btn-edit" onClick={() => editUser(client)} title="Edit Client">
+                        <button className="btn-edit" onClick={() => editUser(client)} title="Edit Client" style={{ fontWeight: 700 }}>
                           <Edit size={15} />
                         </button>
-                        <button className="btn-delete" onClick={() => deleteUser(client.id)} title="Delete Client">
+                        <button className="btn-delete" onClick={() => deleteUser(client.id)} title="Delete Client" style={{ fontWeight: 700 }}>
                           <Trash2 size={15} />
                         </button>
                       </>
@@ -431,66 +483,42 @@ const UsersManagement = () => {
               <UsersIcon size={12} /> Live
             </span>
           </div>
-          <p className="subtitle">Manage all customers with accounts</p>
+          <p className="subtitle" style={{ fontWeight: 600 }}>Manage all customers with accounts</p>
         </div>
         <div className="header-actions">
           {isAdmin && (
-            <button className="btn-add-user" onClick={() => alert('Add new client')}>
+            <button className="btn-add-user" onClick={() => alert('Add new client')} style={{ fontWeight: 700 }}>
               <UserPlus size={18} />
               Add Client
             </button>
           )}
-          <button className="btn-export" onClick={() => alert('Exporting...')}>
+          <button className="btn-export" onClick={() => alert('Exporting...')} style={{ fontWeight: 700 }}>
             <Download size={18} />
             Export
           </button>
         </div>
       </div>
 
-      {/* ===== STATS CARDS ===== */}
+      {/* ===== STATS CARDS - COLORFUL ===== */}
       <div className="users-stats-grid clients-stats">
-        <div className="users-stat-card total">
-          <div className="users-stat-icon"><UsersIcon size={20} /></div>
-          <div className="users-stat-info">
-            <span className="users-stat-label">Total Clients</span>
-            <span className="users-stat-value">{totalClients}</span>
+        {statCards.map((card, index) => (
+          <div 
+            key={index} 
+            className={`users-stat-card ${card.className}`}
+            style={{ 
+              borderTop: `4px solid ${card.color}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}
+          >
+            <div className="users-stat-icon" style={{ background: card.bg, color: card.color }}>
+              <card.icon size={20} />
+            </div>
+            <div className="users-stat-info">
+              <span className="users-stat-label" style={{ fontWeight: 700 }}>{card.label}</span>
+              <span className="users-stat-value" style={{ fontWeight: 800, color: card.color }}>{card.value}</span>
+            </div>
           </div>
-        </div>
-        <div className="users-stat-card active-users">
-          <div className="users-stat-icon"><PlayCircle size={20} /></div>
-          <div className="users-stat-info">
-            <span className="users-stat-label">Active</span>
-            <span className="users-stat-value">{totalActive}</span>
-          </div>
-        </div>
-        <div className="users-stat-card managers">
-          <div className="users-stat-icon"><PauseCircle size={20} /></div>
-          <div className="users-stat-info">
-            <span className="users-stat-label">Hold</span>
-            <span className="users-stat-value">{totalHold}</span>
-          </div>
-        </div>
-        <div className="users-stat-card inactive-users">
-          <div className="users-stat-icon"><XCircle size={20} /></div>
-          <div className="users-stat-info">
-            <span className="users-stat-label">Closed</span>
-            <span className="users-stat-value">{totalClosed}</span>
-          </div>
-        </div>
-        <div className="users-stat-card admins">
-          <div className="users-stat-icon"><CheckCircle size={20} /></div>
-          <div className="users-stat-info">
-            <span className="users-stat-label">Paid</span>
-            <span className="users-stat-value">{totalPaid}</span>
-          </div>
-        </div>
-        <div className="users-stat-card employees">
-          <div className="users-stat-icon"><DollarSign size={20} /></div>
-          <div className="users-stat-info">
-            <span className="users-stat-label">Balance</span>
-            <span className="users-stat-value">{formatCurrency(totalBalance)}</span>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* ===== FILTERS ===== */}
@@ -502,22 +530,23 @@ const UsersManagement = () => {
             placeholder="Search by name, CNIC or case no..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            style={{ fontWeight: 500 }}
           />
         </div>
         <div className="filter-group">
-          <select className="filter-select" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
+          <select className="filter-select" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} style={{ fontWeight: 500 }}>
             <option value="all">All Payment</option>
             <option value="paid">Paid</option>
             <option value="unpaid">Unpaid</option>
             <option value="partial">Partial</option>
           </select>
-          <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ fontWeight: 500 }}>
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="hold">Hold</option>
             <option value="closed">Closed</option>
           </select>
-          <select className="filter-select date-filter" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
+          <select className="filter-select date-filter" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={{ fontWeight: 500 }}>
             <option value="all">All Time</option>
             <option value="daily">Today</option>
             <option value="weekly">This Week</option>
@@ -531,8 +560,8 @@ const UsersManagement = () => {
       <div className="users-table-wrap">
         <div className="table-header-bar">
           <div className="table-header-left">
-            <span>All Clients</span>
-            <span className="record-count">{filteredData.length} records</span>
+            <span style={{ fontWeight: 700 }}>All Clients</span>
+            <span className="record-count" style={{ fontWeight: 600 }}>{filteredData.length} records</span>
           </div>
         </div>
         <div className="table-scroll">
@@ -547,7 +576,7 @@ const UsersManagement = () => {
             <div className="users-modal-header">
               <div className="users-modal-header-left">
                 <User size={20} className="users-modal-icon" />
-                <h3>Client Details</h3>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800 }}>Client Details</h3>
               </div>
               <button className="users-modal-close" onClick={() => setShowDetailModal(false)}>
                 <X size={24} />
@@ -556,12 +585,12 @@ const UsersManagement = () => {
 
             <div className="users-modal-body">
               <div className="user-detail-header">
-                <div className="user-detail-avatar">{selectedUser.name.charAt(0)}</div>
+                <div className="user-detail-avatar" style={{ fontWeight: 800 }}>{selectedUser.name.charAt(0)}</div>
                 <div className="user-detail-info">
-                  <h4>{selectedUser.name}</h4>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedUser.name}</h4>
                   {getPaymentBadge(selectedUser.paymentStatus)}
                   {getAccountStatusBadge(selectedUser.accountStatus)}
-                  <span className="user-detail-branch">
+                  <span className="user-detail-branch" style={{ fontWeight: 500 }}>
                     <Building size={14} />
                     {getBranchName(selectedUser.branch)}
                   </span>
@@ -570,74 +599,74 @@ const UsersManagement = () => {
 
               <div className="user-detail-grid">
                 <div className="user-detail-item">
-                  <span>Email</span>
-                  <strong>{selectedUser.email}</strong>
+                  <span style={{ fontWeight: 700 }}>Email</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.email}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Phone</span>
-                  <strong>{selectedUser.phone}</strong>
+                  <span style={{ fontWeight: 700 }}>Phone</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.phone}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>CNIC</span>
-                  <strong>{selectedUser.cnic}</strong>
+                  <span style={{ fontWeight: 700 }}>CNIC</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.cnic}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Address</span>
-                  <strong>{selectedUser.address}</strong>
+                  <span style={{ fontWeight: 700 }}>Address</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.address}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Product</span>
-                  <strong>{selectedUser.product}</strong>
+                  <span style={{ fontWeight: 700 }}>Product</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.product}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Case No</span>
-                  <strong>{selectedUser.caseNo}</strong>
+                  <span style={{ fontWeight: 700 }}>Case No</span>
+                  <strong style={{ fontWeight: 700 }}>{selectedUser.caseNo}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Total Amount</span>
-                  <strong>{formatCurrency(selectedUser.totalAmount)}</strong>
+                  <span style={{ fontWeight: 700 }}>Total Amount</span>
+                  <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.totalAmount)}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Paid Amount</span>
-                  <strong className="paid-amount">{formatCurrency(selectedUser.paidAmount)}</strong>
+                  <span style={{ fontWeight: 700 }}>Paid Amount</span>
+                  <strong className="paid-amount" style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.paidAmount)}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Balance</span>
-                  <strong className={selectedUser.balance > 0 ? 'balance-amount' : 'paid-amount'}>
+                  <span style={{ fontWeight: 700 }}>Balance</span>
+                  <strong className={selectedUser.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
                     {formatCurrency(selectedUser.balance)}
                   </strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Monthly Installment</span>
-                  <strong>{formatCurrency(selectedUser.monthlyInstallment)}</strong>
+                  <span style={{ fontWeight: 700 }}>Monthly Installment</span>
+                  <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.monthlyInstallment)}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Installments</span>
-                  <strong>{selectedUser.installmentsPaid} / {selectedUser.totalInstallments}</strong>
+                  <span style={{ fontWeight: 700 }}>Installments</span>
+                  <strong style={{ fontWeight: 700 }}>{selectedUser.installmentsPaid} / {selectedUser.totalInstallments}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Next Due Date</span>
-                  <strong>{selectedUser.nextDueDate}</strong>
+                  <span style={{ fontWeight: 700 }}>Next Due Date</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.nextDueDate}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Overdue Days</span>
-                  <strong className={selectedUser.overdueDays > 30 ? 'overdue-text' : ''}>
+                  <span style={{ fontWeight: 700 }}>Overdue Days</span>
+                  <strong className={selectedUser.overdueDays > 30 ? 'overdue-text' : ''} style={{ fontWeight: 700 }}>
                     {selectedUser.overdueDays > 0 ? selectedUser.overdueDays : 'None'}
                   </strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Joining Date</span>
-                  <strong>{selectedUser.joiningDate}</strong>
+                  <span style={{ fontWeight: 700 }}>Joining Date</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.joiningDate}</strong>
                 </div>
                 <div className="user-detail-item">
-                  <span>Last Payment</span>
-                  <strong>{selectedUser.lastPaymentDate}</strong>
+                  <span style={{ fontWeight: 700 }}>Last Payment</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedUser.lastPaymentDate}</strong>
                 </div>
               </div>
             </div>
 
             <div className="users-modal-footer">
-              <button className="users-btn-cancel" onClick={() => setShowDetailModal(false)}>Close</button>
+              <button className="users-btn-cancel" onClick={() => setShowDetailModal(false)} style={{ fontWeight: 700 }}>Close</button>
             </div>
           </div>
         </div>

@@ -281,7 +281,7 @@ const AddAccount = () => {
     chalanBackPreview: '',
     accountType: 'regular',
     branch: 1,
-    status: 'active', // active or hold
+    status: 'active',
   });
 
   const [errors, setErrors] = useState({});
@@ -568,11 +568,11 @@ const AddAccount = () => {
           <div className="toast-content">
             {toast.type === 'warning' ? <AlertCircle size={20} /> : <Shield size={20} />}
             <div>
-              <span>{toast.message}</span>
+              <span style={{ fontWeight: 700 }}>{toast.message}</span>
               {toast.details && (
                 <div className="toast-details">
                   {toast.details.split('\n').map((line, i) => (
-                    <div key={i} className="toast-detail-line">{line}</div>
+                    <div key={i} className="toast-detail-line" style={{ fontWeight: 500 }}>{line}</div>
                   ))}
                 </div>
               )}
@@ -590,13 +590,13 @@ const AddAccount = () => {
           <div className="status-modal" onClick={(e) => e.stopPropagation()}>
             <div className="status-modal-header">
               <Shield size={24} className="status-modal-icon" />
-              <h3>Account Status</h3>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Account Status</h3>
               <button className="status-modal-close" onClick={() => setShowStatusModal(false)}>
                 <X size={20} />
               </button>
             </div>
             <div className="status-modal-body">
-              <p className="status-modal-text">
+              <p className="status-modal-text" style={{ fontSize: '1rem', fontWeight: 600 }}>
                 Select the status for this account:
               </p>
               <div className="status-options">
@@ -611,8 +611,8 @@ const AddAccount = () => {
                   <div className="status-option-content">
                     <PlayCircle size={24} className="status-option-icon active-icon" />
                     <div>
-                      <span className="status-option-label">Active</span>
-                      <span className="status-option-desc">Account will be active immediately</span>
+                      <span className="status-option-label" style={{ fontWeight: 700 }}>Active</span>
+                      <span className="status-option-desc" style={{ fontWeight: 500 }}>Account will be active immediately</span>
                     </div>
                   </div>
                 </label>
@@ -627,18 +627,18 @@ const AddAccount = () => {
                   <div className="status-option-content">
                     <PauseCircle size={24} className="status-option-icon hold-icon" />
                     <div>
-                      <span className="status-option-label">Hold</span>
-                      <span className="status-option-desc">Account will be placed on hold</span>
+                      <span className="status-option-label" style={{ fontWeight: 700 }}>Hold</span>
+                      <span className="status-option-desc" style={{ fontWeight: 500 }}>Account will be placed on hold</span>
                     </div>
                   </div>
                 </label>
               </div>
             </div>
             <div className="status-modal-footer">
-              <button className="status-btn-cancel" onClick={() => setShowStatusModal(false)}>
+              <button className="status-btn-cancel" onClick={() => setShowStatusModal(false)} style={{ fontWeight: 700 }}>
                 Cancel
               </button>
-              <button className="status-btn-confirm" onClick={confirmAccountCreation}>
+              <button className="status-btn-confirm" onClick={confirmAccountCreation} style={{ fontWeight: 700 }}>
                 <CheckCircle size={18} />
                 Create Account
               </button>
@@ -649,13 +649,13 @@ const AddAccount = () => {
 
       <div className="page-header">
         <div className="header-title-group">
-          <h3>Create New Account</h3>
-          <span className="live-badge">
+          <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Create New Account</h3>
+          <span className="live-badge" style={{ fontWeight: 700 }}>
             <Clock size={12} /> New
           </span>
         </div>
         {userBranch && (
-          <div className="branch-badge-header">
+          <div className="branch-badge-header" style={{ fontWeight: 700 }}>
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
@@ -672,26 +672,27 @@ const AddAccount = () => {
               placeholder="Search by CNIC..." 
               value={searchCNIC} 
               onChange={(e) => setSearchCNIC(e.target.value)} 
+              style={{ fontWeight: 500 }}
             />
           </div>
-          <button className="btn-search" onClick={handleCNICSearch}>
+          <button className="btn-search" onClick={handleCNICSearch} style={{ fontWeight: 700 }}>
             <Search size={16} />
             Search
           </button>
         </div>
         {showExisting && existingAccounts.length > 0 && (
           <div className="existing-accounts">
-            <p className="existing-title">
+            <p className="existing-title" style={{ fontWeight: 700 }}>
               <AlertCircle size={14} />
               Existing Accounts Found:
             </p>
             {existingAccounts.map(acc => (
               <div key={acc.id} className="existing-item" onClick={() => loadExistingAccount(acc)}>
                 <div className="existing-info">
-                  <strong>{acc.name}</strong>
-                  <span>{acc.cnic}</span>
+                  <strong style={{ fontWeight: 700 }}>{acc.name}</strong>
+                  <span style={{ fontWeight: 500 }}>{acc.cnic}</span>
                 </div>
-                <button className="btn-load">Load</button>
+                <button className="btn-load" style={{ fontWeight: 700 }}>Load</button>
               </div>
             ))}
           </div>
@@ -701,15 +702,15 @@ const AddAccount = () => {
       <form onSubmit={handleFinalSubmit}>
         {step === 1 && (
           <div className="step-content">
-            <div className="step-header">
-              <div className="step-number">1</div>
-              <div className="step-title">Personal Information</div>
-              <span className="step-badge">Required</span>
+            <div className="step-header" style={{ borderLeft: '5px solid #1E1B4B' }}>
+              <div className="step-number" style={{ fontWeight: 800 }}>1</div>
+              <div className="step-title" style={{ fontSize: '1.1rem', fontWeight: 700 }}>Personal Information</div>
+              <span className="step-badge" style={{ fontWeight: 600 }}>Required</span>
             </div>
 
             <div className="form-grid">
               <div className="form-group">
-                <label>Full Name *</label>
+                <label style={{ fontWeight: 700 }}>Full Name *</label>
                 <div className="input-with-icon">
                   <User size={18} />
                   <input 
@@ -719,12 +720,13 @@ const AddAccount = () => {
                     placeholder="Enter customer full name" 
                     value={formData.name} 
                     onChange={handleChange} 
+                    style={{ fontWeight: 500 }}
                   />
                 </div>
-                {errors.name && <span className="error-text">{errors.name}</span>}
+                {errors.name && <span className="error-text" style={{ fontWeight: 600 }}>{errors.name}</span>}
               </div>
               <div className="form-group">
-                <label>CNIC *</label>
+                <label style={{ fontWeight: 700 }}>CNIC *</label>
                 <div className="input-with-icon">
                   <CreditCard size={18} />
                   <input 
@@ -735,13 +737,14 @@ const AddAccount = () => {
                     value={formData.cnic} 
                     onChange={handleChange} 
                     onBlur={handleCnicBlur}
+                    style={{ fontWeight: 500 }}
                   />
                 </div>
-                {errors.cnic && <span className="error-text">{errors.cnic}</span>}
-                <small className="field-hint">System will check if this CNIC already exists or is a guarantor</small>
+                {errors.cnic && <span className="error-text" style={{ fontWeight: 600 }}>{errors.cnic}</span>}
+                <small className="field-hint" style={{ fontWeight: 500 }}>System will check if this CNIC already exists or is a guarantor</small>
               </div>
               <div className="form-group">
-                <label>Phone Number *</label>
+                <label style={{ fontWeight: 700 }}>Phone Number *</label>
                 <div className="input-with-icon">
                   <Phone size={18} />
                   <input 
@@ -751,29 +754,30 @@ const AddAccount = () => {
                     placeholder="03XX-XXXXXXX" 
                     value={formData.phone} 
                     onChange={handleChange} 
+                    style={{ fontWeight: 500 }}
                   />
                 </div>
-                {errors.phone && <span className="error-text">{errors.phone}</span>}
+                {errors.phone && <span className="error-text" style={{ fontWeight: 600 }}>{errors.phone}</span>}
               </div>
               <div className="form-group">
-                <label>Branch *</label>
+                <label style={{ fontWeight: 700 }}>Branch *</label>
                 <select 
                   name="branch" 
                   className="form-input" 
                   value={formData.branch} 
                   onChange={handleChange}
                   disabled={!!userBranch}
-                  style={userBranch ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
+                  style={userBranch ? { opacity: 0.7, cursor: 'not-allowed', fontWeight: 500 } : { fontWeight: 500 }}
                 >
                   <option value={1}>Branch 1</option>
                   <option value={2}>Branch 2</option>
                 </select>
                 {userBranch && (
-                  <small className="field-hint">Branch locked to {branchLabel}</small>
+                  <small className="field-hint" style={{ fontWeight: 500 }}>Branch locked to {branchLabel}</small>
                 )}
               </div>
               <div className="form-group">
-                <label>Address *</label>
+                <label style={{ fontWeight: 700 }}>Address *</label>
                 <div className="input-with-icon">
                   <MapPin size={18} />
                   <input 
@@ -783,12 +787,13 @@ const AddAccount = () => {
                     placeholder="Enter complete address" 
                     value={formData.address} 
                     onChange={handleChange} 
+                    style={{ fontWeight: 500 }}
                   />
                 </div>
-                {errors.address && <span className="error-text">{errors.address}</span>}
+                {errors.address && <span className="error-text" style={{ fontWeight: 600 }}>{errors.address}</span>}
               </div>
               <div className="form-group">
-                <label>Work / Occupation *</label>
+                <label style={{ fontWeight: 700 }}>Work / Occupation *</label>
                 <div className="input-with-icon">
                   <Briefcase size={18} />
                   <input 
@@ -798,16 +803,17 @@ const AddAccount = () => {
                     placeholder="Enter work/occupation" 
                     value={formData.work} 
                     onChange={handleChange} 
+                    style={{ fontWeight: 500 }}
                   />
                 </div>
-                {errors.work && <span className="error-text">{errors.work}</span>}
+                {errors.work && <span className="error-text" style={{ fontWeight: 600 }}>{errors.work}</span>}
               </div>
             </div>
 
-            <div className="employee-section">
+            <div className="employee-section" style={{ border: '1px solid #c4b5fd', background: '#faf8ff' }}>
               <div className="section-header">
-                <UserPlus size={18} />
-                <h4>Account Opened By *</h4>
+                <UserPlus size={18} style={{ color: '#1E1B4B' }} />
+                <h4 style={{ fontWeight: 700 }}>Account Opened By *</h4>
               </div>
               <div className="employee-dropdown-wrapper">
                 <select
@@ -815,6 +821,7 @@ const AddAccount = () => {
                   className="form-input employee-select"
                   value={formData.employeeId}
                   onChange={handleChange}
+                  style={{ fontWeight: 500 }}
                 >
                   <option value="">Select Employee...</option>
                   {getAvailableEmployees().map(emp => (
@@ -823,31 +830,31 @@ const AddAccount = () => {
                 </select>
                 {formData.employeeId && (
                   <div className="selected-employee-info">
-                    <span className="employee-badge">
+                    <span className="employee-badge" style={{ fontWeight: 600 }}>
                       <CheckCircle size={12} />
                       {getSelectedEmployeeName()} - {branchLabel}
                     </span>
                   </div>
                 )}
-                {errors.employeeId && <span className="error-text">{errors.employeeId}</span>}
+                {errors.employeeId && <span className="error-text" style={{ fontWeight: 600 }}>{errors.employeeId}</span>}
               </div>
               {userBranch && (
-                <p className="employee-hint">Only employees from {branchLabel} are available</p>
+                <p className="employee-hint" style={{ fontWeight: 500 }}>Only employees from {branchLabel} are available</p>
               )}
             </div>
 
-            <div className="voice-section">
+            <div className="voice-section" style={{ border: '1px solid #86efac', background: '#f0fdf4' }}>
               <div className="section-header">
-                <Mic size={18} />
-                <h4>Voice Consent / Raza Mandi</h4>
+                <Mic size={18} style={{ color: '#065f46' }} />
+                <h4 style={{ fontWeight: 700 }}>Voice Consent / Raza Mandi</h4>
               </div>
-              <p className="voice-hint">Customer ki raza mandi ki voice file upload karein</p>
+              <p className="voice-hint" style={{ fontWeight: 500 }}>Customer ki raza mandi ki voice file upload karein</p>
               
               <div className="voice-upload">
-                <div className="upload-area voice-upload-area" onClick={() => voiceFileRef.current?.click()}>
-                  <FileAudio size={32} />
-                  <span>Click to upload voice file</span>
-                  <span className="file-hint">MP3, WAV, M4A (Max 10MB)</span>
+                <div className="upload-area voice-upload-area" onClick={() => voiceFileRef.current?.click()} style={{ borderColor: '#86efac' }}>
+                  <FileAudio size={32} style={{ color: '#065f46' }} />
+                  <span style={{ fontWeight: 600 }}>Click to upload voice file</span>
+                  <span className="file-hint" style={{ fontWeight: 500 }}>MP3, WAV, M4A (Max 10MB)</span>
                 </div>
                 <input 
                   type="file" 
@@ -860,19 +867,20 @@ const AddAccount = () => {
 
               {voiceFiles.length > 0 && (
                 <div className="voice-files-list">
-                  <p className="voice-files-title">Uploaded Files ({voiceFiles.length})</p>
+                  <p className="voice-files-title" style={{ fontWeight: 700 }}>Uploaded Files ({voiceFiles.length})</p>
                   {voiceFiles.map((voice, index) => (
                     <div key={voice.id} className="voice-file-item">
                       <div className="voice-file-info">
-                        <Mic size={16} />
-                        <span className="voice-file-name">{voice.name}</span>
-                        <span className="voice-file-size">{voice.size} KB</span>
-                        <span className="voice-file-time">{voice.timestamp}</span>
+                        <Mic size={16} style={{ color: '#065f46' }} />
+                        <span className="voice-file-name" style={{ fontWeight: 600 }}>{voice.name}</span>
+                        <span className="voice-file-size" style={{ fontWeight: 500 }}>{voice.size} KB</span>
+                        <span className="voice-file-time" style={{ fontWeight: 500 }}>{voice.timestamp}</span>
                       </div>
                       <div className="voice-file-actions">
                         <button 
                           className={`btn-play ${playingIndex === index ? 'playing' : ''}`} 
                           onClick={() => playVoice(index)}
+                          style={{ fontWeight: 600 }}
                         >
                           {playingIndex === index ? '⏹' : '▶'} Play
                         </button>
@@ -889,54 +897,54 @@ const AddAccount = () => {
               )}
             </div>
 
-            <div className="image-section">
+            <div className="image-section" style={{ border: '1px solid #bfdbfe', background: '#eff6ff' }}>
               <div className="section-header">
-                <Upload size={18} />
-                <h4>CNIC Images *</h4>
+                <Upload size={18} style={{ color: '#2563eb' }} />
+                <h4 style={{ fontWeight: 700 }}>CNIC Images *</h4>
               </div>
               <div className="image-grid">
                 <div className="image-upload-box">
-                  <label>CNIC Front</label>
+                  <label style={{ fontWeight: 600 }}>CNIC Front</label>
                   <div className="upload-area" onClick={() => cnicFrontRef.current?.click()}>
                     {formData.cnicFrontPreview ? (
                       <div className="preview-container">
                         <img src={formData.cnicFrontPreview} alt="CNIC Front" />
                         <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeFile('cnicFront'); }}><X size={16} /></button>
                       </div>
-                    ) : ( <><Upload size={32} /><span>Click to upload</span></> )}
+                    ) : ( <><Upload size={32} style={{ color: '#2563eb' }} /><span style={{ fontWeight: 500 }}>Click to upload</span></> )}
                   </div>
                   <input type="file" ref={cnicFrontRef} accept="image/*" onChange={(e) => handleFileUpload(e, 'cnicFront')} style={{ display: 'none' }} />
-                  {errors.cnicFront && <span className="error-text">{errors.cnicFront}</span>}
+                  {errors.cnicFront && <span className="error-text" style={{ fontWeight: 600 }}>{errors.cnicFront}</span>}
                 </div>
                 <div className="image-upload-box">
-                  <label>CNIC Back</label>
+                  <label style={{ fontWeight: 600 }}>CNIC Back</label>
                   <div className="upload-area" onClick={() => cnicBackRef.current?.click()}>
                     {formData.cnicBackPreview ? (
                       <div className="preview-container">
                         <img src={formData.cnicBackPreview} alt="CNIC Back" />
                         <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeFile('cnicBack'); }}><X size={16} /></button>
                       </div>
-                    ) : ( <><Upload size={32} /><span>Click to upload</span></> )}
+                    ) : ( <><Upload size={32} style={{ color: '#2563eb' }} /><span style={{ fontWeight: 500 }}>Click to upload</span></> )}
                   </div>
                   <input type="file" ref={cnicBackRef} accept="image/*" onChange={(e) => handleFileUpload(e, 'cnicBack')} style={{ display: 'none' }} />
-                  {errors.cnicBack && <span className="error-text">{errors.cnicBack}</span>}
+                  {errors.cnicBack && <span className="error-text" style={{ fontWeight: 600 }}>{errors.cnicBack}</span>}
                 </div>
               </div>
             </div>
 
-            <div className="guarantors-section">
+            <div className="guarantors-section" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
               <div className="section-header">
-                <Users size={18} />
-                <h4>Guarantors</h4>
-                <span className="required-badge">Minimum 2 Required</span>
+                <Users size={18} style={{ color: '#92400e' }} />
+                <h4 style={{ fontWeight: 700 }}>Guarantors</h4>
+                <span className="required-badge" style={{ fontWeight: 700 }}>Minimum 2 Required</span>
               </div>
-              <p className="guarantor-count">Complete: {getGuarantorCount()}/3</p>
+              <p className="guarantor-count" style={{ fontWeight: 600 }}>Complete: {getGuarantorCount()}/3</p>
               {formData.guarantors.map((g, index) => (
-                <div key={index} className="guarantor-card">
-                  <div className="guarantor-header">
-                    <Users size={16} />
+                <div key={index} className="guarantor-card" style={{ border: '1px solid #fde68a' }}>
+                  <div className="guarantor-header" style={{ fontWeight: 700 }}>
+                    <Users size={16} style={{ color: '#92400e' }} />
                     <span>Guarantor {index + 1}</span>
-                    {g.name && g.cnic && g.cnicFront && g.cnicBack && <span className="filled-badge"><CheckCircle size={12} /> Complete</span>}
+                    {g.name && g.cnic && g.cnicFront && g.cnicBack && <span className="filled-badge" style={{ fontWeight: 600 }}><CheckCircle size={12} /> Complete</span>}
                   </div>
                   <div className="guarantor-grid">
                     <input 
@@ -945,6 +953,7 @@ const AddAccount = () => {
                       placeholder="Full Name" 
                       value={g.name} 
                       onChange={(e) => handleGuarantorChange(index, 'name', e.target.value)} 
+                      style={{ fontWeight: 500 }}
                     />
                     <input 
                       type="text" 
@@ -953,6 +962,7 @@ const AddAccount = () => {
                       value={g.cnic} 
                       onChange={(e) => handleGuarantorChange(index, 'cnic', e.target.value)} 
                       onBlur={() => handleGuarantorCnicBlur(index)}
+                      style={{ fontWeight: 500 }}
                     />
                     <input 
                       type="tel" 
@@ -960,6 +970,7 @@ const AddAccount = () => {
                       placeholder="Phone" 
                       value={g.phone} 
                       onChange={(e) => handleGuarantorChange(index, 'phone', e.target.value)} 
+                      style={{ fontWeight: 500 }}
                     />
                     <input 
                       type="text" 
@@ -967,142 +978,143 @@ const AddAccount = () => {
                       placeholder="Address" 
                       value={g.address} 
                       onChange={(e) => handleGuarantorChange(index, 'address', e.target.value)} 
+                      style={{ fontWeight: 500 }}
                     />
                   </div>
                   <div className="guarantor-images">
                     <div className="guarantor-image-box">
-                      <label>CNIC Front</label>
+                      <label style={{ fontWeight: 600 }}>CNIC Front</label>
                       <div className="upload-area small" onClick={() => { if (!guarantorRefs.current[index]) guarantorRefs.current[index] = {}; guarantorRefs.current[index].front?.click(); }}>
                         {g.cnicFrontPreview ? (
                           <div className="preview-container">
                             <img src={g.cnicFrontPreview} alt="Guarantor CNIC Front" />
                             <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeGuarantorFile(index, 'cnicFront'); }}><X size={14} /></button>
                           </div>
-                        ) : ( <><Upload size={20} /><span>Upload Front</span></> )}
+                        ) : ( <><Upload size={20} style={{ color: '#92400e' }} /><span style={{ fontWeight: 500 }}>Upload Front</span></> )}
                       </div>
                       <input type="file" ref={(el) => { if (!guarantorRefs.current[index]) guarantorRefs.current[index] = {}; guarantorRefs.current[index].front = el; }} accept="image/*" onChange={(e) => handleGuarantorFileUpload(e, index, 'cnicFront')} style={{ display: 'none' }} />
                     </div>
                     <div className="guarantor-image-box">
-                      <label>CNIC Back</label>
+                      <label style={{ fontWeight: 600 }}>CNIC Back</label>
                       <div className="upload-area small" onClick={() => { if (!guarantorRefs.current[index]) guarantorRefs.current[index] = {}; guarantorRefs.current[index].back?.click(); }}>
                         {g.cnicBackPreview ? (
                           <div className="preview-container">
                             <img src={g.cnicBackPreview} alt="Guarantor CNIC Back" />
                             <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeGuarantorFile(index, 'cnicBack'); }}><X size={14} /></button>
                           </div>
-                        ) : ( <><Upload size={20} /><span>Upload Back</span></> )}
+                        ) : ( <><Upload size={20} style={{ color: '#92400e' }} /><span style={{ fontWeight: 500 }}>Upload Back</span></> )}
                       </div>
                       <input type="file" ref={(el) => { if (!guarantorRefs.current[index]) guarantorRefs.current[index] = {}; guarantorRefs.current[index].back = el; }} accept="image/*" onChange={(e) => handleGuarantorFileUpload(e, index, 'cnicBack')} style={{ display: 'none' }} />
                     </div>
                   </div>
-                  <small className="field-hint">System will check if this CNIC is already a customer or guarantor</small>
+                  <small className="field-hint" style={{ fontWeight: 500 }}>System will check if this CNIC is already a customer or guarantor</small>
                 </div>
               ))}
-              {errors.guarantors && <span className="error-text">{errors.guarantors}</span>}
+              {errors.guarantors && <span className="error-text" style={{ fontWeight: 600 }}>{errors.guarantors}</span>}
             </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="step-content">
-            <div className="step-header">
-              <div className="step-number">2</div>
-              <div className="step-title">Product & Installment Details</div>
-              <span className="step-badge">Required</span>
+            <div className="step-header" style={{ borderLeft: '5px solid #C9A84C' }}>
+              <div className="step-number" style={{ fontWeight: 800 }}>2</div>
+              <div className="step-title" style={{ fontSize: '1.1rem', fontWeight: 700 }}>Product & Installment Details</div>
+              <span className="step-badge" style={{ fontWeight: 600 }}>Required</span>
             </div>
 
             <div className="form-grid">
               <div className="form-group">
-                <label>Product Type *</label>
-                <select name="productType" className="form-input" value={formData.productType} onChange={handleChange}>
+                <label style={{ fontWeight: 700 }}>Product Type *</label>
+                <select name="productType" className="form-input" value={formData.productType} onChange={handleChange} style={{ fontWeight: 500 }}>
                   <option value="new">New</option>
                   <option value="used">Used</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Product Name *</label>
+                <label style={{ fontWeight: 700 }}>Product Name *</label>
                 <div className="input-with-icon">
-                  <Package size={18} />
-                  <input type="text" name="productName" className="form-input" placeholder="Enter product name" value={formData.productName} onChange={handleChange} />
+                  <Package size={18} style={{ color: '#C9A84C' }} />
+                  <input type="text" name="productName" className="form-input" placeholder="Enter product name" value={formData.productName} onChange={handleChange} style={{ fontWeight: 500 }} />
                 </div>
-                {errors.productName && <span className="error-text">{errors.productName}</span>}
+                {errors.productName && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productName}</span>}
               </div>
               <div className="form-group">
-                <label>Product Price (PKR) *</label>
+                <label style={{ fontWeight: 700 }}>Product Price (PKR) *</label>
                 <div className="input-with-icon">
-                  <DollarSign size={18} />
-                  <input type="number" name="productPrice" className="form-input" placeholder="Enter product price" value={formData.productPrice} onChange={handleChange} />
+                  <DollarSign size={18} style={{ color: '#C9A84C' }} />
+                  <input type="number" name="productPrice" className="form-input" placeholder="Enter product price" value={formData.productPrice} onChange={handleChange} style={{ fontWeight: 500 }} />
                 </div>
-                {errors.productPrice && <span className="error-text">{errors.productPrice}</span>}
+                {errors.productPrice && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productPrice}</span>}
               </div>
               <div className="form-group">
-                <label>Invoice Price (PKR) *</label>
+                <label style={{ fontWeight: 700 }}>Invoice Price (PKR) *</label>
                 <div className="input-with-icon">
-                  <DollarSign size={18} />
-                  <input type="number" name="invoicePrice" className="form-input" placeholder="Enter invoice price" value={formData.invoicePrice} onChange={handleChange} />
+                  <DollarSign size={18} style={{ color: '#C9A84C' }} />
+                  <input type="number" name="invoicePrice" className="form-input" placeholder="Enter invoice price" value={formData.invoicePrice} onChange={handleChange} style={{ fontWeight: 500 }} />
                 </div>
-                {errors.invoicePrice && <span className="error-text">{errors.invoicePrice}</span>}
+                {errors.invoicePrice && <span className="error-text" style={{ fontWeight: 600 }}>{errors.invoicePrice}</span>}
               </div>
               <div className="form-group">
-                <label>Advance / 1st Installment (PKR)</label>
+                <label style={{ fontWeight: 700 }}>Advance / 1st Installment (PKR)</label>
                 <div className="input-with-icon">
-                  <DollarSign size={18} />
-                  <input type="number" name="advanceAmount" className="form-input" placeholder="Enter advance amount" value={formData.advanceAmount} onChange={handleChange} />
+                  <DollarSign size={18} style={{ color: '#C9A84C' }} />
+                  <input type="number" name="advanceAmount" className="form-input" placeholder="Enter advance amount" value={formData.advanceAmount} onChange={handleChange} style={{ fontWeight: 500 }} />
                 </div>
               </div>
               <div className="form-group">
-                <label>Number of Installments *</label>
+                <label style={{ fontWeight: 700 }}>Number of Installments *</label>
                 <div className="input-with-icon">
-                  <Calendar size={18} />
-                  <input type="number" name="noOfInstallments" className="form-input" placeholder="e.g., 6, 12, 24" value={formData.noOfInstallments} onChange={handleChange} />
+                  <Calendar size={18} style={{ color: '#C9A84C' }} />
+                  <input type="number" name="noOfInstallments" className="form-input" placeholder="e.g., 6, 12, 24" value={formData.noOfInstallments} onChange={handleChange} style={{ fontWeight: 500 }} />
                 </div>
-                {errors.noOfInstallments && <span className="error-text">{errors.noOfInstallments}</span>}
+                {errors.noOfInstallments && <span className="error-text" style={{ fontWeight: 600 }}>{errors.noOfInstallments}</span>}
               </div>
               <div className="form-group">
-                <label>Due Date *</label>
-                <input type="date" name="dueDate" className="form-input" value={formData.dueDate} onChange={handleChange} />
-                {errors.dueDate && <span className="error-text">{errors.dueDate}</span>}
+                <label style={{ fontWeight: 700 }}>Due Date *</label>
+                <input type="date" name="dueDate" className="form-input" value={formData.dueDate} onChange={handleChange} style={{ fontWeight: 500 }} />
+                {errors.dueDate && <span className="error-text" style={{ fontWeight: 600 }}>{errors.dueDate}</span>}
               </div>
               <div className="form-group">
-                <label>Installment Amount</label>
+                <label style={{ fontWeight: 700 }}>Installment Amount</label>
                 <div className="input-with-icon">
-                  <DollarSign size={18} />
-                  <input type="text" className="form-input" value={formData.productPrice && formData.noOfInstallments ? `PKR ${(parseInt(formData.productPrice) / parseInt(formData.noOfInstallments)).toLocaleString()}` : 'Calculate from price and installments'} readOnly style={{ background: '#f8f9fa' }} />
+                  <DollarSign size={18} style={{ color: '#C9A84C' }} />
+                  <input type="text" className="form-input" value={formData.productPrice && formData.noOfInstallments ? `PKR ${(parseInt(formData.productPrice) / parseInt(formData.noOfInstallments)).toLocaleString()}` : 'Calculate from price and installments'} readOnly style={{ background: '#f8f9fa', fontWeight: 600 }} />
                 </div>
               </div>
             </div>
 
-            <div className="image-section">
+            <div className="image-section" style={{ border: '1px solid #d1fae5', background: '#f0fdf4' }}>
               <div className="section-header">
-                <Upload size={18} />
-                <h4>Chalan Images *</h4>
+                <Upload size={18} style={{ color: '#065f46' }} />
+                <h4 style={{ fontWeight: 700 }}>Chalan Images *</h4>
               </div>
               <div className="image-grid">
                 <div className="image-upload-box">
-                  <label>Chalan Front</label>
+                  <label style={{ fontWeight: 600 }}>Chalan Front</label>
                   <div className="upload-area" onClick={() => chalanFrontRef.current?.click()}>
                     {formData.chalanFrontPreview ? (
                       <div className="preview-container">
                         <img src={formData.chalanFrontPreview} alt="Chalan Front" />
                         <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeFile('chalanFront'); }}><X size={16} /></button>
                       </div>
-                    ) : ( <><Upload size={32} /><span>Click to upload</span></> )}
+                    ) : ( <><Upload size={32} style={{ color: '#065f46' }} /><span style={{ fontWeight: 500 }}>Click to upload</span></> )}
                   </div>
                   <input type="file" ref={chalanFrontRef} accept="image/*" onChange={(e) => handleFileUpload(e, 'chalanFront')} style={{ display: 'none' }} />
-                  {errors.chalanFront && <span className="error-text">{errors.chalanFront}</span>}
+                  {errors.chalanFront && <span className="error-text" style={{ fontWeight: 600 }}>{errors.chalanFront}</span>}
                 </div>
                 <div className="image-upload-box">
-                  <label>Chalan Back</label>
+                  <label style={{ fontWeight: 600 }}>Chalan Back</label>
                   <div className="upload-area" onClick={() => chalanBackRef.current?.click()}>
                     {formData.chalanBackPreview ? (
                       <div className="preview-container">
                         <img src={formData.chalanBackPreview} alt="Chalan Back" />
                         <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeFile('chalanBack'); }}><X size={16} /></button>
                       </div>
-                    ) : ( <><Upload size={32} /><span>Click to upload</span></> )}
+                    ) : ( <><Upload size={32} style={{ color: '#065f46' }} /><span style={{ fontWeight: 500 }}>Click to upload</span></> )}
                   </div>
                   <input type="file" ref={chalanBackRef} accept="image/*" onChange={(e) => handleFileUpload(e, 'chalanBack')} style={{ display: 'none' }} />
-                  {errors.chalanBack && <span className="error-text">{errors.chalanBack}</span>}
+                  {errors.chalanBack && <span className="error-text" style={{ fontWeight: 600 }}>{errors.chalanBack}</span>}
                 </div>
               </div>
             </div>
@@ -1110,18 +1122,18 @@ const AddAccount = () => {
         )}
 
         <div className="form-actions">
-          {step === 2 && <button type="button" className="btn-prev" onClick={handlePrev}>Previous</button>}
+          {step === 2 && <button type="button" className="btn-prev" onClick={handlePrev} style={{ fontWeight: 700 }}>Previous</button>}
           {step === 1 ? (
-            <button type="button" className="btn-next" onClick={handleNext}>Next →</button>
+            <button type="button" className="btn-next" onClick={handleNext} style={{ fontWeight: 700 }}>Next →</button>
           ) : (
-            <button type="submit" className="btn-submit">
+            <button type="submit" className="btn-submit" style={{ fontWeight: 700 }}>
               <CheckCircle size={18} />
               Create Account
             </button>
           )}
         </div>
 
-        <div className="step-indicator">
+        <div className="step-indicator" style={{ fontWeight: 600 }}>
           <span className={step === 1 ? 'active' : 'done'}>1. Personal Info</span>
           <span className="step-line"></span>
           <span className={step === 2 ? 'active' : ''}>2. Product & Installments</span>

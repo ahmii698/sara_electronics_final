@@ -241,6 +241,45 @@ const Salary = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
+  // Colorful stat chips
+  const statChips = [
+    { 
+      label: `${totalEmployees} Employees`, 
+      icon: Users,
+      color: '#2563eb',
+      bg: 'rgba(37, 99, 235, 0.1)',
+      className: 'stat-employees'
+    },
+    { 
+      label: `${totalPaid} Paid`, 
+      icon: CheckCircle,
+      color: '#22c55e',
+      bg: 'rgba(34, 197, 94, 0.1)',
+      className: 'stat-paid'
+    },
+    { 
+      label: `${totalPending} Pending`, 
+      icon: AlertCircle,
+      color: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.1)',
+      className: 'stat-pending'
+    },
+    { 
+      label: `PKR ${totalSalary.toLocaleString()}`, 
+      icon: DollarSign,
+      color: '#1E1B4B',
+      bg: 'rgba(30, 27, 75, 0.08)',
+      className: 'stat-salary'
+    },
+    { 
+      label: `PKR ${totalCommission.toLocaleString()}`, 
+      icon: Award,
+      color: '#8B5CF6',
+      bg: 'rgba(139, 92, 246, 0.1)',
+      className: 'stat-commission'
+    },
+  ];
+
   return (
     <div className="salary-container">
       <div className="salary-header">
@@ -255,28 +294,23 @@ const Salary = () => {
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
-          <div className="header-stats">
-            <span className="stat-chip">
-              <Users size={14} />
-              {totalEmployees} Employees
+        </div>
+
+        <div className="header-stats">
+          {statChips.map((chip, index) => (
+            <span 
+              key={index} 
+              className={`stat-chip ${chip.className}`}
+              style={{ 
+                color: chip.color, 
+                background: chip.bg,
+                borderColor: chip.color + '30'
+              }}
+            >
+              <chip.icon size={14} style={{ color: chip.color }} />
+              {chip.label}
             </span>
-            <span className="stat-chip paid-stat">
-              <CheckCircle size={14} />
-              {totalPaid} Paid
-            </span>
-            <span className="stat-chip pending-stat">
-              <AlertCircle size={14} />
-              {totalPending} Pending
-            </span>
-            <span className="stat-chip total-stat">
-              <DollarSign size={14} />
-              PKR {totalSalary.toLocaleString()}
-            </span>
-            <span className="stat-chip commission-stat">
-              <Award size={14} />
-              PKR {totalCommission.toLocaleString()}
-            </span>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -314,71 +348,61 @@ const Salary = () => {
                 <tr key={emp.id} className={emp.paid ? 'paid-row' : 'pending-row'}>
                   <td>
                     <div className="employee-name-cell">
-                      <div className="emp-avatar">{emp.name.charAt(0)}</div>
+                      <div className="emp-avatar" style={{ background: emp.paid ? '#d1fae5' : '#fef3c7', color: emp.paid ? '#065f46' : '#92400e' }}>
+                        {emp.name.charAt(0)}
+                      </div>
                       {emp.name}
                     </div>
                   </td>
-                  <td className="salary-amount">PKR {emp.salary.toLocaleString()}</td>
+                  <td className="salary-amount" style={{ color: '#1E1B4B', fontWeight: 800 }}>
+                    PKR {emp.salary.toLocaleString()}
+                  </td>
                   <td>
                     {emp.commission > 0 ? (
-                      <span className="commission-badge">PKR {emp.commission.toLocaleString()}</span>
+                      <span className="commission-badge" style={{ background: '#dbeafe', color: '#1e40af', fontWeight: 700 }}>
+                        PKR {emp.commission.toLocaleString()}
+                      </span>
                     ) : (
                       <span className="no-value">—</span>
                     )}
                   </td>
                   <td>
-                    <span className="account-badge">{emp.accountCount}</span>
+                    <span className="account-badge" style={{ background: '#f3e8ff', color: '#6b21a8', fontWeight: 700 }}>
+                      {emp.accountCount}
+                    </span>
                   </td>
                   <td>
                     {emp.totalAdvances > 0 ? (
-                      <span className="advance-badge">PKR {emp.totalAdvances.toLocaleString()}</span>
+                      <span className="advance-badge" style={{ background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>
+                        PKR {emp.totalAdvances.toLocaleString()}
+                      </span>
                     ) : (
                       <span className="no-value">—</span>
                     )}
                   </td>
                   <td>
-                    <span className={emp.paid ? 'badge-active' : 'badge-pending'}>
+                    <span className={emp.paid ? 'badge-active' : 'badge-pending'} style={{ fontWeight: 700 }}>
                       {emp.paid ? 'Paid' : 'Pending'}
                     </span>
                   </td>
-                  <td className="last-paid">{emp.lastPaid || 'Never'}</td>
+                  <td className="last-paid" style={{ fontWeight: 600 }}>{emp.lastPaid || 'Never'}</td>
                   <td>
                     <div className="action-group">
-                      <button 
-                        className="btn-view" 
-                        onClick={() => handleViewHistory(emp)}
-                        title="View History"
-                      >
+                      <button className="btn-view" onClick={() => handleViewHistory(emp)} title="View History">
                         <Eye size={15} />
                       </button>
-                      <button 
-                        className="btn-edit" 
-                        onClick={() => openEditModal(emp)}
-                        title="Edit Salary"
-                      >
+                      <button className="btn-edit" onClick={() => openEditModal(emp)} title="Edit Salary">
                         <Edit size={15} />
                       </button>
-                      <button 
-                        className="btn-advance" 
-                        onClick={() => openAdvanceModal(emp)}
-                        title="Give Advance"
-                      >
+                      <button className="btn-advance" onClick={() => openAdvanceModal(emp)} title="Give Advance">
                         <Wallet size={15} />
                       </button>
                       {emp.paid ? (
-                        <button 
-                          className="btn-reset" 
-                          onClick={() => handleReset(emp.id)}
-                          title="Reset"
-                        >
+                        <button className="btn-reset" onClick={() => handleReset(emp.id)} title="Reset">
                           <RefreshCw size={15} />
                         </button>
                       ) : (
-                        <button 
-                          className="btn-pay" 
-                          onClick={() => handlePayNow(emp.id)}
-                          title="Pay Now"
-                        >
+                        <button className="btn-pay" onClick={() => handlePayNow(emp.id)} title="Pay Now">
                           <DollarSign size={15} />
                           Pay
                         </button>
@@ -399,7 +423,7 @@ const Salary = () => {
             <div className="salary-modal-header">
               <div className="salary-modal-header-left">
                 <Clock size={20} className="salary-modal-icon" />
-                <h3>Salary History</h3>
+                <h3 style={{ fontSize: '1.3rem' }}>Salary History</h3>
               </div>
               <button className="salary-modal-close" onClick={() => setShowHistoryModal(false)}>
                 <X size={24} />
@@ -408,42 +432,46 @@ const Salary = () => {
 
             <div className="salary-modal-body">
               <div className="employee-detail-header">
-                <div className="emp-detail-avatar">{selectedEmployee.name.charAt(0)}</div>
+                <div className="emp-detail-avatar" style={{ background: '#1E1B4B', fontSize: '1.1rem' }}>
+                  {selectedEmployee.name.charAt(0)}
+                </div>
                 <div className="emp-detail-info">
-                  <h4>{selectedEmployee.name}</h4>
-                  <span className="emp-detail-branch">Branch {selectedEmployee.branch} • {selectedEmployee.accountCount} Accounts</span>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedEmployee.name}</h4>
+                  <span className="emp-detail-branch" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                    Branch {selectedEmployee.branch} • {selectedEmployee.accountCount} Accounts
+                  </span>
                 </div>
               </div>
 
               <div className="history-summary">
-                <div className="summary-item">
-                  <span>Salary</span>
-                  <strong>PKR {selectedEmployee.salary.toLocaleString()}</strong>
+                <div className="summary-item" style={{ background: 'rgba(30, 27, 75, 0.06)', borderRadius: '0.75rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Salary</span>
+                  <strong style={{ fontSize: '1.1rem', color: '#1E1B4B' }}>PKR {selectedEmployee.salary.toLocaleString()}</strong>
                 </div>
-                <div className="summary-item">
-                  <span>Commission</span>
-                  <strong>PKR {selectedEmployee.commission.toLocaleString()}</strong>
+                <div className="summary-item" style={{ background: 'rgba(139, 92, 246, 0.08)', borderRadius: '0.75rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Commission</span>
+                  <strong style={{ fontSize: '1.1rem', color: '#8B5CF6' }}>PKR {selectedEmployee.commission.toLocaleString()}</strong>
                 </div>
-                <div className="summary-item">
-                  <span>Total Paid</span>
-                  <strong>PKR {selectedEmployee.history.reduce((sum, h) => sum + h.amount, 0).toLocaleString()}</strong>
+                <div className="summary-item" style={{ background: 'rgba(34, 197, 94, 0.08)', borderRadius: '0.75rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Total Paid</span>
+                  <strong style={{ fontSize: '1.1rem', color: '#22c55e' }}>PKR {selectedEmployee.history.reduce((sum, h) => sum + h.amount, 0).toLocaleString()}</strong>
                 </div>
               </div>
 
               {selectedEmployee.advances.length > 0 && (
                 <div className="advances-section">
                   <div className="advances-header">
-                    <Wallet size={16} />
-                    <h4>Salary Advances</h4>
-                    <span className="advances-total">Total: PKR {selectedEmployee.totalAdvances.toLocaleString()}</span>
+                    <Wallet size={16} style={{ color: '#92400e' }} />
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#92400e' }}>Salary Advances</h4>
+                    <span className="advances-total" style={{ fontWeight: 700 }}>Total: PKR {selectedEmployee.totalAdvances.toLocaleString()}</span>
                   </div>
                   <div className="advances-table-wrap">
                     <table className="advances-table">
                       <thead>
                         <tr>
-                          <th>Date & Time</th>
-                          <th>Amount</th>
-                          <th>Reason</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date & Time</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Amount</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Reason</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -451,28 +479,28 @@ const Salary = () => {
                           <tr key={index}>
                             <td>
                               <div className="advance-date-time">
-                                <span className="adv-date">{getDateOnly(item.date)}</span>
-                                <span className="adv-time">{getTimeOnly(item.date)}</span>
+                                <span className="adv-date" style={{ fontWeight: 600 }}>{getDateOnly(item.date)}</span>
+                                <span className="adv-time" style={{ fontSize: '0.6rem' }}>{getTimeOnly(item.date)}</span>
                               </div>
                             </td>
-                            <td className="advance-amount-cell">-PKR {item.amount.toLocaleString()}</td>
-                            <td className="advance-reason-cell">{item.reason}</td>
+                            <td className="advance-amount-cell" style={{ color: '#dc2626', fontWeight: 700 }}>-PKR {item.amount.toLocaleString()}</td>
+                            <td className="advance-reason-cell" style={{ fontWeight: 500 }}>{item.reason}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <div className="remaining-salary">
-                    <span>Remaining Salary </span>
-                    <strong>PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}</strong>
+                  <div className="remaining-salary" style={{ fontWeight: 700 }}>
+                    <span style={{ fontSize: '0.9rem' }}>Remaining Salary </span>
+                    <strong style={{ fontSize: '1.1rem', color: '#1E1B4B' }}>PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}</strong>
                   </div>
                 </div>
               )}
 
               <div className="history-list">
                 <div className="history-list-header">
-                  <h4>Payment History</h4>
-                  <span className="history-count">{selectedEmployee.history.length} entries</span>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Payment History</h4>
+                  <span className="history-count" style={{ fontWeight: 600 }}>{selectedEmployee.history.length} entries</span>
                 </div>
                 {selectedEmployee.history.length === 0 ? (
                   <p className="no-history">No payment history found</p>
@@ -480,19 +508,17 @@ const Salary = () => {
                   selectedEmployee.history.map((item, index) => (
                     <div key={index} className="history-item">
                       <div className="history-left">
-                        <span className="history-date">{getMonthName(item.date)}</span>
-                        <span className="history-date-full">
-                          {getDateOnly(item.date)} • {getTimeOnly(item.date)}
-                        </span>
+                        <span className="history-date" style={{ fontWeight: 700 }}>{getMonthName(item.date)}</span>
+                        <span className="history-date-full">{getDateOnly(item.date)} • {getTimeOnly(item.date)}</span>
                       </div>
                       <div className="history-center">
-                        <span className="history-amount">PKR {item.amount.toLocaleString()}</span>
+                        <span className="history-amount" style={{ fontWeight: 800, fontSize: '1rem' }}>PKR {item.amount.toLocaleString()}</span>
                         {item.advanceDeducted && item.advanceDeducted > 0 && (
-                          <span className="deducted-badge">-PKR {item.advanceDeducted} advance</span>
+                          <span className="deducted-badge" style={{ fontWeight: 700 }}>-PKR {item.advanceDeducted} advance</span>
                         )}
                       </div>
                       <div className="history-right">
-                        <span className={`history-status ${item.type === 'commission' ? 'commission' : 'paid'}`}>
+                        <span className={`history-status ${item.type === 'commission' ? 'commission' : 'paid'}`} style={{ fontWeight: 700 }}>
                           {item.type === 'commission' ? 'Commission' : 'Paid'}
                         </span>
                       </div>
@@ -516,7 +542,7 @@ const Salary = () => {
             <div className="salary-modal-header">
               <div className="salary-modal-header-left">
                 <Wallet size={20} className="salary-modal-icon" />
-                <h3>Give Advance</h3>
+                <h3 style={{ fontSize: '1.3rem' }}>Give Advance</h3>
               </div>
               <button className="salary-modal-close" onClick={() => setShowAdvanceModal(false)}>
                 <X size={24} />
@@ -525,34 +551,36 @@ const Salary = () => {
 
             <div className="salary-modal-body">
               <div className="employee-detail-header small">
-                <div className="emp-detail-avatar small">{selectedEmployee.name.charAt(0)}</div>
+                <div className="emp-detail-avatar small" style={{ background: '#1E1B4B' }}>
+                  {selectedEmployee.name.charAt(0)}
+                </div>
                 <div className="emp-detail-info">
-                  <h4>{selectedEmployee.name}</h4>
-                  <span className="emp-detail-branch">Branch {selectedEmployee.branch}</span>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>{selectedEmployee.name}</h4>
+                  <span className="emp-detail-branch" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Branch {selectedEmployee.branch}</span>
                 </div>
               </div>
 
               <div className="advance-info-box">
-                <div className="advance-info-row">
+                <div className="advance-info-row" style={{ fontWeight: 600 }}>
                   <span>Salary</span>
-                  <strong>PKR {selectedEmployee.salary.toLocaleString()}</strong>
+                  <strong style={{ color: '#1E1B4B' }}>PKR {selectedEmployee.salary.toLocaleString()}</strong>
                 </div>
-                <div className="advance-info-row">
+                <div className="advance-info-row" style={{ fontWeight: 600 }}>
                   <span>Commission</span>
-                  <strong className="commission-highlight">PKR {selectedEmployee.commission.toLocaleString()}</strong>
+                  <strong className="commission-highlight" style={{ color: '#8B5CF6' }}>PKR {selectedEmployee.commission.toLocaleString()}</strong>
                 </div>
-                <div className="advance-info-row">
+                <div className="advance-info-row" style={{ fontWeight: 600 }}>
                   <span>Advances Taken</span>
-                  <strong className="advance-taken">PKR {selectedEmployee.totalAdvances.toLocaleString()}</strong>
+                  <strong className="advance-taken" style={{ color: '#dc2626' }}>PKR {selectedEmployee.totalAdvances.toLocaleString()}</strong>
                 </div>
-                <div className="advance-info-row highlight">
-                  <span>Remaining</span>
-                  <strong className="remaining-amount">PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}</strong>
+                <div className="advance-info-row highlight" style={{ fontWeight: 700, borderTop: '2px solid #1E1B4B', paddingTop: '0.5rem' }}>
+                  <span style={{ fontSize: '1rem' }}>Remaining</span>
+                  <strong className="remaining-amount" style={{ fontSize: '1.2rem', color: '#1E1B4B' }}>PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}</strong>
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Advance Amount (PKR) *</label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 700 }}>Advance Amount (PKR) *</label>
                 <input
                   type="number"
                   className="form-input"
@@ -561,25 +589,27 @@ const Salary = () => {
                   onChange={(e) => setAdvanceAmount(e.target.value)}
                   min="1"
                   max={selectedEmployee.salary - selectedEmployee.totalAdvances}
+                  style={{ fontSize: '1rem', fontWeight: 600 }}
                 />
-                <small className="field-hint">Max: PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}</small>
+                <small className="field-hint" style={{ fontWeight: 600 }}>Max: PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}</small>
               </div>
 
               <div className="form-group">
-                <label>Reason</label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 700 }}>Reason</label>
                 <input
                   type="text"
                   className="form-input"
                   placeholder="Enter reason..."
                   value={advanceReason}
                   onChange={(e) => setAdvanceReason(e.target.value)}
+                  style={{ fontSize: '1rem', fontWeight: 500 }}
                 />
-                <small className="field-hint">e.g., Emergency, Medical, Home Repair</small>
+                <small className="field-hint" style={{ fontWeight: 600 }}>e.g., Emergency, Medical, Home Repair</small>
               </div>
 
               <div className="advance-note-box">
                 <Clock size={16} className="advance-icon" />
-                <p>This amount will be deducted from next salary payment</p>
+                <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>This amount will be deducted from next salary payment</p>
               </div>
             </div>
 
@@ -600,7 +630,7 @@ const Salary = () => {
             <div className="salary-modal-header">
               <div className="salary-modal-header-left">
                 <Edit size={20} className="salary-modal-icon" />
-                <h3>Edit Salary</h3>
+                <h3 style={{ fontSize: '1.3rem' }}>Edit Salary</h3>
               </div>
               <button className="salary-modal-close" onClick={() => setShowEditModal(false)}>
                 <X size={24} />
@@ -609,31 +639,35 @@ const Salary = () => {
 
             <div className="salary-modal-body">
               <div className="employee-detail-header small">
-                <div className="emp-detail-avatar small">{editingEmployee.name.charAt(0)}</div>
+                <div className="emp-detail-avatar small" style={{ background: '#1E1B4B' }}>
+                  {editingEmployee.name.charAt(0)}
+                </div>
                 <div className="emp-detail-info">
-                  <h4>{editingEmployee.name}</h4>
-                  <span className="emp-detail-branch">Branch {editingEmployee.branch}</span>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>{editingEmployee.name}</h4>
+                  <span className="emp-detail-branch" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Branch {editingEmployee.branch}</span>
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Salary (PKR)</label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 700 }}>Salary (PKR)</label>
                 <input
                   type="number"
                   className="form-input"
                   defaultValue={editingEmployee.salary}
                   id="editSalaryInput"
+                  style={{ fontSize: '1rem', fontWeight: 600 }}
                 />
               </div>
               <div className="form-group">
-                <label>Commission (PKR)</label>
+                <label style={{ fontSize: '0.9rem', fontWeight: 700 }}>Commission (PKR)</label>
                 <input
                   type="number"
                   className="form-input"
                   defaultValue={editingEmployee.commission}
                   id="editCommissionInput"
+                  style={{ fontSize: '1rem', fontWeight: 600 }}
                 />
-                <small className="field-hint">{editingEmployee.accountCount} accounts × 2,000 = {editingEmployee.accountCount * 2000}</small>
+                <small className="field-hint" style={{ fontWeight: 600 }}>{editingEmployee.accountCount} accounts × 2,000 = {editingEmployee.accountCount * 2000}</small>
               </div>
             </div>
 

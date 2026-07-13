@@ -416,6 +416,48 @@ const Recovery = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
+  // Colorful stat chips
+  const statChips = [
+    { 
+      label: `${totalRecords} Records`, 
+      icon: FileText,
+      color: '#2563eb',
+      bg: 'rgba(37, 99, 235, 0.1)',
+      className: 'stat-records'
+    },
+    { 
+      label: `PKR ${totalAmount.toLocaleString()}`, 
+      icon: DollarSign,
+      color: '#1E1B4B',
+      bg: 'rgba(30, 27, 75, 0.08)',
+      className: 'stat-total'
+    },
+    { 
+      label: `PKR ${totalPaid.toLocaleString()} Paid`, 
+      icon: CheckCircle,
+      color: '#22c55e',
+      bg: 'rgba(34, 197, 94, 0.1)',
+      className: 'stat-paid'
+    },
+    { 
+      label: `PKR ${totalDue.toLocaleString()} Due`, 
+      icon: AlertTriangle,
+      color: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.1)',
+      className: 'stat-due'
+    },
+  ];
+
+  if (overdueRecords > 0) {
+    statChips.push({
+      label: `${overdueRecords} Overdue`,
+      icon: AlertTriangle,
+      color: '#dc2626',
+      bg: 'rgba(220, 38, 38, 0.1)',
+      className: 'stat-overdue'
+    });
+  }
+
   return (
     <div className="recovery-container">
       <div className="recovery-header">
@@ -432,30 +474,23 @@ const Recovery = () => {
               <span>{branchLabel}</span>
             </div>
           )}
-          <div className="header-stats">
-            <span className="stat-chip">
-              <FileText size={14} />
-              {totalRecords} Records
+        </div>
+
+        <div className="header-stats">
+          {statChips.map((chip, index) => (
+            <span 
+              key={index} 
+              className={`stat-chip ${chip.className}`}
+              style={{ 
+                color: chip.color, 
+                background: chip.bg,
+                borderColor: chip.color + '40'
+              }}
+            >
+              <chip.icon size={14} style={{ color: chip.color }} />
+              {chip.label}
             </span>
-            <span className="stat-chip total-stat">
-              <DollarSign size={14} />
-              PKR {totalAmount.toLocaleString()}
-            </span>
-            <span className="stat-chip paid-stat">
-              <CheckCircle size={14} />
-              PKR {totalPaid.toLocaleString()} Paid
-            </span>
-            <span className="stat-chip due-stat">
-              <AlertTriangle size={14} />
-              PKR {totalDue.toLocaleString()} Due
-            </span>
-            {overdueRecords > 0 && (
-              <span className="stat-chip overdue-stat">
-                <AlertTriangle size={14} />
-                {overdueRecords} Overdue
-              </span>
-            )}
-          </div>
+          ))}
         </div>
       </div>
 
@@ -533,10 +568,10 @@ const Recovery = () => {
                   <td colSpan="10" className="no-data">No records found for {branchLabel}</td>
                 </tr>
               ) : (
-                currentItems.map((item) => {
+                currentItems.map((item, index) => {
                   const isOverdue = item.isOverdue;
                   return (
-                    <tr key={item.id} className={isOverdue ? 'overdue-row' : ''}>
+                    <tr key={item.id} className={`${isOverdue ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                       <td className="case-number">{item.caseNo}</td>
                       <td>
                         <div className="customer-name-cell">

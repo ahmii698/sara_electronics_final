@@ -188,10 +188,10 @@ const AgingReport = () => {
 
   // ===== OVERDUE BADGE =====
   const getOverdueBadge = (months) => {
-    if (months >= 6) return { color: '#dc2626', label: 'Critical' };
-    if (months >= 4) return { color: '#f59e0b', label: 'High' };
-    if (months >= 3) return { color: '#fcd34d', label: 'Medium' };
-    return { color: '#22c55e', label: 'Low' };
+    if (months >= 6) return { color: '#dc2626', label: 'Critical', bg: 'rgba(220,38,38,0.15)' };
+    if (months >= 4) return { color: '#f59e0b', label: 'High', bg: 'rgba(245,158,11,0.15)' };
+    if (months >= 3) return { color: '#fcd34d', label: 'Medium', bg: 'rgba(252,211,77,0.15)' };
+    return { color: '#22c55e', label: 'Low', bg: 'rgba(34,197,94,0.15)' };
   };
 
   // ===== VIEW DETAIL =====
@@ -220,6 +220,26 @@ const AgingReport = () => {
     </svg>
   );
 
+  // Colorful stat cards
+  const statCards = [
+    {
+      label: 'Total Balance',
+      value: `PKR ${totalBalance.toLocaleString()}`,
+      icon: DollarSign,
+      color: '#C9A84C',
+      bg: 'rgba(201,168,76,0.15)',
+      className: 'balance-card'
+    },
+    {
+      label: 'Average Overdue',
+      value: `${avgOverdueMonths} months`,
+      icon: Clock,
+      color: '#2563eb',
+      bg: 'rgba(37,99,235,0.12)',
+      className: 'avg-card'
+    },
+  ];
+
   return (
     <div className="aging-container">
       {/* ===== HEADER ===== */}
@@ -245,20 +265,24 @@ const AgingReport = () => {
 
       {/* ===== STATS - ONLY 2 CARDS ===== */}
       <div className="stats-grid">
-        <div className="stat-card balance-card">
-          <div className="stat-icon balance-icon"><DollarSign size={20} /></div>
-          <div className="stat-info">
-            <span className="stat-label">Total Balance</span>
-            <span className="stat-value">PKR {totalBalance.toLocaleString()}</span>
+        {statCards.map((card, index) => (
+          <div 
+            key={index} 
+            className={`stat-card ${card.className}`}
+            style={{ 
+              borderLeft: `5px solid ${card.color}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}
+          >
+            <div className="stat-icon" style={{ background: card.bg, color: card.color }}>
+              <card.icon size={22} />
+            </div>
+            <div className="stat-info">
+              <span className="stat-label" style={{ fontWeight: 700 }}>{card.label}</span>
+              <span className="stat-value" style={{ fontWeight: 800, color: card.color, fontSize: '1.3rem' }}>{card.value}</span>
+            </div>
           </div>
-        </div>
-        <div className="stat-card avg-card">
-          <div className="stat-icon avg-icon"><Clock size={20} /></div>
-          <div className="stat-info">
-            <span className="stat-label">Average Overdue</span>
-            <span className="stat-value">{avgOverdueMonths} months</span>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* ===== CONTROLS ===== */}
@@ -273,6 +297,7 @@ const AgingReport = () => {
               setSearch(e.target.value);
               setCurrentPage(1);
             }}
+            style={{ fontWeight: 500 }}
           />
         </div>
 
@@ -281,18 +306,21 @@ const AgingReport = () => {
             <button 
               className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`}
               onClick={() => { setBranchFilter('all'); setCurrentPage(1); }}
+              style={{ fontWeight: 600 }}
             >
               All
             </button>
             <button 
               className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`}
               onClick={() => { setBranchFilter('1'); setCurrentPage(1); }}
+              style={{ fontWeight: 600 }}
             >
               Branch 1
             </button>
             <button 
               className={`filter-btn branch-2 ${branchFilter === '2' ? 'active' : ''}`}
               onClick={() => { setBranchFilter('2'); setCurrentPage(1); }}
+              style={{ fontWeight: 600 }}
             >
               Branch 2
             </button>
@@ -304,25 +332,25 @@ const AgingReport = () => {
       <div className="table-container">
         <div className="table-header">
           <div className="table-header-left">
-            <h3>Overdue Customers</h3>
-            <span className="record-count">{totalRecords} entries</span>
+            <h3 style={{ fontWeight: 700 }}>Overdue Customers</h3>
+            <span className="record-count" style={{ fontWeight: 600 }}>{totalRecords} entries</span>
           </div>
-          <span className="aging-info">Showing customers with 3+ months overdue</span>
+          <span className="aging-info" style={{ fontWeight: 600 }}>Showing customers with 3+ months overdue</span>
         </div>
 
         <div className="table-scroll">
           <table className="aging-table">
             <thead>
               <tr>
-                <th>Case #</th>
-                <th>Customer</th>
-                <th>Description</th>
-                <th>Balance</th>
-                <th>Monthly</th>
-                <th>Overdue</th>
-                <th>Last Payment</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th style={{ fontWeight: 800 }}>Case #</th>
+                <th style={{ fontWeight: 800 }}>Customer</th>
+                <th style={{ fontWeight: 800 }}>Description</th>
+                <th style={{ fontWeight: 800 }}>Balance</th>
+                <th style={{ fontWeight: 800 }}>Monthly</th>
+                <th style={{ fontWeight: 800 }}>Overdue</th>
+                <th style={{ fontWeight: 800 }}>Last Payment</th>
+                <th style={{ fontWeight: 800 }}>Status</th>
+                <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -331,34 +359,48 @@ const AgingReport = () => {
                   <td colSpan="9" className="no-data">
                     <div className="no-data-content">
                       <CheckCircleIcon />
-                      <p>No overdue customers found for {branchLabel}</p>
-                      <span className="no-data-sub">All payments are up to date!</span>
+                      <p style={{ fontWeight: 600 }}>No overdue customers found for {branchLabel}</p>
+                      <span className="no-data-sub" style={{ fontWeight: 500 }}>All payments are up to date!</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                currentItems.map((item) => {
+                currentItems.map((item, index) => {
                   const badge = getOverdueBadge(item.overdueMonths);
                   return (
-                    <tr key={item.id} className="overdue-row">
-                      <td className="case-number">{item.caseNo}</td>
+                    <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                      <td className="case-number" style={{ fontWeight: 700 }}>{item.caseNo}</td>
                       <td>
-                        <div className="customer-info">
-                          <div className="customer-avatar">{item.customer.charAt(0)}</div>
+                        <div className="customer-info" style={{ fontWeight: 600 }}>
+                          <div className="customer-avatar" style={{ 
+                            background: '#ede9fe', 
+                            color: '#1E1B4B',
+                            fontWeight: 700,
+                            fontSize: '0.7rem'
+                          }}>
+                            {item.customer.charAt(0)}
+                          </div>
                           {item.customer}
                         </div>
                       </td>
-                      <td className="description-cell">{item.description}</td>
-                      <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
-                      <td>PKR {item.monthlyInstallment.toLocaleString()}</td>
+                      <td className="description-cell" style={{ fontWeight: 500 }}>{item.description}</td>
+                      <td className="balance-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {item.balance.toLocaleString()}</td>
+                      <td style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
                       <td>
-                        <span className="overdue-months-badge" style={{ background: badge.color }}>
+                        <span className="overdue-months-badge" style={{ 
+                          background: badge.color, 
+                          color: 'white',
+                          fontWeight: 700,
+                          padding: '0.2rem 0.7rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.7rem'
+                        }}>
                           {item.overdueMonths} months
                         </span>
                       </td>
-                      <td className="last-payment">{item.lastPaymentDate}</td>
+                      <td className="last-payment" style={{ fontWeight: 500 }}>{item.lastPaymentDate}</td>
                       <td>
-                        <span className={`status-badge ${item.overdueMonths >= 6 ? 'critical' : item.overdueMonths >= 4 ? 'high' : 'medium'}`}>
+                        <span className={`status-badge ${item.overdueMonths >= 6 ? 'critical' : item.overdueMonths >= 4 ? 'high' : 'medium'}`} style={{ fontWeight: 700 }}>
                           {badge.label}
                         </span>
                       </td>
@@ -367,6 +409,7 @@ const AgingReport = () => {
                           className="btn-view" 
                           onClick={() => openDetailModal(item)}
                           title="View Details"
+                          style={{ fontWeight: 700 }}
                         >
                           <Eye size={16} />
                         </button>
@@ -383,10 +426,11 @@ const AgingReport = () => {
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
+            style={{ fontWeight: 600 }}
           >
             Previous
           </button>
-          <span className="page-info">
+          <span className="page-info" style={{ fontWeight: 600 }}>
             {totalRecords > 0 ? (
               `Showing ${startIndex + 1} - ${Math.min(startIndex + itemsPerPage, totalRecords)} of ${totalRecords}`
             ) : (
@@ -396,6 +440,7 @@ const AgingReport = () => {
           <button
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages || totalPages === 0}
+            style={{ fontWeight: 600 }}
           >
             Next
           </button>
@@ -409,7 +454,7 @@ const AgingReport = () => {
             <div className="aging-modal-header">
               <div className="aging-modal-header-left">
                 <User size={20} className="aging-modal-icon" />
-                <h3>Customer Details</h3>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800 }}>Customer Details</h3>
               </div>
               <button className="aging-modal-close" onClick={closeModal}>
                 <X size={24} />
@@ -418,14 +463,20 @@ const AgingReport = () => {
 
             <div className="aging-modal-body">
               <div className="customer-detail-header">
-                <div className="customer-detail-avatar">{selectedCustomer.customer.charAt(0)}</div>
+                <div className="customer-detail-avatar" style={{ 
+                  background: selectedCustomer.overdueMonths >= 6 ? '#991b1b' : '#1E1B4B',
+                  fontSize: '1.1rem',
+                  fontWeight: 800
+                }}>
+                  {selectedCustomer.customer.charAt(0)}
+                </div>
                 <div className="customer-detail-info">
-                  <h4>{selectedCustomer.customer}</h4>
-                  <span className="customer-detail-case">Case: {selectedCustomer.caseNo}</span>
-                  <span className="customer-detail-branch">Branch {selectedCustomer.branch}</span>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedCustomer.customer}</h4>
+                  <span className="customer-detail-case" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Case: {selectedCustomer.caseNo}</span>
+                  <span className="customer-detail-branch" style={{ fontSize: '0.8rem', fontWeight: 500 }}>Branch {selectedCustomer.branch}</span>
                 </div>
                 <div className="customer-detail-status">
-                  <span className={`status-badge ${selectedCustomer.overdueMonths >= 6 ? 'critical' : selectedCustomer.overdueMonths >= 4 ? 'high' : 'medium'}`}>
+                  <span className={`status-badge ${selectedCustomer.overdueMonths >= 6 ? 'critical' : selectedCustomer.overdueMonths >= 4 ? 'high' : 'medium'}`} style={{ fontWeight: 700 }}>
                     {getOverdueBadge(selectedCustomer.overdueMonths).label}
                   </span>
                 </div>
@@ -433,58 +484,58 @@ const AgingReport = () => {
 
               <div className="detail-summary">
                 <div className="detail-summary-item">
-                  <span>Description</span>
-                  <strong>{selectedCustomer.description}</strong>
+                  <span style={{ fontWeight: 700 }}>Description</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedCustomer.description}</strong>
                 </div>
                 <div className="detail-summary-item">
-                  <span>Total Amount</span>
-                  <strong>PKR {selectedCustomer.totalAmount.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Total Amount</span>
+                  <strong style={{ fontWeight: 700 }}>PKR {selectedCustomer.totalAmount.toLocaleString()}</strong>
                 </div>
                 <div className="detail-summary-item">
-                  <span>Paid Amount</span>
-                  <strong className="paid-amount">PKR {selectedCustomer.paidAmount.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Paid Amount</span>
+                  <strong className="paid-amount" style={{ fontWeight: 700, color: '#065f46' }}>PKR {selectedCustomer.paidAmount.toLocaleString()}</strong>
                 </div>
                 <div className="detail-summary-item">
-                  <span>Balance</span>
-                  <strong className="balance-amount">PKR {selectedCustomer.balance.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Balance</span>
+                  <strong className="balance-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {selectedCustomer.balance.toLocaleString()}</strong>
                 </div>
                 <div className="detail-summary-item">
-                  <span>Monthly Installment</span>
-                  <strong>PKR {selectedCustomer.monthlyInstallment.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Monthly Installment</span>
+                  <strong style={{ fontWeight: 700 }}>PKR {selectedCustomer.monthlyInstallment.toLocaleString()}</strong>
                 </div>
                 <div className="detail-summary-item">
-                  <span>Overdue Months</span>
-                  <strong className="overdue-amount">{selectedCustomer.overdueMonths} months</strong>
+                  <span style={{ fontWeight: 700 }}>Overdue Months</span>
+                  <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>{selectedCustomer.overdueMonths} months</strong>
                 </div>
               </div>
 
               <div className="installment-history">
                 <div className="history-header">
-                  <h4>Installment History</h4>
-                  <span className="history-badge">{selectedCustomer.installments.length} months</span>
+                  <h4 style={{ fontWeight: 700 }}>Installment History</h4>
+                  <span className="history-badge" style={{ fontWeight: 600 }}>{selectedCustomer.installments.length} months</span>
                 </div>
                 <div className="history-scroll">
                   <table className="history-table">
                     <thead>
                       <tr>
-                        <th>Month</th>
-                        <th>Due (PKR)</th>
-                        <th>Paid (PKR)</th>
-                        <th>Status</th>
+                        <th style={{ fontWeight: 800 }}>Month</th>
+                        <th style={{ fontWeight: 800 }}>Due (PKR)</th>
+                        <th style={{ fontWeight: 800 }}>Paid (PKR)</th>
+                        <th style={{ fontWeight: 800 }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedCustomer.installments.map((inst, index) => {
                         const isOverdue = inst.month < currentMonth && inst.paid < inst.due;
                         return (
-                          <tr key={index} className={isOverdue ? 'overdue-row' : ''}>
-                            <td className="month-cell">{inst.month}</td>
-                            <td>PKR {inst.due.toLocaleString()}</td>
-                            <td className={inst.paid >= inst.due ? 'paid-amount' : 'balance-amount'}>
+                          <tr key={index} className={`${isOverdue ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                            <td className="month-cell" style={{ fontWeight: 600 }}>{inst.month}</td>
+                            <td style={{ fontWeight: 600 }}>PKR {inst.due.toLocaleString()}</td>
+                            <td className={inst.paid >= inst.due ? 'paid-amount' : 'balance-amount'} style={{ fontWeight: 700 }}>
                               PKR {inst.paid.toLocaleString()}
                             </td>
                             <td>
-                              <span className={`status-badge ${inst.status}`}>
+                              <span className={`status-badge ${inst.status}`} style={{ fontWeight: 700 }}>
                                 {inst.status === 'paid' ? 'Paid' : 
                                  inst.status === 'partial' ? 'Partial' : 'Unpaid'}
                               </span>
@@ -499,7 +550,7 @@ const AgingReport = () => {
             </div>
 
             <div className="aging-modal-footer">
-              <button className="btn-cancel" onClick={closeModal}>Close</button>
+              <button className="btn-cancel" onClick={closeModal} style={{ fontWeight: 700 }}>Close</button>
             </div>
           </div>
         </div>

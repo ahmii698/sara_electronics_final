@@ -208,6 +208,24 @@ const ExtraExpense = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
+  // Colorful stat chips
+  const statChips = [
+    { 
+      label: `${totalExpenses} Expenses`, 
+      icon: Building,
+      color: '#2563eb',
+      bg: 'rgba(37, 99, 235, 0.1)',
+      className: 'stat-expenses'
+    },
+    { 
+      label: `PKR ${totalAmount.toLocaleString()}`, 
+      icon: DollarSign,
+      color: '#1E1B4B',
+      bg: 'rgba(30, 27, 75, 0.08)',
+      className: 'stat-total'
+    },
+  ];
+
   return (
     <div className="extra-expense-container">
       <div className="extra-header">
@@ -222,17 +240,25 @@ const ExtraExpense = () => {
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
-          <div className="header-stats">
-            <span className="stat-chip">
-              <Building size={14} />
-              {totalExpenses} Expenses
-            </span>
-            <span className="stat-chip total-stat">
-              <DollarSign size={14} />
-              PKR {totalAmount.toLocaleString()}
-            </span>
-          </div>
         </div>
+
+        <div className="header-stats">
+          {statChips.map((chip, index) => (
+            <span 
+              key={index} 
+              className={`stat-chip ${chip.className}`}
+              style={{ 
+                color: chip.color, 
+                background: chip.bg,
+                borderColor: chip.color + '40'
+              }}
+            >
+              <chip.icon size={14} style={{ color: chip.color }} />
+              {chip.label}
+            </span>
+          ))}
+        </div>
+
         <button className="btn-accent" onClick={openAddModal}>
           <Plus size={18} />
           Add Expense
@@ -244,20 +270,24 @@ const ExtraExpense = () => {
         <div className="branch-totals">
           <div className="branch-total-card branch-1-card">
             <div className="branch-card-header">
-              <Building size={16} />
-              <h4>Branch 1</h4>
+              <Building size={16} style={{ color: '#1E1B4B' }} />
+              <h4 style={{ fontWeight: 700, fontSize: '0.95rem' }}>Branch 1</h4>
             </div>
             <div className="branch-total-row">
-              <span>Total: PKR {branch1Total.toLocaleString()}</span>
+              <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#1E1B4B' }}>
+                PKR {branch1Total.toLocaleString()}
+              </span>
             </div>
           </div>
           <div className="branch-total-card branch-2-card">
             <div className="branch-card-header">
-              <Building size={16} />
-              <h4>Branch 2</h4>
+              <Building size={16} style={{ color: '#C9A84C' }} />
+              <h4 style={{ fontWeight: 700, fontSize: '0.95rem' }}>Branch 2</h4>
             </div>
             <div className="branch-total-row">
-              <span>Total: PKR {branch2Total.toLocaleString()}</span>
+              <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#C9A84C' }}>
+                PKR {branch2Total.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
@@ -347,11 +377,16 @@ const ExtraExpense = () => {
               </tr>
             ) : (
               currentItems.map((exp, index) => (
-                <tr key={exp.id}>
+                <tr key={exp.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
                   <td className="text-gray">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                   <td className="expense-desc">{exp.description}</td>
                   <td className="amount-cell">PKR {exp.amount.toLocaleString()}</td>
-                  <td>{formatDate(exp.date)}</td>
+                  <td>
+                    <span className="date-badge">
+                      <Calendar size={12} />
+                      {formatDate(exp.date)}
+                    </span>
+                  </td>
                   <td>
                     <div className="action-group">
                       <button 
@@ -393,6 +428,7 @@ const ExtraExpense = () => {
         </button>
       </div>
 
+      {/* ===== ADD/EDIT MODAL ===== */}
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>

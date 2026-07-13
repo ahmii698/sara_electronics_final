@@ -177,7 +177,7 @@ const AddEmployee = () => {
           </span>
         </div>
         {userBranch && (
-          <div className="branch-badge-header">
+          <div className="branch-badge-header" style={{ fontWeight: 700 }}>
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
@@ -185,7 +185,7 @@ const AddEmployee = () => {
       </div>
 
       {successMessage && (
-        <div className="success-message">
+        <div className="success-message" style={{ fontWeight: 600 }}>
           <CheckCircle size={18} />
           <span>{successMessage}</span>
         </div>
@@ -194,7 +194,7 @@ const AddEmployee = () => {
       <form onSubmit={handleSubmit}>
         <div className="form-grid">
           <div className="form-group">
-            <label>Full Name *</label>
+            <label style={{ fontWeight: 700 }}>Full Name *</label>
             <div className="input-with-icon">
               <User size={18} />
               <input
@@ -206,13 +206,14 @@ const AddEmployee = () => {
                 onChange={handleChange}
                 autoComplete="off"
                 required
+                style={{ fontWeight: 500 }}
               />
             </div>
-            {errors.name && <span className="error-text">{errors.name}</span>}
+            {errors.name && <span className="error-text" style={{ fontWeight: 600 }}>{errors.name}</span>}
           </div>
 
           <div className="form-group">
-            <label>Email Address *</label>
+            <label style={{ fontWeight: 700 }}>Email Address *</label>
             <div className="input-with-icon">
               <Mail size={18} />
               <input
@@ -224,13 +225,14 @@ const AddEmployee = () => {
                 onChange={handleChange}
                 autoComplete="off"
                 required
+                style={{ fontWeight: 500 }}
               />
             </div>
-            {errors.email && <span className="error-text">{errors.email}</span>}
+            {errors.email && <span className="error-text" style={{ fontWeight: 600 }}>{errors.email}</span>}
           </div>
 
           <div className="form-group">
-            <label>Phone Number *</label>
+            <label style={{ fontWeight: 700 }}>Phone Number *</label>
             <div className="input-with-icon">
               <Phone size={18} />
               <input
@@ -242,13 +244,14 @@ const AddEmployee = () => {
                 onChange={handleChange}
                 autoComplete="off"
                 required
+                style={{ fontWeight: 500 }}
               />
             </div>
-            {errors.phone && <span className="error-text">{errors.phone}</span>}
+            {errors.phone && <span className="error-text" style={{ fontWeight: 600 }}>{errors.phone}</span>}
           </div>
 
           <div className="form-group">
-            <label>Branch *</label>
+            <label style={{ fontWeight: 700 }}>Branch *</label>
             <div className="input-with-icon">
               <Building size={18} />
               <select
@@ -257,19 +260,19 @@ const AddEmployee = () => {
                 value={employee.branch}
                 onChange={handleChange}
                 disabled={!!userBranch}
-                style={userBranch ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
+                style={userBranch ? { opacity: 0.7, cursor: 'not-allowed', fontWeight: 500 } : { fontWeight: 500 }}
               >
                 <option value={1}>Branch 1</option>
                 <option value={2}>Branch 2</option>
               </select>
             </div>
             {userBranch && (
-              <small className="field-hint">Branch locked to {branchLabel}</small>
+              <small className="field-hint" style={{ fontWeight: 500 }}>Branch locked to {branchLabel}</small>
             )}
           </div>
 
           <div className="form-group">
-            <label>Role *</label>
+            <label style={{ fontWeight: 700 }}>Role *</label>
             <div className="input-with-icon">
               <Briefcase size={18} />
               <select
@@ -277,6 +280,7 @@ const AddEmployee = () => {
                 className="form-input"
                 value={employee.role}
                 onChange={handleChange}
+                style={{ fontWeight: 500 }}
               >
                 <option value="employee">Employee</option>
                 <option value="manager">Manager</option>
@@ -286,9 +290,9 @@ const AddEmployee = () => {
           </div>
 
           <div className="form-group">
-            <label>Salary (PKR)</label>
+            <label style={{ fontWeight: 700 }}>Salary (PKR)</label>
             <div className="input-with-icon">
-              <DollarSign size={18} />
+              <DollarSign size={18} style={{ color: '#C9A84C' }} />
               <input
                 type="number"
                 name="salary"
@@ -297,12 +301,13 @@ const AddEmployee = () => {
                 value={employee.salary}
                 onChange={handleChange}
                 autoComplete="off"
+                style={{ fontWeight: 500 }}
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Password *</label>
+            <label style={{ fontWeight: 700 }}>Password *</label>
             <div className="input-with-icon">
               <Lock size={18} />
               <input
@@ -314,13 +319,14 @@ const AddEmployee = () => {
                 onChange={handleChange}
                 autoComplete="new-password"
                 required
+                style={{ fontWeight: 500 }}
               />
             </div>
-            {errors.password && <span className="error-text">{errors.password}</span>}
+            {errors.password && <span className="error-text" style={{ fontWeight: 600 }}>{errors.password}</span>}
           </div>
 
           <div className="form-group">
-            <label>Confirm Password *</label>
+            <label style={{ fontWeight: 700 }}>Confirm Password *</label>
             <div className="input-with-icon">
               <Lock size={18} />
               <input
@@ -332,21 +338,22 @@ const AddEmployee = () => {
                 onChange={handleChange}
                 autoComplete="new-password"
                 required
+                style={{ fontWeight: 500 }}
               />
             </div>
-            {errors.confirmPassword && <span className="error-text">{errors.confirmPassword}</span>}
+            {errors.confirmPassword && <span className="error-text" style={{ fontWeight: 600 }}>{errors.confirmPassword}</span>}
           </div>
         </div>
 
-        <div className="cnic-image-section">
+        <div className="cnic-image-section" style={{ border: '1px solid #bfdbfe', background: '#eff6ff' }}>
           <div className="section-header">
-            <CreditCard size={18} />
-            <h4>CNIC Images</h4>
-            <span className="required-badge">Required</span>
+            <CreditCard size={18} style={{ color: '#2563eb' }} />
+            <h4 style={{ fontWeight: 700 }}>CNIC Images</h4>
+            <span className="required-badge" style={{ fontWeight: 700 }}>Required</span>
           </div>
           <div className="cnic-image-grid">
             <div className="image-upload-box">
-              <label>CNIC Front</label>
+              <label style={{ fontWeight: 600 }}>CNIC Front</label>
               <div className="upload-area" onClick={() => cnicFrontRef.current?.click()}>
                 {employee.cnicFrontPreview ? (
                   <div className="preview-container">
@@ -357,18 +364,18 @@ const AddEmployee = () => {
                   </div>
                 ) : (
                   <>
-                    <Upload size={32} />
-                    <span>Click to upload</span>
-                    <span className="file-hint">JPG, PNG</span>
+                    <Upload size={32} style={{ color: '#2563eb' }} />
+                    <span style={{ fontWeight: 500 }}>Click to upload</span>
+                    <span className="file-hint" style={{ fontWeight: 500 }}>JPG, PNG</span>
                   </>
                 )}
               </div>
               <input type="file" ref={cnicFrontRef} accept="image/*" onChange={(e) => handleCnicUpload(e, 'front')} style={{ display: 'none' }} />
-              {errors.cnicFront && <span className="error-text">{errors.cnicFront}</span>}
+              {errors.cnicFront && <span className="error-text" style={{ fontWeight: 600 }}>{errors.cnicFront}</span>}
             </div>
 
             <div className="image-upload-box">
-              <label>CNIC Back</label>
+              <label style={{ fontWeight: 600 }}>CNIC Back</label>
               <div className="upload-area" onClick={() => cnicBackRef.current?.click()}>
                 {employee.cnicBackPreview ? (
                   <div className="preview-container">
@@ -379,32 +386,32 @@ const AddEmployee = () => {
                   </div>
                 ) : (
                   <>
-                    <Upload size={32} />
-                    <span>Click to upload</span>
-                    <span className="file-hint">JPG, PNG</span>
+                    <Upload size={32} style={{ color: '#2563eb' }} />
+                    <span style={{ fontWeight: 500 }}>Click to upload</span>
+                    <span className="file-hint" style={{ fontWeight: 500 }}>JPG, PNG</span>
                   </>
                 )}
               </div>
               <input type="file" ref={cnicBackRef} accept="image/*" onChange={(e) => handleCnicUpload(e, 'back')} style={{ display: 'none' }} />
-              {errors.cnicBack && <span className="error-text">{errors.cnicBack}</span>}
+              {errors.cnicBack && <span className="error-text" style={{ fontWeight: 600 }}>{errors.cnicBack}</span>}
             </div>
           </div>
         </div>
 
-        <div className="agreement-section">
+        <div className="agreement-section" style={{ border: '1px solid #86efac', background: '#f0fdf4' }}>
           <div className="section-header">
-            <FileText size={18} />
-            <h4>Agreement Form</h4>
-            <span className="optional-badge">Optional</span>
+            <FileText size={18} style={{ color: '#065f46' }} />
+            <h4 style={{ fontWeight: 700 }}>Agreement Form</h4>
+            <span className="optional-badge" style={{ fontWeight: 600 }}>Optional</span>
           </div>
-          <p className="agreement-hint">Upload signed agreement form</p>
+          <p className="agreement-hint" style={{ fontWeight: 500 }}>Upload signed agreement form</p>
           
           <div className="agreement-upload">
-            <div className="upload-area agreement-upload-area" onClick={() => agreementRef.current?.click()}>
+            <div className="upload-area agreement-upload-area" onClick={() => agreementRef.current?.click()} style={{ borderColor: '#86efac' }}>
               {employee.agreementPreview ? (
                 <div className="agreement-preview">
-                  <FileText size={32} className="agreement-icon" />
-                  <span className="agreement-file-name">{employee.agreementName}</span>
+                  <FileText size={32} className="agreement-icon" style={{ color: '#065f46' }} />
+                  <span className="agreement-file-name" style={{ fontWeight: 600 }}>{employee.agreementName}</span>
                   <button 
                     className="remove-agreement-btn" 
                     onClick={(e) => { e.stopPropagation(); removeAgreement(); }}
@@ -414,9 +421,9 @@ const AddEmployee = () => {
                 </div>
               ) : (
                 <>
-                  <FileText size={32} />
-                  <span>Click to upload agreement</span>
-                  <span className="file-hint">PDF, JPG, PNG, DOC</span>
+                  <FileText size={32} style={{ color: '#065f46' }} />
+                  <span style={{ fontWeight: 500 }}>Click to upload agreement</span>
+                  <span className="file-hint" style={{ fontWeight: 500 }}>PDF, JPG, PNG, DOC</span>
                 </>
               )}
             </div>
@@ -431,7 +438,7 @@ const AddEmployee = () => {
         </div>
 
         <div className="form-group full-width">
-          <label>Address</label>
+          <label style={{ fontWeight: 700 }}>Address</label>
           <div className="input-with-icon">
             <MapPin size={18} />
             <textarea
@@ -441,22 +448,23 @@ const AddEmployee = () => {
               value={employee.address}
               onChange={handleChange}
               autoComplete="off"
+              style={{ fontWeight: 500 }}
             />
           </div>
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="btn-primary" style={{ fontWeight: 700 }}>
             <CheckCircle size={18} />
             Create Employee Account
           </button>
-          <button type="button" className="btn-reset" onClick={clearForm}>
+          <button type="button" className="btn-reset" onClick={clearForm} style={{ fontWeight: 700 }}>
             <X size={18} />
             Clear
           </button>
         </div>
 
-        <p className="form-footer">
+        <p className="form-footer" style={{ fontWeight: 500 }}>
           <AlertCircle size={14} />
           All fields are required. Branch assignment is permanent for login access.
         </p>

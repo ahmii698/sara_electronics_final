@@ -182,18 +182,16 @@ const EmployeeReport = () => {
     { id: 'stacked', label: 'Stacked', icon: BarChart },
   ];
 
-  // ===== RENDER CHART WITH 3 BARS (Accounts, Recovery, Overdue) - FIXED =====
+  // ===== RENDER CHART WITH 3 BARS =====
   const renderEmployeeChart = () => {
     if (!selectedEmployee) return null;
     
     const empData = getEmployeeChartData(selectedEmployee);
     
-    // ALAG ALAG MAX VALUES
     const maxAccounts = Math.max(...empData.accounts, 1);
     const maxRecovery = Math.max(...empData.recovery.map(v => v/1000), 1);
     const maxOverdue = Math.max(...empData.overdue, 1);
 
-    // HAR CHEEZ KA APNA HEIGHT CALCULATION
     const getAccountsHeight = (val) => (val / maxAccounts) * 140;
     const getRecoveryHeight = (val) => ((val/1000) / maxRecovery) * 140;
     const getOverdueHeight = (val) => (val / maxOverdue) * 140;
@@ -205,7 +203,6 @@ const EmployeeReport = () => {
             {empData.labels.map((label, index) => (
               <div key={index} className="chart-bar-group-3">
                 <div className="chart-bars-3">
-                  {/* Accounts Bar - Gold */}
                   <div className="chart-bar-wrapper-3">
                     <div 
                       className="chart-bar-3 bar-accounts" 
@@ -215,7 +212,6 @@ const EmployeeReport = () => {
                     </div>
                     <span className="bar-label-3">Acc</span>
                   </div>
-                  {/* Recovery Bar - Dark */}
                   <div className="chart-bar-wrapper-3">
                     <div 
                       className="chart-bar-3 bar-recovery" 
@@ -225,7 +221,6 @@ const EmployeeReport = () => {
                     </div>
                     <span className="bar-label-3">Rec</span>
                   </div>
-                  {/* Overdue Bar - Red */}
                   <div className="chart-bar-wrapper-3">
                     <div 
                       className="chart-bar-3 bar-overdue" 
@@ -251,7 +246,6 @@ const EmployeeReport = () => {
       );
     }
 
-    // Line chart - ab alag scales se
     if (modalChartType === 'line') {
       return (
         <div className="modal-chart-container">
@@ -260,7 +254,6 @@ const EmployeeReport = () => {
               {[0, 50, 100, 150, 200].map((y) => (
                 <line key={y} x1="0" y1={220 - y} x2="600" y2={220 - y} stroke="#e5e7eb" strokeWidth="1" />
               ))}
-              {/* Accounts Line - Gold */}
               <polyline
                 points={empData.accounts.map((val, i) => 
                   `${(i / (empData.accounts.length - 1)) * 600},${220 - (val / maxAccounts) * 190}`
@@ -269,7 +262,6 @@ const EmployeeReport = () => {
                 stroke="#C9A84C"
                 strokeWidth="3"
               />
-              {/* Recovery Line - Dark */}
               <polyline
                 points={empData.recovery.map((val, i) => 
                   `${(i / (empData.recovery.length - 1)) * 600},${220 - ((val/1000) / maxRecovery) * 190}`
@@ -279,7 +271,6 @@ const EmployeeReport = () => {
                 strokeWidth="3"
                 strokeDasharray="5,5"
               />
-              {/* Overdue Line - Red */}
               <polyline
                 points={empData.overdue.map((val, i) => 
                   `${(i / (empData.overdue.length - 1)) * 600},${220 - (val / maxOverdue) * 190}`
@@ -303,7 +294,6 @@ const EmployeeReport = () => {
       );
     }
 
-    // Pie chart
     if (modalChartType === 'pie') {
       const totalAccounts = empData.accounts.reduce((a, b) => a + b, 0);
       const totalRecovery = empData.recovery.reduce((a, b) => a + b, 0);
@@ -363,13 +353,11 @@ const EmployeeReport = () => {
       );
     }
 
-    // Area chart
     if (modalChartType === 'area') {
       return (
         <div className="modal-chart-container">
           <div className="chart-area-container-custom">
             <svg viewBox="0 0 600 220" className="chart-svg">
-              {/* Accounts Area */}
               <polygon
                 points={`0,220 ${empData.accounts.map((val, i) => 
                   `${(i / (empData.accounts.length - 1)) * 600},${220 - (val / maxAccounts) * 190}`
@@ -378,7 +366,6 @@ const EmployeeReport = () => {
                 stroke="#C9A84C"
                 strokeWidth="2"
               />
-              {/* Recovery Area */}
               <polygon
                 points={`0,220 ${empData.recovery.map((val, i) => 
                   `${(i / (empData.recovery.length - 1)) * 600},${220 - ((val/1000) / maxRecovery) * 190}`
@@ -387,7 +374,6 @@ const EmployeeReport = () => {
                 stroke="#1A2A4A"
                 strokeWidth="2"
               />
-              {/* Overdue Area */}
               <polygon
                 points={`0,220 ${empData.overdue.map((val, i) => 
                   `${(i / (empData.overdue.length - 1)) * 600},${220 - (val / maxOverdue) * 190}`
@@ -410,7 +396,6 @@ const EmployeeReport = () => {
       );
     }
 
-    // Stacked chart
     if (modalChartType === 'stacked') {
       return (
         <div className="modal-chart-container">
@@ -507,7 +492,7 @@ const EmployeeReport = () => {
       { label: 'Monthly Recovery', value: `PKR ${monthlyRecovery.toLocaleString()}`, color: '#C9A84C' },
       { label: 'Due Accounts', value: dueAccounts, color: '#f59e0b' },
       { label: 'Salary', value: `PKR ${emp.salary.toLocaleString()}`, color: '#065f46' },
-      { label: 'Commission', value: `PKR ${emp.totalCommission.toLocaleString()}`, color: '#2563eb' },
+      { label: 'Commission', value: `PKR ${emp.totalCommission.toLocaleString()}`, color: '#8B5CF6' },
       { label: 'Leaves', value: emp.totalLeaves, color: '#dc2626' },
     ];
   };
@@ -515,14 +500,14 @@ const EmployeeReport = () => {
   const isEmployee = userRole === 'employee';
 
   const summaryCards = isEmployee ? [
-    { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#1E1B4B', className: 'accounts' },
-    { label: 'Recovery Due', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', className: 'recovery' },
-    { label: 'Overdue', value: displayEmployees.filter(e => e.totalLeaves > 0).length, icon: AlertCircle, color: '#dc2626', className: 'overdue' },
+    { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#1E1B4B', bg: 'rgba(30,27,75,0.08)', className: 'accounts' },
+    { label: 'Recovery Due', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', className: 'recovery' },
+    { label: 'Overdue', value: displayEmployees.filter(e => e.totalLeaves > 0).length, icon: AlertCircle, color: '#dc2626', bg: 'rgba(220,38,38,0.1)', className: 'overdue' },
   ] : [
-    { label: 'Total Employees', value: totalEmployees, icon: Users, color: '#1E1B4B', className: 'users' },
-    { label: 'Total Recovery', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', className: 'recovery' },
-    { label: 'Total Commission', value: `PKR ${totalCommission.toLocaleString()}`, icon: Award, color: '#2563eb', className: 'commission' },
-    { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#065f46', className: 'accounts' },
+    { label: 'Total Employees', value: totalEmployees, icon: Users, color: '#1E1B4B', bg: 'rgba(30,27,75,0.08)', className: 'users' },
+    { label: 'Total Recovery', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', className: 'recovery' },
+    { label: 'Total Commission', value: `PKR ${totalCommission.toLocaleString()}`, icon: Award, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', className: 'commission' },
+    { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#2563eb', bg: 'rgba(37,99,235,0.1)', className: 'accounts' },
   ];
 
   const getEmployeeName = (id) => {
@@ -635,16 +620,23 @@ const EmployeeReport = () => {
         </div>
       )}
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Colorful */}
       <div className={`summary-cards ${isEmployee ? 'employee-cards' : ''}`}>
         {summaryCards.map((card, index) => (
-          <div key={index} className="summary-card" style={{ borderTopColor: card.color }}>
-            <div className={`summary-icon ${card.className}`}>
+          <div 
+            key={index} 
+            className="summary-card" 
+            style={{ 
+              borderTop: `4px solid ${card.color}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}
+          >
+            <div className={`summary-icon ${card.className}`} style={{ background: card.bg, color: card.color }}>
               <card.icon size={20} />
             </div>
             <div className="summary-info">
-              <span className="summary-label">{card.label}</span>
-              <span className="summary-value">{card.value}</span>
+              <span className="summary-label" style={{ fontWeight: 700 }}>{card.label}</span>
+              <span className="summary-value" style={{ fontWeight: 800, fontSize: '1.2rem' }}>{card.value}</span>
             </div>
           </div>
         ))}
@@ -654,21 +646,21 @@ const EmployeeReport = () => {
       <div className="employee-table-wrap">
         <div className="table-header-bar">
           <div className="table-header-left">
-            <span>Employee Performance</span>
-            <span className="record-count">{displayEmployees.length} records</span>
+            <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Employee Performance</span>
+            <span className="record-count" style={{ fontWeight: 600 }}>{displayEmployees.length} records</span>
           </div>
         </div>
         <div className="table-scroll">
           <table className="employee-report-table">
             <thead>
               <tr>
-                <th>#</th>
-                <th>Employee</th>
-                <th>Accounts</th>
-                <th>Recovery</th>
-                <th>Commission</th>
-                <th>Leaves</th>
-                <th>Actions</th>
+                <th style={{ fontWeight: 800 }}>#</th>
+                <th style={{ fontWeight: 800 }}>Employee</th>
+                <th style={{ fontWeight: 800 }}>Accounts</th>
+                <th style={{ fontWeight: 800 }}>Recovery</th>
+                <th style={{ fontWeight: 800 }}>Commission</th>
+                <th style={{ fontWeight: 800 }}>Leaves</th>
+                <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -683,20 +675,22 @@ const EmployeeReport = () => {
                 </tr>
               ) : (
                 displayEmployees.map((emp, index) => (
-                  <tr key={emp.id}>
-                    <td className="text-gray">{index + 1}</td>
+                  <tr key={emp.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
+                    <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
                     <td>
                       <div className="emp-name-cell">
-                        <div className="emp-avatar">{emp.name.charAt(0)}</div>
+                        <div className="emp-avatar" style={{ background: '#ede9fe', color: '#1E1B4B', fontWeight: 700 }}>
+                          {emp.name.charAt(0)}
+                        </div>
                         {emp.name}
                       </div>
                     </td>
-                    <td className="highlight-number">{emp.totalAccounts}</td>
-                    <td>PKR {emp.totalRecovery.toLocaleString()}</td>
-                    <td>PKR {emp.totalCommission.toLocaleString()}</td>
-                    <td>{emp.totalLeaves}</td>
+                    <td className="highlight-number" style={{ fontWeight: 800, color: '#1E1B4B' }}>{emp.totalAccounts}</td>
+                    <td style={{ fontWeight: 600 }}>PKR {emp.totalRecovery.toLocaleString()}</td>
+                    <td style={{ fontWeight: 600 }}>PKR {emp.totalCommission.toLocaleString()}</td>
+                    <td style={{ fontWeight: 600 }}>{emp.totalLeaves}</td>
                     <td>
-                      <button className="btn-view-detail" onClick={() => openDetailModal(emp)}>
+                      <button className="btn-view-detail" onClick={() => openDetailModal(emp)} style={{ fontWeight: 700 }}>
                         <Eye size={15} />
                         View
                       </button>
@@ -716,7 +710,7 @@ const EmployeeReport = () => {
             <div className="empreport-modal-header">
               <div className="empreport-modal-header-left">
                 <User size={20} className="empreport-modal-icon" />
-                <h3>Employee Report - {selectedEmployee.name}</h3>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Employee Report - {selectedEmployee.name}</h3>
               </div>
               <button className="empreport-modal-close" onClick={closeModal}>
                 <X size={24} />
@@ -725,20 +719,29 @@ const EmployeeReport = () => {
 
             <div className="empreport-modal-body">
               <div className="employee-detail-header">
-                <div className="emp-detail-avatar">{selectedEmployee.name.charAt(0)}</div>
+                <div className="emp-detail-avatar" style={{ background: '#1E1B4B', fontSize: '1.5rem', fontWeight: 800 }}>
+                  {selectedEmployee.name.charAt(0)}
+                </div>
                 <div className="emp-detail-info">
-                  <h4>{selectedEmployee.name}</h4>
-                  <span className="emp-detail-branch">Branch {selectedEmployee.branch} • {selectedEmployee.role}</span>
-                  <span className="emp-detail-joining">Joined: {selectedEmployee.joiningDate}</span>
+                  <h4 style={{ fontSize: '1.3rem', fontWeight: 700 }}>{selectedEmployee.name}</h4>
+                  <span className="emp-detail-branch" style={{ fontSize: '0.95rem', fontWeight: 600 }}>Branch {selectedEmployee.branch} • {selectedEmployee.role}</span>
+                  <span className="emp-detail-joining" style={{ fontSize: '0.85rem', fontWeight: 500 }}>Joined: {selectedEmployee.joiningDate}</span>
                 </div>
               </div>
 
-              {/* 7 Cards */}
+              {/* 7 Cards - Colorful */}
               <div className="detail-summary-7">
                 {getEmployeeStats(selectedEmployee).map((stat, index) => (
-                  <div key={index} className="detail-summary-item" style={{ borderTopColor: stat.color }}>
-                    <span>{stat.label}</span>
-                    <strong>{stat.value}</strong>
+                  <div 
+                    key={index} 
+                    className="detail-summary-item" 
+                    style={{ 
+                      borderTop: `4px solid ${stat.color}`,
+                      background: stat.color + '08'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#6b7280' }}>{stat.label}</span>
+                    <strong style={{ fontSize: '1rem', fontWeight: 800, color: stat.color }}>{stat.value}</strong>
                   </div>
                 ))}
               </div>
@@ -746,13 +749,14 @@ const EmployeeReport = () => {
               {/* Chart Section */}
               <div className="modal-chart-section">
                 <div className="modal-chart-header">
-                  <h4>Performance Trend (Self-Comparison)</h4>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Performance Trend (Self-Comparison)</h4>
                   <div className="modal-chart-type-selector">
                     {chartTypes.map((type) => (
                       <button
                         key={type.id}
                         className={`modal-chart-type-btn ${modalChartType === type.id ? 'active' : ''}`}
                         onClick={() => setModalChartType(type.id)}
+                        style={{ fontWeight: 600 }}
                       >
                         <type.icon size={14} />
                         {type.label}
@@ -766,28 +770,28 @@ const EmployeeReport = () => {
               {/* Monthly Breakdown */}
               <div className="monthly-breakdown">
                 <div className="monthly-header">
-                  <h4>Monthly Breakdown</h4>
-                  <span className="monthly-count">{Object.keys(selectedEmployee.monthlyData).length} months</span>
+                  <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Monthly Breakdown</h4>
+                  <span className="monthly-count" style={{ fontWeight: 600 }}>{Object.keys(selectedEmployee.monthlyData).length} months</span>
                 </div>
                 <div className="monthly-scroll">
                   <table className="monthly-table">
                     <thead>
                       <tr>
-                        <th>Month</th>
-                        <th>Accounts</th>
-                        <th>Recovery</th>
-                        <th>Commission</th>
-                        <th>Leaves</th>
+                        <th style={{ fontWeight: 800 }}>Month</th>
+                        <th style={{ fontWeight: 800 }}>Accounts</th>
+                        <th style={{ fontWeight: 800 }}>Recovery</th>
+                        <th style={{ fontWeight: 800 }}>Commission</th>
+                        <th style={{ fontWeight: 800 }}>Leaves</th>
                       </tr>
                     </thead>
                     <tbody>
                       {Object.entries(selectedEmployee.monthlyData).map(([month, data]) => (
                         <tr key={month}>
-                          <td className="month-name">{getMonthName(month)}</td>
-                          <td className="month-accounts">{data.accountsOpened}</td>
-                          <td>PKR {data.recoveryAmount.toLocaleString()}</td>
-                          <td>PKR {data.commission.toLocaleString()}</td>
-                          <td>{data.leaves}</td>
+                          <td className="month-name" style={{ fontWeight: 600 }}>{getMonthName(month)}</td>
+                          <td className="month-accounts" style={{ fontWeight: 700, color: '#1E1B4B' }}>{data.accountsOpened}</td>
+                          <td style={{ fontWeight: 600 }}>PKR {data.recoveryAmount.toLocaleString()}</td>
+                          <td style={{ fontWeight: 600 }}>PKR {data.commission.toLocaleString()}</td>
+                          <td style={{ fontWeight: 600 }}>{data.leaves}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -797,7 +801,7 @@ const EmployeeReport = () => {
             </div>
 
             <div className="empreport-modal-footer">
-              <button className="empreport-btn-cancel" onClick={closeModal}>Close</button>
+              <button className="empreport-btn-cancel" onClick={closeModal} style={{ fontWeight: 700 }}>Close</button>
             </div>
           </div>
         </div>

@@ -31,8 +31,8 @@
 }
 
 .recovery-header h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: #0A1628;
   margin: 0;
 }
@@ -41,11 +41,11 @@
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   color: #22c55e;
   background: #dcfce7;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.7rem;
   border-radius: 9999px;
   border: 1px solid #bbf7d0;
 }
@@ -54,10 +54,11 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.85rem;
-  color: #6b7280;
-  padding: 0.2rem 0.8rem;
-  background: #f8f9fa;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #4b5563;
+  padding: 0.25rem 0.9rem;
+  background: #f3f4f6;
   border-radius: 9999px;
   width: fit-content;
 }
@@ -75,37 +76,47 @@
 .stat-chip {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.7rem;
-  color: #6b7280;
-  background: #f8f9fa;
-  padding: 0.2rem 0.7rem;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.3rem 0.9rem;
   border-radius: 9999px;
-  border: 1px solid #f3f4f6;
+  border: 1.5px solid;
 }
 
-.stat-chip.total-stat {
-  background: #ede9fe;
+.stat-chip svg {
+  width: 16px;
+  height: 16px;
+}
+
+.stat-records {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.stat-total {
+  background: rgba(30, 27, 75, 0.08);
   color: #1E1B4B;
-  border-color: #c4b5fd;
+  border-color: rgba(30, 27, 75, 0.2);
 }
 
-.stat-chip.paid-stat {
-  background: #d1fae5;
-  color: #065f46;
-  border-color: #bbf7d0;
+.stat-paid {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.3);
 }
 
-.stat-chip.due-stat {
-  background: #fef3c7;
-  color: #92400e;
-  border-color: #fde68a;
+.stat-due {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
 }
 
-.stat-chip.overdue-stat {
-  background: #fee2e2;
-  color: #991b1b;
-  border-color: #fecaca;
+.stat-overdue {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.3);
 }
 
 .recovery-controls {
@@ -118,7 +129,7 @@
 .search-wrapper {
   display: flex;
   align-items: center;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
   border-radius: 0.75rem;
   padding: 0 0.75rem;
   flex: 1;
@@ -137,12 +148,13 @@
 }
 
 .table-search {
-  padding: 0.6rem 0.75rem;
+  padding: 0.7rem 0.75rem;
   border: none;
   border-radius: 0.75rem;
   outline: none;
   width: 100%;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
+  font-weight: 500;
   background: transparent;
 }
 
@@ -152,13 +164,13 @@
 }
 
 .filter-btn {
-  padding: 0.3rem 0.8rem;
+  padding: 0.35rem 0.9rem;
   border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
   background: white;
   color: #6b7280;
-  font-size: 0.7rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -210,17 +222,18 @@
 }
 
 .table-header h3 {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 700;
   color: #0A1628;
   margin: 0;
 }
 
 .record-count {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 600;
   color: #6b7280;
   background: #f3f4f6;
-  padding: 0.1rem 0.5rem;
+  padding: 0.15rem 0.6rem;
   border-radius: 9999px;
 }
 
@@ -228,12 +241,12 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.2rem 0.8rem;
+  padding: 0.25rem 0.9rem;
   background: #dc2626;
   color: white;
   border-radius: 9999px;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .table-scroll {
@@ -251,20 +264,21 @@
 }
 
 .table-data th {
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   text-align: left;
-  font-size: 0.6rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 800;
   text-transform: uppercase;
-  color: #6b7280;
+  color: #4b5563;
   border-bottom: 2px solid #e5e7eb;
   letter-spacing: 0.5px;
   white-space: nowrap;
 }
 
 .table-data td {
-  padding: 0.75rem 1rem;
-  font-size: 0.85rem;
+  padding: 0.8rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: #1f2937;
   border-bottom: 1px solid #f3f4f6;
   vertical-align: middle;
@@ -275,31 +289,40 @@
 }
 
 .table-data tbody tr:hover td {
-  background: #fafafa;
+  background: #f0f0f5;
 }
 
 .table-data tbody tr:last-child td {
   border-bottom: none;
 }
 
+.table-data .even-row td {
+  background: #fafbfc;
+}
+
+.table-data .odd-row td {
+  background: white;
+}
+
+.table-data .even-row:hover td,
+.table-data .odd-row:hover td {
+  background: #f0f0f5;
+}
+
 .overdue-row {
-  border-left: 4px solid #dc2626;
-  background: #fef2f2 !important;
+  border-left: 4px solid #dc2626 !important;
 }
 
 .overdue-row td {
   border-bottom-color: #fecaca !important;
 }
 
-.overdue-row:hover td {
-  background: #fde8e8 !important;
-}
-
 .no-data {
   text-align: center;
   padding: 2.5rem !important;
   color: #9ca3af !important;
-  font-size: 0.95rem !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
 }
 
 .case-number {
@@ -313,7 +336,7 @@
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-  font-weight: 500;
+  font-weight: 600;
   color: #0A1628;
 }
 
@@ -321,25 +344,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  padding: 0.1rem 0.5rem;
+  padding: 0.15rem 0.6rem;
   background: #dc2626;
   color: white;
   border-radius: 9999px;
-  font-size: 0.55rem;
-  font-weight: 600;
-}
-
-.branch-badge {
-  background: rgba(30, 27, 75, 0.08);
-  color: #1E1B4B;
-  padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.6rem;
+  font-weight: 700;
 }
 
 .amount-cell {
-  font-weight: 600;
+  font-weight: 700;
   color: #1E1B4B;
 }
 
@@ -351,9 +365,9 @@
 .type-badge {
   background: #f3e8ff;
   color: #6b21a8;
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
@@ -368,40 +382,41 @@
 }
 
 .badge-active {
-  padding: 0.2rem 0.7rem;
+  padding: 0.25rem 0.8rem;
   border-radius: 9999px;
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   background: #d1fae5;
   color: #065f46;
 }
 
 .badge-pending {
-  padding: 0.2rem 0.7rem;
+  padding: 0.25rem 0.8rem;
   border-radius: 9999px;
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
   background: #fef3c7;
   color: #92400e;
 }
 
 .action-group {
   display: flex;
-  gap: 0.3rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
 }
 
 .action-group button {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.5rem;
   border: none;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 700;
+  gap: 0.2rem;
 }
 
 .action-group button:hover {
@@ -447,16 +462,17 @@
 }
 
 .pagination button {
-  padding: 0.4rem 1rem;
+  padding: 0.5rem 1.2rem;
   border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
+  border: 1.5px solid #e5e7eb;
   background: white;
   cursor: pointer;
   transition: all 0.3s;
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: #374151;
 }
 
@@ -472,11 +488,12 @@
 }
 
 .pagination .page-info {
-  font-size: 0.85rem;
-  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4b5563;
 }
 
-/* ===== MODAL — FULL SCREEN (rec- prefix to avoid class clashes) ===== */
+/* ===== MODAL — FULL SCREEN ===== */
 .rec-modal-overlay {
   position: fixed !important;
   top: 0 !important;
@@ -539,8 +556,8 @@
 }
 
 .rec-modal-header h3 {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.3rem;
+  font-weight: 800;
   color: #0A1628;
   margin: 0;
 }
@@ -597,39 +614,41 @@
 }
 
 .emp-detail-avatar {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: #1E1B4B;
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 800;
   flex-shrink: 0;
 }
 
 .emp-detail-avatar.small {
-  width: 36px;
-  height: 36px;
-  font-size: 0.85rem;
+  width: 40px;
+  height: 40px;
+  font-size: 0.9rem;
 }
 
 .emp-detail-info h4 {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: #0A1628;
   margin: 0;
 }
 
 .emp-detail-branch {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: #6b7280;
 }
 
 .emp-detail-product {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 500;
   color: #9ca3af;
   display: block;
 }
@@ -644,8 +663,8 @@
   border: 1px solid #fca5a5;
   margin-bottom: 1rem;
   color: #991b1b;
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .overdue-notice svg {
@@ -669,7 +688,8 @@
 
 .summary-item span {
   display: block;
-  font-size: 0.55rem;
+  font-size: 0.6rem;
+  font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -677,7 +697,7 @@
 
 .summary-item strong {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #0A1628;
   margin-top: 0.1rem;
 }
@@ -694,17 +714,18 @@
 }
 
 .installment-list h4 {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: #374151;
   margin: 0;
 }
 
 .installment-count {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 600;
   color: #6b7280;
   background: #f3f4f6;
-  padding: 0.1rem 0.5rem;
+  padding: 0.1rem 0.6rem;
   border-radius: 9999px;
 }
 
@@ -737,16 +758,16 @@
 }
 
 .installment-month {
-  font-weight: 600;
+  font-weight: 700;
   color: #1f2937;
   min-width: 100px;
 }
 
 .overdue-month-badge {
   display: block;
-  font-size: 0.5rem;
+  font-size: 0.55rem;
   color: #dc2626;
-  font-weight: 600;
+  font-weight: 700;
   margin-top: 0.1rem;
 }
 
@@ -759,13 +780,14 @@
 }
 
 .installment-due {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: #6b7280;
 }
 
 .installment-paid {
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .installment-status {
@@ -774,10 +796,10 @@
 }
 
 .status-badge {
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.65rem;
+  font-weight: 700;
 }
 
 .status-badge.paid {
@@ -811,7 +833,8 @@
 
 .pay-summary-item span {
   display: block;
-  font-size: 0.55rem;
+  font-size: 0.6rem;
+  font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -819,7 +842,7 @@
 
 .pay-summary-item strong {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #0A1628;
 }
 
@@ -833,8 +856,8 @@
   border: 1px solid #fca5a5;
   margin-bottom: 1rem;
   color: #991b1b;
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .pay-overdue-warning svg {
@@ -858,7 +881,8 @@
 
 .edit-summary-item span {
   display: block;
-  font-size: 0.55rem;
+  font-size: 0.6rem;
+  font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -866,7 +890,7 @@
 
 .edit-summary-item strong {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #0A1628;
 }
 
@@ -876,8 +900,8 @@
 
 .form-group label {
   display: block;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 700;
   color: #374151;
   margin-bottom: 0.3rem;
 }
@@ -889,6 +913,7 @@
   border-radius: 0.75rem;
   outline: none;
   font-size: 0.95rem;
+  font-weight: 600;
   transition: all 0.3s;
   background: white;
 }
@@ -899,7 +924,8 @@
 }
 
 .field-hint {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 600;
   color: #6b7280;
   margin-top: 0.15rem;
   display: block;
@@ -909,7 +935,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: #6b7280;
   background: #f3f4f6;
   padding: 0.5rem 0.75rem;
@@ -930,7 +957,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: #6b7280;
   background: #f3f4f6;
   padding: 0.5rem 0.75rem;
@@ -950,10 +978,10 @@
 .btn-cancel {
   padding: 0.6rem 1.5rem;
   border-radius: 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1.5px solid #d1d5db;
   background: transparent;
   color: #6b7280;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -967,7 +995,7 @@
   border-radius: 0.75rem;
   background: #1E1B4B;
   color: white;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
   cursor: pointer;
   transition: all 0.3s;
@@ -987,7 +1015,7 @@
   border-radius: 0.75rem;
   background: #C9A84C;
   color: white;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
   cursor: pointer;
   transition: all 0.3s;
@@ -1010,7 +1038,7 @@
   .table-data th,
   .table-data td {
     padding: 0.5rem 0.6rem;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
   
   .pagination {
@@ -1024,8 +1052,8 @@
   }
   
   .stat-chip {
-    font-size: 0.6rem;
-    padding: 0.15rem 0.5rem;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.6rem;
   }
   
   .installment-summary {
@@ -1098,5 +1126,9 @@
   
   .rec-modal-footer {
     flex-direction: column;
+  }
+  
+  .recovery-header h2 {
+    font-size: 1.2rem;
   }
 }

@@ -305,6 +305,38 @@ const FixedExpense = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
+  // Colorful stat chips
+  const statChips = [
+    { 
+      label: `${totalExpenses} Expenses`, 
+      icon: Building,
+      color: '#2563eb',
+      bg: 'rgba(37, 99, 235, 0.1)',
+      className: 'stat-expenses'
+    },
+    { 
+      label: `${totalPaid} Paid`, 
+      icon: CheckCircle,
+      color: '#22c55e',
+      bg: 'rgba(34, 197, 94, 0.1)',
+      className: 'stat-paid'
+    },
+    { 
+      label: `${totalPending} Pending`, 
+      icon: AlertCircle,
+      color: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.1)',
+      className: 'stat-pending'
+    },
+    { 
+      label: `PKR ${totalAmount.toLocaleString()}`, 
+      icon: DollarSign,
+      color: '#1E1B4B',
+      bg: 'rgba(30, 27, 75, 0.08)',
+      className: 'stat-total'
+    },
+  ];
+
   return (
     <div className="fixed-expense-container">
       <div className="expense-header">
@@ -319,25 +351,25 @@ const FixedExpense = () => {
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
-          <div className="header-stats">
-            <span className="stat-chip">
-              <Building size={14} />
-              {totalExpenses} Expenses
-            </span>
-            <span className="stat-chip paid-stat">
-              <CheckCircle size={14} />
-              {totalPaid} Paid
-            </span>
-            <span className="stat-chip pending-stat">
-              <AlertCircle size={14} />
-              {totalPending} Pending
-            </span>
-            <span className="stat-chip total-stat">
-              <DollarSign size={14} />
-              PKR {totalAmount.toLocaleString()}
-            </span>
-          </div>
         </div>
+
+        <div className="header-stats">
+          {statChips.map((chip, index) => (
+            <span 
+              key={index} 
+              className={`stat-chip ${chip.className}`}
+              style={{ 
+                color: chip.color, 
+                background: chip.bg,
+                borderColor: chip.color + '40'
+              }}
+            >
+              <chip.icon size={14} style={{ color: chip.color }} />
+              {chip.label}
+            </span>
+          ))}
+        </div>
+
         <button className="btn-accent" onClick={openAddModal}>
           <Plus size={18} />
           Add Fixed Expense
@@ -379,7 +411,7 @@ const FixedExpense = () => {
               </tr>
             ) : (
               currentItems.map((exp, index) => (
-                <tr key={exp.id}>
+                <tr key={exp.id} className={exp.paid ? 'paid-row' : 'pending-row'}>
                   <td className="text-gray">{(currentPage - 1) * itemsPerPage + index + 1}</td>
                   <td className="expense-name">{exp.name}</td>
                   <td className="amount-cell">PKR {exp.amount.toLocaleString()}</td>
@@ -452,7 +484,7 @@ const FixedExpense = () => {
         </button>
       </div>
 
-      {/* Modals remain same */}
+      {/* ===== ADD/EDIT MODAL ===== */}
       {showModal && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -530,6 +562,7 @@ const FixedExpense = () => {
         </div>
       )}
 
+      {/* ===== PAY MODAL ===== */}
       {showPayModal && selectedExpense && (
         <div className="modal-overlay" onClick={() => setShowPayModal(false)}>
           <div className="modal-content pay-modal" onClick={(e) => e.stopPropagation()}>
@@ -587,6 +620,7 @@ const FixedExpense = () => {
         </div>
       )}
 
+      {/* ===== HISTORY MODAL ===== */}
       {showHistoryModal && selectedExpense && (
         <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
           <div className="modal-content history-modal" onClick={(e) => e.stopPropagation()}>
@@ -602,17 +636,19 @@ const FixedExpense = () => {
 
             <div className="modal-body">
               <div className="history-summary">
-                <div className="summary-item">
-                  <span>Total Paid</span>
-                  <strong>PKR {selectedExpense.history.reduce((sum, h) => sum + h.amount, 0).toLocaleString()}</strong>
+                <div className="summary-item" style={{ background: 'rgba(30, 27, 75, 0.06)', borderRadius: '0.75rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Total Paid</span>
+                  <strong style={{ fontSize: '1.1rem', color: '#1E1B4B' }}>
+                    PKR {selectedExpense.history.reduce((sum, h) => sum + h.amount, 0).toLocaleString()}
+                  </strong>
                 </div>
-                <div className="summary-item">
-                  <span>Total Payments</span>
-                  <strong>{selectedExpense.history.length}</strong>
+                <div className="summary-item" style={{ background: 'rgba(37, 99, 235, 0.08)', borderRadius: '0.75rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Total Payments</span>
+                  <strong style={{ fontSize: '1.1rem', color: '#2563eb' }}>{selectedExpense.history.length}</strong>
                 </div>
-                <div className="summary-item">
-                  <span>Status</span>
-                  <strong className={selectedExpense.paid ? 'text-green' : 'text-yellow'}>
+                <div className="summary-item" style={{ background: selectedExpense.paid ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.08)', borderRadius: '0.75rem' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Status</span>
+                  <strong className={selectedExpense.paid ? 'text-green' : 'text-yellow'} style={{ fontSize: '1.1rem' }}>
                     {selectedExpense.paid ? 'Paid' : 'Pending'}
                   </strong>
                 </div>
@@ -620,8 +656,8 @@ const FixedExpense = () => {
 
               <div className="history-list">
                 <div className="history-list-header">
-                  <h4>Payment History</h4>
-                  <span className="history-count">{selectedExpense.history.length} entries</span>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Payment History</h4>
+                  <span className="history-count" style={{ fontWeight: 600 }}>{selectedExpense.history.length} entries</span>
                 </div>
                 {selectedExpense.history.length === 0 ? (
                   <p className="no-history">No payment history found</p>
@@ -629,16 +665,18 @@ const FixedExpense = () => {
                   selectedExpense.history.map((item, index) => (
                     <div key={index} className="history-item">
                       <div className="history-left">
-                        <span className="history-date">{getMonthName(item.date)}</span>
+                        <span className="history-date" style={{ fontWeight: 700 }}>{getMonthName(item.date)}</span>
                         <span className="history-date-full">
                           {getDateOnly(item.date)} • {getTimeOnly(item.date)}
                         </span>
                       </div>
                       <div className="history-center">
-                        <span className="history-amount">PKR {item.amount.toLocaleString()}</span>
+                        <span className="history-amount" style={{ fontWeight: 800, fontSize: '1rem' }}>
+                          PKR {item.amount.toLocaleString()}
+                        </span>
                       </div>
                       <div className="history-right">
-                        <span className="history-status paid">
+                        <span className="history-status paid" style={{ fontWeight: 700 }}>
                           <CheckCircle size={12} />
                           Paid
                         </span>

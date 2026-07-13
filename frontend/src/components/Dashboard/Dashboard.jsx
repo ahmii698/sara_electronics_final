@@ -269,31 +269,39 @@ const Dashboard = () => {
     return null;
   };
 
-  // ===== 4 CARDS =====
+  // ===== 4 CARDS WITH COLORS =====
   const stats = [
     { 
       label: 'Total Customers', 
       value: data.customers.toLocaleString(), 
       icon: Users,
-      subtitle: `Branch ${selectedBranch === 'all' ? 'All Branches' : selectedBranch}`
+      subtitle: `Branch ${selectedBranch === 'all' ? 'All Branches' : selectedBranch}`,
+      color: '#2563eb',
+      bg: 'rgba(37, 99, 235, 0.1)'
     },
     { 
       label: `New Accounts (${currentMonth})`, 
       value: data.newAccounts || 0, 
       icon: Calendar,
-      subtitle: 'This month'
+      subtitle: 'This month',
+      color: '#8B5CF6',
+      bg: 'rgba(139, 92, 246, 0.1)'
     },
     { 
       label: 'Total Sales', 
       value: `PKR ${(data.revenue).toLocaleString()}`, 
       icon: DollarSign,
-      subtitle: 'Lifetime revenue'
+      subtitle: 'Lifetime revenue',
+      color: '#22c55e',
+      bg: 'rgba(34, 197, 94, 0.1)'
     },
     { 
       label: 'Monthly Recovery', 
       value: `PKR ${(data.monthlyRecovery || 0).toLocaleString()}`, 
       icon: TrendingUp,
-      subtitle: `${currentMonth} recovery`
+      subtitle: `${currentMonth} recovery`,
+      color: '#C9A84C',
+      bg: 'rgba(201, 168, 76, 0.1)'
     },
   ];
 
@@ -302,27 +310,31 @@ const Dashboard = () => {
     const overview = data.branchOverview;
     if (!overview) return null;
 
+    const isProfit = overview.profit > 0;
+
     return (
       <div className="branch-overview-details">
-        <div className="overview-item">
+        <div className="overview-item expense">
           <span className="overview-label">Rent</span>
           <span className="overview-value">PKR {overview.rent.toLocaleString()}</span>
         </div>
-        <div className="overview-item">
+        <div className="overview-item expense">
           <span className="overview-label">Salaries</span>
           <span className="overview-value">PKR {overview.salaries.toLocaleString()}</span>
         </div>
-        <div className="overview-item">
+        <div className="overview-item expense">
           <span className="overview-label">Utilities</span>
           <span className="overview-value">PKR {overview.utilities.toLocaleString()}</span>
         </div>
-        <div className="overview-item">
+        <div className="overview-item expense">
           <span className="overview-label">Other Expenses</span>
           <span className="overview-value">PKR {overview.otherExpenses.toLocaleString()}</span>
         </div>
-        <div className="overview-item profit">
+        <div className={`overview-item ${isProfit ? 'profit' : 'loss'}`}>
           <span className="overview-label">Net Profit</span>
-          <span className="overview-value profit">PKR {overview.profit.toLocaleString()}</span>
+          <span className={`overview-value ${isProfit ? 'profit' : 'loss'}`}>
+            {isProfit ? '💰' : '📉'} PKR {overview.profit.toLocaleString()}
+          </span>
         </div>
       </div>
     );
@@ -356,16 +368,16 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* ===== 4 STATS CARDS ===== */}
+      {/* ===== 4 STATS CARDS - COLORFUL ===== */}
       <div className="stats-grid-4">
         {stats.map((stat, index) => (
-          <div key={index} className="stat-card-4">
-            <div className="stat-card-4-icon">
+          <div key={index} className="stat-card-4" style={{ borderLeft: `4px solid ${stat.color}` }}>
+            <div className="stat-card-4-icon" style={{ background: stat.bg, color: stat.color }}>
               <stat.icon size={24} />
             </div>
             <div className="stat-card-4-info">
               <span className="stat-card-4-label">{stat.label}</span>
-              <span className="stat-card-4-value">{stat.value}</span>
+              <span className="stat-card-4-value" style={{ color: stat.color }}>{stat.value}</span>
               <span className="stat-card-4-sub">{stat.subtitle}</span>
             </div>
           </div>

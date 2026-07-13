@@ -191,6 +191,26 @@ const OverdueInstallments = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : (branchFilter !== 'all' ? `Branch ${branchFilter}` : 'All Branches');
 
+  // Colorful stat cards
+  const statCards = [
+    {
+      label: 'Total Balance',
+      value: `PKR ${totalBalance.toLocaleString()}`,
+      icon: DollarSign,
+      color: '#C9A84C',
+      bg: 'rgba(201, 168, 76, 0.15)',
+      className: 'balance-card'
+    },
+    {
+      label: 'Total Overdue',
+      value: `PKR ${totalOverdue.toLocaleString()}`,
+      icon: Clock,
+      color: '#dc2626',
+      bg: 'rgba(220, 38, 38, 0.12)',
+      className: 'overdue-card'
+    },
+  ];
+
   return (
     <div className="overdue-container">
       {/* ===== HEADER ===== */}
@@ -207,21 +227,25 @@ const OverdueInstallments = () => {
       </div>
 
       {/* ===== STATS - ONLY 2 CARDS ===== */}
-      <div className="stats-grid">
-        <div className="stat-card balance-card">
-          <div className="stat-icon balance-icon"><DollarSign size={20} /></div>
-          <div className="stat-info">
-            <span className="stat-label">Total Balance</span>
-            <span className="stat-value">PKR {totalBalance.toLocaleString()}</span>
+      <div className="stats-grid-2">
+        {statCards.map((card, index) => (
+          <div 
+            key={index} 
+            className={`stat-card ${card.className}`}
+            style={{ 
+              borderLeft: `5px solid ${card.color}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            }}
+          >
+            <div className="stat-icon" style={{ background: card.bg, color: card.color }}>
+              <card.icon size={22} />
+            </div>
+            <div className="stat-info">
+              <span className="stat-label" style={{ fontWeight: 700 }}>{card.label}</span>
+              <span className="stat-value" style={{ fontWeight: 800, color: card.color, fontSize: '1.3rem' }}>{card.value}</span>
+            </div>
           </div>
-        </div>
-        <div className="stat-card overdue-card">
-          <div className="stat-icon overdue-icon"><Clock size={20} /></div>
-          <div className="stat-info">
-            <span className="stat-label">Total Overdue</span>
-            <span className="stat-value">PKR {totalOverdue.toLocaleString()}</span>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* ===== CONTROLS ===== */}
@@ -233,6 +257,7 @@ const OverdueInstallments = () => {
             placeholder="Search by customer or case..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            style={{ fontWeight: 500 }}
           />
         </div>
 
@@ -241,18 +266,21 @@ const OverdueInstallments = () => {
             <button 
               className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`}
               onClick={() => setBranchFilter('all')}
+              style={{ fontWeight: 600 }}
             >
               All
             </button>
             <button 
               className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`}
               onClick={() => setBranchFilter('1')}
+              style={{ fontWeight: 600 }}
             >
               Branch 1
             </button>
             <button 
               className={`filter-btn branch-2 ${branchFilter === '2' ? 'active' : ''}`}
               onClick={() => setBranchFilter('2')}
+              style={{ fontWeight: 600 }}
             >
               Branch 2
             </button>
@@ -266,26 +294,31 @@ const OverdueInstallments = () => {
           <table className="overdue-table">
             <thead>
               <tr>
-                <th>Case #</th>
-                <th>Customer</th>
-                <th>Due Date</th>
-                <th>Monthly (PKR)</th>
-                <th>Balance (PKR)</th>
-                <th>Total Overdue</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th style={{ fontWeight: 800 }}>Case #</th>
+                <th style={{ fontWeight: 800 }}>Customer</th>
+                <th style={{ fontWeight: 800 }}>Due Date</th>
+                <th style={{ fontWeight: 800 }}>Monthly (PKR)</th>
+                <th style={{ fontWeight: 800 }}>Balance (PKR)</th>
+                <th style={{ fontWeight: 800 }}>Total Overdue</th>
+                <th style={{ fontWeight: 800 }}>Status</th>
+                <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan="8" className="no-data">No overdue records found for {branchLabel}</td></tr>
               ) : (
-                filtered.map((item) => (
-                  <tr key={item.id} className={item.status === 'overdue' ? 'overdue-row' : ''}>
+                filtered.map((item, index) => (
+                  <tr key={item.id} className={`${item.status === 'overdue' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                     <td className="case-number">{item.caseNo}</td>
                     <td>
                       <div className="customer-info">
-                        <div className="customer-avatar">{item.customer.charAt(0)}</div>
+                        <div className="customer-avatar" style={{ 
+                          background: item.status === 'overdue' ? '#fee2e2' : '#fef3c7',
+                          color: item.status === 'overdue' ? '#991b1b' : '#92400e'
+                        }}>
+                          {item.customer.charAt(0)}
+                        </div>
                         {item.customer}
                       </div>
                     </td>
@@ -295,13 +328,15 @@ const OverdueInstallments = () => {
                         {item.dueDate}
                       </div>
                     </td>
-                    <td className="amount">PKR {item.monthlyInstallment.toLocaleString()}</td>
-                    <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'}>
+                    <td className="amount" style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
+                    <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
                       PKR {item.balance.toLocaleString()}
                     </td>
-                    <td className="overdue-amount">PKR {item.totalOverdue.toLocaleString()}</td>
+                    <td className="overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>
+                      PKR {item.totalOverdue.toLocaleString()}
+                    </td>
                     <td>
-                      <span className={`status-badge ${item.status}`}>
+                      <span className={`status-badge ${item.status}`} style={{ fontWeight: 700 }}>
                         {item.status === 'paid' ? 'Paid' : 
                          item.status === 'partial' ? 'Partial' : 'Overdue'}
                       </span>
@@ -312,6 +347,7 @@ const OverdueInstallments = () => {
                           className={`btn-action ${canEdit ? 'btn-edit' : 'btn-view'}`}
                           onClick={() => openEditModal(item)}
                           title={canEdit ? "Edit Record" : "View Record"}
+                          style={{ fontWeight: 700 }}
                         >
                           {canEdit ? <Edit size={15} /> : <Eye size={15} />}
                         </button>
@@ -328,9 +364,9 @@ const OverdueInstallments = () => {
       {/* ===== PAGINATION ===== */}
       {filtered.length > 0 && (
         <div className="pagination">
-          <button>Previous</button>
-          <span>Page 1 of 1</span>
-          <button>Next</button>
+          <button style={{ fontWeight: 600 }}>Previous</button>
+          <span style={{ fontWeight: 600 }}>Page 1 of 1</span>
+          <button style={{ fontWeight: 600 }}>Next</button>
         </div>
       )}
 
@@ -341,7 +377,7 @@ const OverdueInstallments = () => {
             <div className="modal-header">
               <div className="modal-header-left">
                 {canEdit ? <Edit size={20} className="modal-icon" /> : <Eye size={20} className="modal-icon" />}
-                <h3>{canEdit ? 'Edit' : 'View'} Record - {selectedRecord.caseNo}</h3>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800 }}>{canEdit ? 'Edit' : 'View'} Record - {selectedRecord.caseNo}</h3>
               </div>
               <button className="modal-close" onClick={() => setShowEditModal(false)}>
                 <X size={24} />
@@ -350,61 +386,65 @@ const OverdueInstallments = () => {
 
             <div className="modal-body">
               <div className="employee-detail-header">
-                <div className="emp-detail-avatar">{selectedRecord.customer.charAt(0)}</div>
+                <div className="emp-detail-avatar" style={{ background: selectedRecord.status === 'overdue' ? '#991b1b' : '#1E1B4B', fontSize: '1.1rem', fontWeight: 800 }}>
+                  {selectedRecord.customer.charAt(0)}
+                </div>
                 <div className="emp-detail-info">
-                  <h4>{selectedRecord.customer}</h4>
-                  <span className="emp-detail-branch">Case: {selectedRecord.caseNo}</span>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedRecord.customer}</h4>
+                  <span className="emp-detail-branch" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Case: {selectedRecord.caseNo}</span>
                 </div>
               </div>
 
               <div className="detail-grid">
                 <div className="detail-item">
-                  <span>Case Number</span>
-                  <strong className="case-number">{selectedRecord.caseNo}</strong>
+                  <span style={{ fontWeight: 700 }}>Case Number</span>
+                  <strong className="case-number" style={{ fontWeight: 700 }}>{selectedRecord.caseNo}</strong>
                 </div>
                 <div className="detail-item">
-                  <span>Customer</span>
-                  <strong>{selectedRecord.customer}</strong>
+                  <span style={{ fontWeight: 700 }}>Customer</span>
+                  <strong style={{ fontWeight: 700 }}>{selectedRecord.customer}</strong>
                 </div>
                 <div className="detail-item">
-                  <span>Due Date</span>
-                  <strong>{selectedRecord.dueDate}</strong>
+                  <span style={{ fontWeight: 700 }}>Due Date</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedRecord.dueDate}</strong>
                 </div>
                 <div className="detail-item">
-                  <span>Monthly Installment</span>
-                  <strong>PKR {selectedRecord.monthlyInstallment.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Monthly Installment</span>
+                  <strong style={{ fontWeight: 700 }}>PKR {selectedRecord.monthlyInstallment.toLocaleString()}</strong>
                 </div>
                 <div className="detail-item">
-                  <span>Total Overdue</span>
-                  <strong className="overdue-amount">PKR {selectedRecord.totalOverdue.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Total Overdue</span>
+                  <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>
+                    PKR {selectedRecord.totalOverdue.toLocaleString()}
+                  </strong>
                 </div>
               </div>
 
               <div className="installment-history">
                 <div className="history-header">
-                  <h4>Installment History</h4>
-                  <span className="history-badge">{selectedRecord.installments.length} Months</span>
+                  <h4 style={{ fontWeight: 700 }}>Installment History</h4>
+                  <span className="history-badge" style={{ fontWeight: 600 }}>{selectedRecord.installments.length} Months</span>
                 </div>
                 <div className="history-scroll">
                   <table className="history-table">
                     <thead>
                       <tr>
-                        <th>Month</th>
-                        <th>Due (PKR)</th>
-                        <th>Paid (PKR)</th>
-                        <th>Overdue</th>
-                        <th>Status</th>
+                        <th style={{ fontWeight: 800 }}>Month</th>
+                        <th style={{ fontWeight: 800 }}>Due (PKR)</th>
+                        <th style={{ fontWeight: 800 }}>Paid (PKR)</th>
+                        <th style={{ fontWeight: 800 }}>Overdue</th>
+                        <th style={{ fontWeight: 800 }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedRecord.installments.map((inst, index) => (
-                        <tr key={index} className={inst.status === 'unpaid' ? 'overdue-row' : ''}>
-                          <td className="month-cell">{inst.month}</td>
-                          <td>PKR {inst.due.toLocaleString()}</td>
-                          <td className="paid-amount">PKR {inst.paid.toLocaleString()}</td>
-                          <td className="overdue-amount">PKR {inst.overdue.toLocaleString()}</td>
+                        <tr key={index} className={`${inst.status === 'unpaid' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                          <td className="month-cell" style={{ fontWeight: 600 }}>{inst.month}</td>
+                          <td style={{ fontWeight: 600 }}>PKR {inst.due.toLocaleString()}</td>
+                          <td className="paid-amount" style={{ fontWeight: 700 }}>PKR {inst.paid.toLocaleString()}</td>
+                          <td className="overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {inst.overdue.toLocaleString()}</td>
                           <td>
-                            <span className={`status-badge ${inst.status}`}>
+                            <span className={`status-badge ${inst.status}`} style={{ fontWeight: 700 }}>
                               {inst.status === 'paid' ? 'Paid' : 
                                inst.status === 'partial' ? 'Partial' : 'Unpaid'}
                             </span>
@@ -420,7 +460,7 @@ const OverdueInstallments = () => {
                 {canEdit ? (
                   <>
                     <div className="form-group">
-                      <label>Paid Amount (PKR)</label>
+                      <label style={{ fontWeight: 700 }}>Paid Amount (PKR)</label>
                       <input
                         type="number"
                         className="form-input"
@@ -428,37 +468,39 @@ const OverdueInstallments = () => {
                         onChange={(e) => setEditingData({ ...editingData, paidAmount: e.target.value })}
                         min="0"
                         placeholder="Enter paid amount..."
+                        style={{ fontWeight: 600 }}
                       />
-                      <small className="field-hint">Enter total paid amount for this customer</small>
+                      <small className="field-hint" style={{ fontWeight: 600 }}>Enter total paid amount for this customer</small>
                     </div>
 
                     <div className="form-group">
-                      <label>Remarks</label>
+                      <label style={{ fontWeight: 700 }}>Remarks</label>
                       <textarea
                         className="form-input form-textarea"
                         value={editingData.remarks}
                         onChange={(e) => setEditingData({ ...editingData, remarks: e.target.value })}
                         placeholder="Add remarks or notes..."
                         rows="3"
+                        style={{ fontWeight: 500 }}
                       />
                     </div>
                   </>
                 ) : (
                   <div className="view-only">
                     <div className="view-item">
-                      <span>Paid Amount</span>
-                      <strong>PKR {selectedRecord.paidAmount.toLocaleString()}</strong>
+                      <span style={{ fontWeight: 700 }}>Paid Amount</span>
+                      <strong style={{ fontWeight: 700 }}>PKR {selectedRecord.paidAmount.toLocaleString()}</strong>
                     </div>
                     <div className="view-item">
-                      <span>Balance</span>
-                      <strong className={selectedRecord.balance > 0 ? 'balance-amount' : 'paid-amount'}>
+                      <span style={{ fontWeight: 700 }}>Balance</span>
+                      <strong className={selectedRecord.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
                         PKR {selectedRecord.balance.toLocaleString()}
                       </strong>
                     </div>
                     {selectedRecord.remarks && (
                       <div className="view-item full-width">
-                        <span>Remarks</span>
-                        <strong className="remarks-text">{selectedRecord.remarks}</strong>
+                        <span style={{ fontWeight: 700 }}>Remarks</span>
+                        <strong className="remarks-text" style={{ fontWeight: 600 }}>{selectedRecord.remarks}</strong>
                       </div>
                     )}
                   </div>
@@ -467,11 +509,11 @@ const OverdueInstallments = () => {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={() => setShowEditModal(false)}>
+              <button className="btn-cancel" onClick={() => setShowEditModal(false)} style={{ fontWeight: 700 }}>
                 {canEdit ? 'Cancel' : 'Close'}
               </button>
               {canEdit && (
-                <button className="btn-save" onClick={handleSaveEdit}>
+                <button className="btn-save" onClick={handleSaveEdit} style={{ fontWeight: 700 }}>
                   <Save size={16} />
                   Save Changes
                 </button>

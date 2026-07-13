@@ -75,12 +75,12 @@ const EmployeePerformanceReport = () => {
           { name: 'Zainab Khan', cnic: '12345-6789012-5', phone: '0300-9876543', address: 'House #56, Street 10' }
         ],
         installments: [
-          { month: 'Jan 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Feb 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Mar 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Apr 2026', due: 5000, paid: 3000, status: 'partial' },
-          { month: 'May 2026', due: 5000, paid: 0, status: 'unpaid' },
-          { month: 'Jun 2026', due: 5000, paid: 0, status: 'unpaid' },
+          { id: 1, month: 'Jan 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jan 5, 2026', description: 'First installment payment' },
+          { id: 2, month: 'Feb 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Feb 5, 2026', description: 'Second installment' },
+          { id: 3, month: 'Mar 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Mar 5, 2026', description: 'Third installment' },
+          { id: 4, month: 'Apr 2026', due: 5000, paid: 3000, status: 'partial', paymentDate: 'Apr 5, 2026', description: 'Partial payment received' },
+          { id: 5, month: 'May 2026', due: 5000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
+          { id: 6, month: 'Jun 2026', due: 5000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
         ]
       },
       { 
@@ -102,13 +102,13 @@ const EmployeePerformanceReport = () => {
           { name: 'Fatima Noor', cnic: '12345-6789012-7', phone: '0300-8765432', address: 'House #90, Street 15' }
         ],
         installments: [
-          { month: 'Jan 2026', due: 4000, paid: 4000, status: 'paid' },
-          { month: 'Feb 2026', due: 4000, paid: 4000, status: 'paid' },
-          { month: 'Mar 2026', due: 4000, paid: 4000, status: 'paid' },
-          { month: 'Apr 2026', due: 4000, paid: 2000, status: 'partial' },
-          { month: 'May 2026', due: 4000, paid: 0, status: 'unpaid' },
-          { month: 'Jun 2026', due: 4000, paid: 0, status: 'unpaid' },
-          { month: 'Jul 2026', due: 4000, paid: 0, status: 'unpaid' },
+          { id: 1, month: 'Jan 2026', due: 4000, paid: 4000, status: 'paid', paymentDate: 'Jan 20, 2026', description: 'First installment' },
+          { id: 2, month: 'Feb 2026', due: 4000, paid: 4000, status: 'paid', paymentDate: 'Feb 20, 2026', description: 'Second installment' },
+          { id: 3, month: 'Mar 2026', due: 4000, paid: 4000, status: 'paid', paymentDate: 'Mar 20, 2026', description: 'Third installment' },
+          { id: 4, month: 'Apr 2026', due: 4000, paid: 2000, status: 'partial', paymentDate: 'Apr 20, 2026', description: 'Partial payment' },
+          { id: 5, month: 'May 2026', due: 4000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
+          { id: 6, month: 'Jun 2026', due: 4000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
+          { id: 7, month: 'Jul 2026', due: 4000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
         ]
       },
       { 
@@ -130,10 +130,10 @@ const EmployeePerformanceReport = () => {
           { name: 'Hina Riaz', cnic: '12345-6789012-9', phone: '0300-6543210', address: 'House #34, Street 25' }
         ],
         installments: [
-          { month: 'Feb 2026', due: 3000, paid: 0, status: 'unpaid' },
-          { month: 'Mar 2026', due: 3000, paid: 0, status: 'unpaid' },
-          { month: 'Apr 2026', due: 3000, paid: 0, status: 'unpaid' },
-          { month: 'May 2026', due: 3000, paid: 0, status: 'unpaid' },
+          { id: 1, month: 'Feb 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
+          { id: 2, month: 'Mar 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
+          { id: 3, month: 'Apr 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
+          { id: 4, month: 'May 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
         ]
       },
       { 
@@ -153,16 +153,16 @@ const EmployeePerformanceReport = () => {
         employeeId: 2,
         guarantors: [],
         installments: [
-          { month: 'Jan 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Feb 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Mar 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Apr 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'May 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Jun 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Jul 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Aug 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Sep 2026', due: 5000, paid: 5000, status: 'paid' },
-          { month: 'Oct 2026', due: 5000, paid: 5000, status: 'paid' },
+          { id: 1, month: 'Jan 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jan 5, 2026', description: 'First installment' },
+          { id: 2, month: 'Feb 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Feb 5, 2026', description: 'Second installment' },
+          { id: 3, month: 'Mar 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Mar 5, 2026', description: 'Third installment' },
+          { id: 4, month: 'Apr 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Apr 5, 2026', description: 'Fourth installment' },
+          { id: 5, month: 'May 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'May 5, 2026', description: 'Fifth installment' },
+          { id: 6, month: 'Jun 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jun 5, 2026', description: 'Sixth installment' },
+          { id: 7, month: 'Jul 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jul 5, 2026', description: 'Seventh installment' },
+          { id: 8, month: 'Aug 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Aug 5, 2026', description: 'Eighth installment' },
+          { id: 9, month: 'Sep 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Sep 5, 2026', description: 'Ninth installment' },
+          { id: 10, month: 'Oct 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Oct 5, 2026', description: 'Tenth installment' },
         ]
       },
       { 
@@ -182,10 +182,10 @@ const EmployeePerformanceReport = () => {
         employeeId: 1,
         guarantors: [],
         installments: [
-          { month: 'Mar 2026', due: 3000, paid: 3000, status: 'paid' },
-          { month: 'Apr 2026', due: 3000, paid: 3000, status: 'paid' },
-          { month: 'May 2026', due: 3000, paid: 2000, status: 'partial' },
-          { month: 'Jun 2026', due: 3000, paid: 0, status: 'unpaid' },
+          { id: 1, month: 'Mar 2026', due: 3000, paid: 3000, status: 'paid', paymentDate: 'Mar 1, 2026', description: 'First installment' },
+          { id: 2, month: 'Apr 2026', due: 3000, paid: 3000, status: 'paid', paymentDate: 'Apr 1, 2026', description: 'Second installment' },
+          { id: 3, month: 'May 2026', due: 3000, paid: 2000, status: 'partial', paymentDate: 'May 1, 2026', description: 'Partial payment' },
+          { id: 4, month: 'Jun 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
         ]
       },
       { 
@@ -205,7 +205,7 @@ const EmployeePerformanceReport = () => {
         employeeId: 2,
         guarantors: [],
         installments: [
-          { month: 'Mar 2026', due: 25000, paid: 25000, status: 'paid' },
+          { id: 1, month: 'Mar 2026', due: 25000, paid: 25000, status: 'paid', paymentDate: 'Mar 15, 2026', description: 'Full payment' },
         ]
       },
     ]
@@ -296,6 +296,7 @@ const EmployeePerformanceReport = () => {
     return emp ? emp.name : 'All Employees';
   };
 
+  // ===== COLORFUL CARDS =====
   const cards = isEmployee ? [
     { 
       key: 'new', 
@@ -303,7 +304,7 @@ const EmployeePerformanceReport = () => {
       value: currentMonthAccounts.length,
       icon: TrendingUp,
       color: '#2563eb',
-      bg: 'rgba(37, 99, 235, 0.1)',
+      bg: 'rgba(37, 99, 235, 0.12)',
       className: 'new-accounts-card'
     },
     { 
@@ -312,7 +313,7 @@ const EmployeePerformanceReport = () => {
       value: `PKR ${selectedEmployeeData.totalRecovery.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
-      bg: 'rgba(201, 168, 76, 0.1)',
+      bg: 'rgba(201, 168, 76, 0.15)',
       className: 'recovery-card'
     },
     { 
@@ -321,7 +322,7 @@ const EmployeePerformanceReport = () => {
       value: overdueAccounts.length,
       icon: AlertTriangle,
       color: '#dc2626',
-      bg: 'rgba(220, 38, 38, 0.1)',
+      bg: 'rgba(220, 38, 38, 0.12)',
       className: 'overdue-card-main'
     },
   ] : [
@@ -340,7 +341,7 @@ const EmployeePerformanceReport = () => {
       value: currentMonthAccounts.length,
       icon: TrendingUp,
       color: '#2563eb',
-      bg: 'rgba(37, 99, 235, 0.1)',
+      bg: 'rgba(37, 99, 235, 0.12)',
       className: 'new-accounts-card'
     },
     { 
@@ -349,7 +350,7 @@ const EmployeePerformanceReport = () => {
       value: `PKR ${selectedEmployeeData.totalRecovery.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
-      bg: 'rgba(201, 168, 76, 0.1)',
+      bg: 'rgba(201, 168, 76, 0.15)',
       className: 'recovery-card'
     },
     { 
@@ -358,7 +359,7 @@ const EmployeePerformanceReport = () => {
       value: overdueAccounts.length,
       icon: AlertTriangle,
       color: '#dc2626',
-      bg: 'rgba(220, 38, 38, 0.1)',
+      bg: 'rgba(220, 38, 38, 0.12)',
       className: 'overdue-card-main'
     },
   ];
@@ -369,7 +370,7 @@ const EmployeePerformanceReport = () => {
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
-              <FileText size={18} />
+              <FileText size={18} style={{ color: '#1E1B4B' }} />
               <h3>All Accounts</h3>
               <span className="record-count">{filteredAccounts.length} accounts</span>
             </div>
@@ -393,12 +394,14 @@ const EmployeePerformanceReport = () => {
                 {filteredAccounts.length === 0 ? (
                   <tr><td colSpan="9" className="no-data">No accounts found</td></tr>
                 ) : (
-                  filteredAccounts.map((item) => (
-                    <tr key={item.id} className={item.status === 'overdue' ? 'overdue-row' : ''}>
+                  filteredAccounts.map((item, index) => (
+                    <tr key={item.id} className={`${item.status === 'overdue' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                       <td className="case-number">{item.caseNo}</td>
                       <td>
                         <div className="customer-info">
-                          <div className="customer-avatar">{item.customer.charAt(0)}</div>
+                          <div className="customer-avatar" style={{ background: item.status === 'paid' ? '#d1fae5' : item.status === 'overdue' ? '#fee2e2' : '#fef3c7', color: item.status === 'paid' ? '#065f46' : item.status === 'overdue' ? '#991b1b' : '#92400e' }}>
+                            {item.customer.charAt(0)}
+                          </div>
                           {item.customer}
                         </div>
                       </td>
@@ -447,7 +450,7 @@ const EmployeePerformanceReport = () => {
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
-              <FileText size={18} />
+              <FileText size={18} style={{ color: '#2563eb' }} />
               <h3>New Accounts (This Month)</h3>
               <span className="record-count">{accounts.length} accounts</span>
             </div>
@@ -469,8 +472,8 @@ const EmployeePerformanceReport = () => {
                 {accounts.length === 0 ? (
                   <tr><td colSpan="7" className="no-data">No new accounts this month</td></tr>
                 ) : (
-                  accounts.map((item) => (
-                    <tr key={item.id}>
+                  accounts.map((item, index) => (
+                    <tr key={item.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
                       <td className="case-number">{item.caseNo}</td>
                       <td>
                         <div className="customer-info">
@@ -519,7 +522,7 @@ const EmployeePerformanceReport = () => {
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
-              <FileText size={18} />
+              <FileText size={18} style={{ color: '#C9A84C' }} />
               <h3>Recovery Due</h3>
               <span className="record-count">{accounts.length} customers</span>
             </div>
@@ -542,8 +545,8 @@ const EmployeePerformanceReport = () => {
                 {accounts.length === 0 ? (
                   <tr><td colSpan="8" className="no-data">No recovery due</td></tr>
                 ) : (
-                  accounts.map((item) => (
-                    <tr key={item.id} className="overdue-row">
+                  accounts.map((item, index) => (
+                    <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                       <td className="case-number">{item.caseNo}</td>
                       <td>
                         <div className="customer-info">
@@ -583,7 +586,7 @@ const EmployeePerformanceReport = () => {
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
-              <FileText size={18} />
+              <FileText size={18} style={{ color: '#dc2626' }} />
               <h3>Overdue Accounts</h3>
               <span className="record-count">{accounts.length} customers</span>
             </div>
@@ -606,8 +609,8 @@ const EmployeePerformanceReport = () => {
                 {accounts.length === 0 ? (
                   <tr><td colSpan="8" className="no-data">No overdue accounts</td></tr>
                 ) : (
-                  accounts.map((item) => (
-                    <tr key={item.id} className="overdue-row">
+                  accounts.map((item, index) => (
+                    <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                       <td className="case-number">{item.caseNo}</td>
                       <td>
                         <div className="customer-info">
@@ -742,13 +745,17 @@ const EmployeePerformanceReport = () => {
             key={card.key}
             className={`stat-card ${card.className} ${activeTab === card.key ? 'active' : ''}`}
             onClick={() => setActiveTab(card.key)}
+            style={{ 
+              borderLeft: `5px solid ${card.color}`,
+              boxShadow: activeTab === card.key ? `0 4px 15px ${card.color}30` : '0 2px 4px rgba(0,0,0,0.04)'
+            }}
           >
             <div className="stat-icon" style={{ background: card.bg, color: card.color }}>
               <card.icon size={20} />
             </div>
             <div className="stat-info">
-              <span className="stat-label">{card.label}</span>
-              <span className="stat-value">{card.value}</span>
+              <span className="stat-label" style={{ fontWeight: 700 }}>{card.label}</span>
+              <span className="stat-value" style={{ fontWeight: 800, color: card.color }}>{card.value}</span>
             </div>
           </div>
         ))}
@@ -756,7 +763,7 @@ const EmployeePerformanceReport = () => {
 
       {renderTable()}
 
-      {/* ===== ACCOUNT DETAIL MODAL - WITH PAY INPUT ===== */}
+      {/* ===== ACCOUNT DETAIL MODAL - WITH INSTALLMENT TABLE ===== */}
       {showAccountModal && selectedAccount && (
         <div className="epr-modal-overlay" onClick={() => setShowAccountModal(false)}>
           <div className="epr-modal-content epr-modal-account" onClick={(e) => e.stopPropagation()}>
@@ -773,11 +780,13 @@ const EmployeePerformanceReport = () => {
             <div className="epr-modal-body">
               {/* Customer Info */}
               <div className="account-detail-header">
-                <div className="account-detail-avatar">{selectedAccount.customer.charAt(0)}</div>
+                <div className="account-detail-avatar" style={{ background: selectedAccount.status === 'paid' ? '#065f46' : selectedAccount.status === 'overdue' ? '#991b1b' : '#1E1B4B' }}>
+                  {selectedAccount.customer.charAt(0)}
+                </div>
                 <div className="account-detail-info">
-                  <h4>{selectedAccount.customer}</h4>
-                  <span className="account-detail-case">Case: {selectedAccount.caseNo}</span>
-                  <span className="account-detail-product">Product: {selectedAccount.product}</span>
+                  <h4 style={{ fontWeight: 700 }}>{selectedAccount.customer}</h4>
+                  <span className="account-detail-case" style={{ fontWeight: 600 }}>Case: {selectedAccount.caseNo}</span>
+                  <span className="account-detail-product" style={{ fontWeight: 500 }}>Product: {selectedAccount.product}</span>
                 </div>
                 <div className="account-detail-status">
                   <span className={`status-badge ${selectedAccount.status}`}>
@@ -790,28 +799,28 @@ const EmployeePerformanceReport = () => {
               {/* Personal Info */}
               <div className="account-detail-grid">
                 <div className="account-detail-item">
-                  <span>CNIC</span>
-                  <strong>{selectedAccount.cnic}</strong>
+                  <span style={{ fontWeight: 700 }}>CNIC</span>
+                  <strong style={{ fontWeight: 700 }}>{selectedAccount.cnic}</strong>
                 </div>
                 <div className="account-detail-item">
-                  <span>Phone</span>
-                  <strong>{selectedAccount.phone}</strong>
+                  <span style={{ fontWeight: 700 }}>Phone</span>
+                  <strong style={{ fontWeight: 700 }}>{selectedAccount.phone}</strong>
                 </div>
                 <div className="account-detail-item">
-                  <span>Address</span>
-                  <strong>{selectedAccount.address}</strong>
+                  <span style={{ fontWeight: 700 }}>Address</span>
+                  <strong style={{ fontWeight: 700 }}>{selectedAccount.address}</strong>
                 </div>
                 <div className="account-detail-item">
-                  <span>Total Amount</span>
-                  <strong>PKR {selectedAccount.amount.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Total Amount</span>
+                  <strong style={{ fontWeight: 800, color: '#1E1B4B' }}>PKR {selectedAccount.amount.toLocaleString()}</strong>
                 </div>
                 <div className="account-detail-item">
-                  <span>Paid Amount</span>
-                  <strong className="paid-amount">PKR {selectedAccount.paid.toLocaleString()}</strong>
+                  <span style={{ fontWeight: 700 }}>Paid Amount</span>
+                  <strong className="paid-amount" style={{ fontWeight: 800 }}>PKR {selectedAccount.paid.toLocaleString()}</strong>
                 </div>
                 <div className="account-detail-item">
-                  <span>Balance</span>
-                  <strong className={selectedAccount.balance > 0 ? 'balance-amount' : 'paid-amount'}>
+                  <span style={{ fontWeight: 700 }}>Balance</span>
+                  <strong className={selectedAccount.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 800 }}>
                     PKR {selectedAccount.balance.toLocaleString()}
                   </strong>
                 </div>
@@ -820,64 +829,71 @@ const EmployeePerformanceReport = () => {
               {/* Guarantors */}
               {selectedAccount.guarantors && selectedAccount.guarantors.length > 0 && (
                 <div className="guarantors-section">
-                  <h4>Guarantors</h4>
+                  <h4 style={{ fontWeight: 700 }}>Guarantors</h4>
                   {selectedAccount.guarantors.map((g, index) => (
                     <div key={index} className="guarantor-item">
                       <div className="guarantor-info">
-                        <span>Name: {g.name}</span>
-                        <span>CNIC: {g.cnic}</span>
-                        <span>Phone: {g.phone}</span>
-                        <span>Address: {g.address}</span>
+                        <span style={{ fontWeight: 600 }}>Name: {g.name}</span>
+                        <span style={{ fontWeight: 600 }}>CNIC: {g.cnic}</span>
+                        <span style={{ fontWeight: 600 }}>Phone: {g.phone}</span>
+                        <span style={{ fontWeight: 600 }}>Address: {g.address}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* ===== INSTALLMENT DETAILS WITH PAY INPUT ===== */}
+              {/* ===== INSTALLMENT PAYMENT HISTORY TABLE ===== */}
               <div className="installment-details-section">
                 <div className="section-header">
-                  <h4>Installment Details</h4>
+                  <h4 style={{ fontWeight: 700 }}>Installment Payment History</h4>
                 </div>
-                
-                <div className="installment-details-grid">
-                  <div className="installment-detail-item">
-                    <span>Customer Name</span>
-                    <strong>{selectedAccount.customer}</strong>
-                  </div>
-                  <div className="installment-detail-item">
-                    <span>Case No</span>
-                    <strong>{selectedAccount.caseNo}</strong>
-                  </div>
-                  <div className="installment-detail-item">
-                    <span>Due Date</span>
-                    <strong>
-                      {selectedAccount.installments && selectedAccount.installments.length > 0 ? 
-                        selectedAccount.installments.find(i => i.status === 'unpaid' || i.status === 'partial')?.month || 'N/A' 
-                        : 'N/A'}
-                    </strong>
-                  </div>
-                  <div className="installment-detail-item">
-                    <span>Installment</span>
-                    <strong>PKR {selectedAccount.monthly.toLocaleString()}</strong>
-                  </div>
-                  <div className="installment-detail-item">
-                    <span>Balance</span>
-                    <strong className="balance-amount">PKR {selectedAccount.balance.toLocaleString()}</strong>
-                  </div>
-                  <div className="installment-detail-item">
-                    <span>Mirror (Pending)</span>
-                    <strong className="balance-amount">
-                      PKR {
-                        selectedAccount.installments && selectedAccount.installments.length > 0 ?
-                        selectedAccount.installments
-                          .filter(i => i.status === 'unpaid' || i.status === 'partial')
-                          .reduce((sum, i) => sum + (i.due - i.paid), 0)
-                          .toLocaleString()
-                        : '0'
-                      }
-                    </strong>
-                  </div>
+
+                <div className="table-scroll">
+                  <table className="installment-history-table">
+                    <thead>
+                      <tr>
+                        <th style={{ fontWeight: 800 }}>#</th>
+                        <th style={{ fontWeight: 800 }}>Due Date</th>
+                        <th style={{ fontWeight: 800 }}>Installment Amount</th>
+                        <th style={{ fontWeight: 800 }}>Amount Paid</th>
+                        <th style={{ fontWeight: 800 }}>Balance</th>
+                        <th style={{ fontWeight: 800 }}>Status</th>
+                        <th style={{ fontWeight: 800 }}>Payment Date</th>
+                        <th style={{ fontWeight: 800 }}>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedAccount.installments && selectedAccount.installments.length > 0 ? (
+                        selectedAccount.installments.map((inst, index) => {
+                          const balance = inst.due - inst.paid;
+                          return (
+                            <tr key={inst.id} className={`${inst.status === 'unpaid' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                              <td style={{ fontWeight: 700 }}>{index + 1}</td>
+                              <td style={{ fontWeight: 600 }}>{inst.month}</td>
+                              <td style={{ fontWeight: 600 }}>PKR {inst.due.toLocaleString()}</td>
+                              <td className={inst.paid > 0 ? 'paid-amount' : ''} style={{ fontWeight: 700 }}>
+                                PKR {inst.paid.toLocaleString()}
+                              </td>
+                              <td className={balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
+                                PKR {balance.toLocaleString()}
+                              </td>
+                              <td>
+                                <span className={`status-badge ${inst.status}`} style={{ fontWeight: 700 }}>
+                                  {inst.status === 'paid' ? 'Paid' : 
+                                   inst.status === 'partial' ? 'Partial' : 'Pending'}
+                                </span>
+                              </td>
+                              <td style={{ fontWeight: 500 }}>{inst.paymentDate || '-'}</td>
+                              <td className="description-cell" style={{ fontWeight: 500 }}>{inst.description || '-'}</td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr><td colSpan="8" className="no-data">No installment records found</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
 
                 {/* ===== PAY NOW WITH INPUT FIELD ===== */}
@@ -885,7 +901,7 @@ const EmployeePerformanceReport = () => {
                   <div className="pay-now-section">
                     <div className="pay-now-row">
                       <div className="pay-input-group">
-                        <span className="pay-currency">PKR</span>
+                        <span className="pay-currency" style={{ fontWeight: 700 }}>PKR</span>
                         <input 
                           type="number" 
                           className="pay-amount-input"
@@ -894,6 +910,7 @@ const EmployeePerformanceReport = () => {
                           max={selectedAccount.balance}
                           defaultValue={selectedAccount.balance}
                           id={`payAmount_${selectedAccount.id}`}
+                          style={{ fontWeight: 600 }}
                         />
                       </div>
                       <button 
@@ -943,13 +960,13 @@ const EmployeePerformanceReport = () => {
                         Pay Now
                       </button>
                     </div>
-                    <p className="pay-hint">Enter amount to pay (Max: PKR {selectedAccount.balance.toLocaleString()})</p>
+                    <p className="pay-hint" style={{ fontWeight: 600 }}>Enter amount to pay (Max: PKR {selectedAccount.balance.toLocaleString()})</p>
                   </div>
                 )}
 
                 {/* Description */}
                 <div className="installment-description">
-                  <label>Description</label>
+                  <label style={{ fontWeight: 700 }}>Description</label>
                   <textarea 
                     className="description-textarea"
                     placeholder="Add description here..."
@@ -960,7 +977,7 @@ const EmployeePerformanceReport = () => {
             </div>
 
             <div className="epr-modal-footer">
-              <button className="btn-cancel" onClick={() => setShowAccountModal(false)}>Close</button>
+              <button className="btn-cancel" onClick={() => setShowAccountModal(false)} style={{ fontWeight: 700 }}>Close</button>
             </div>
           </div>
         </div>
