@@ -15,19 +15,13 @@ const Dashboard = () => {
     if (user) {
       setUserRole(user.role);
       setUserBranch(user.branch);
-      if (user.role === 'admin' && user.branch) {
-        setSelectedBranch(user.branch);
+      
+      // ✅ IMPORTANT: Agar user ki branch hai toh woh select ho
+      if (user.branch) {
+        setSelectedBranch(user.branch.toString());
       }
     }
   }, []);
-
-  // ===== GET CURRENT MONTH =====
-  const getCurrentMonth = () => {
-    const now = new Date();
-    return now.toLocaleString('default', { month: 'long' });
-  };
-
-  const currentMonth = getCurrentMonth();
 
   const branchData = {
     1: {
@@ -82,37 +76,51 @@ const Dashboard = () => {
     }
   };
 
-  const combinedData = {
-    name: 'All Branches',
-    customers: 1284,
-    products: 3456,
-    revenue: 54720000,
-    recoveryRate: 87,
-    newAccounts: 30,
-    monthlyRecovery: 770000,
-    chartData: {
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      values: [200, 250, 310, 360, 400, 460]
-    },
-    topPerformers: [
-      { name: 'Ahmed Khan', accounts: 45 },
-      { name: 'Sara Ali', accounts: 42 },
-      { name: 'Usman Malik', accounts: 38 },
-    ],
-    branchOverview: {
-      rent: 830000,
-      salaries: 2180000,
-      utilities: 330000,
-      otherExpenses: 270000,
-      profit: 51110000
-    }
-  };
-
+  // ✅ GET DATA BASED ON SELECTED BRANCH
   const getBranchData = () => {
-    if (selectedBranch === 'all') {
-      return combinedData;
+    // ✅ AGAR ADMIN HAI AUR BRANCH SELECT KI HAI TOH WOHI DATA DIKHAYEIN
+    // ✅ AGAR USER (Manager/Employee) HAI TOH USKI BRANCH KA DATA DIKHAYEIN
+    if (userRole === 'admin') {
+      // Admin: Selected branch ke hisaab se data dikhayein
+      if (selectedBranch === 'all') {
+        // Agar "All Branches" select hai toh combined data dikhayein
+        return {
+          name: 'All Branches',
+          customers: branchData[1].customers + branchData[2].customers,
+          products: branchData[1].products + branchData[2].products,
+          revenue: branchData[1].revenue + branchData[2].revenue,
+          recoveryRate: Math.round((branchData[1].recoveryRate + branchData[2].recoveryRate) / 2),
+          newAccounts: branchData[1].newAccounts + branchData[2].newAccounts,
+          monthlyRecovery: branchData[1].monthlyRecovery + branchData[2].monthlyRecovery,
+          chartData: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            values: [200, 250, 310, 360, 400, 460]
+          },
+          topPerformers: [
+            { name: 'Ahmed Khan', accounts: 45 },
+            { name: 'Sara Ali', accounts: 42 },
+            { name: 'Usman Malik', accounts: 38 },
+          ],
+          branchOverview: {
+            rent: branchData[1].branchOverview.rent + branchData[2].branchOverview.rent,
+            salaries: branchData[1].branchOverview.salaries + branchData[2].branchOverview.salaries,
+            utilities: branchData[1].branchOverview.utilities + branchData[2].branchOverview.utilities,
+            otherExpenses: branchData[1].branchOverview.otherExpenses + branchData[2].branchOverview.otherExpenses,
+            profit: branchData[1].branchOverview.profit + branchData[2].branchOverview.profit
+          }
+        };
+      }
+      // Selected branch ka data
+      return branchData[selectedBranch] || branchData[1];
     }
-    return branchData[selectedBranch] || branchData[1];
+    
+    // Manager / Employee: Sirf apni branch ka data dikhayein
+    if (userBranch) {
+      return branchData[userBranch] || branchData[1];
+    }
+    
+    // Fallback
+    return branchData[1];
   };
 
   const data = getBranchData();
@@ -269,39 +277,31 @@ const Dashboard = () => {
     return null;
   };
 
-  // ===== 4 CARDS WITH COLORS =====
+  // ===== 4 CARDS =====
   const stats = [
     { 
       label: 'Total Customers', 
       value: data.customers.toLocaleString(), 
       icon: Users,
-      subtitle: `Branch ${selectedBranch === 'all' ? 'All Branches' : selectedBranch}`,
-      color: '#2563eb',
-      bg: 'rgba(37, 99, 235, 0.1)'
+      subtitle: data.name
     },
     { 
-      label: `New Accounts (${currentMonth})`, 
+      label: `New Accounts (${new Date().toLocaleString('default', { month: 'long' })})`, 
       value: data.newAccounts || 0, 
       icon: Calendar,
-      subtitle: 'This month',
-      color: '#8B5CF6',
-      bg: 'rgba(139, 92, 246, 0.1)'
+      subtitle: 'This month'
     },
     { 
       label: 'Total Sales', 
       value: `PKR ${(data.revenue).toLocaleString()}`, 
       icon: DollarSign,
-      subtitle: 'Lifetime revenue',
-      color: '#22c55e',
-      bg: 'rgba(34, 197, 94, 0.1)'
+      subtitle: 'Lifetime revenue'
     },
     { 
       label: 'Monthly Recovery', 
       value: `PKR ${(data.monthlyRecovery || 0).toLocaleString()}`, 
       icon: TrendingUp,
-      subtitle: `${currentMonth} recovery`,
-      color: '#C9A84C',
-      bg: 'rgba(201, 168, 76, 0.1)'
+      subtitle: `${new Date().toLocaleString('default', { month: 'long' })} recovery`
     },
   ];
 
@@ -310,32 +310,61 @@ const Dashboard = () => {
     const overview = data.branchOverview;
     if (!overview) return null;
 
-    const isProfit = overview.profit > 0;
-
     return (
       <div className="branch-overview-details">
-        <div className="overview-item expense">
+        <div className="overview-item">
           <span className="overview-label">Rent</span>
           <span className="overview-value">PKR {overview.rent.toLocaleString()}</span>
         </div>
-        <div className="overview-item expense">
+        <div className="overview-item">
           <span className="overview-label">Salaries</span>
           <span className="overview-value">PKR {overview.salaries.toLocaleString()}</span>
         </div>
-        <div className="overview-item expense">
+        <div className="overview-item">
           <span className="overview-label">Utilities</span>
           <span className="overview-value">PKR {overview.utilities.toLocaleString()}</span>
         </div>
-        <div className="overview-item expense">
+        <div className="overview-item">
           <span className="overview-label">Other Expenses</span>
           <span className="overview-value">PKR {overview.otherExpenses.toLocaleString()}</span>
         </div>
-        <div className={`overview-item ${isProfit ? 'profit' : 'loss'}`}>
+        <div className="overview-item profit">
           <span className="overview-label">Net Profit</span>
-          <span className={`overview-value ${isProfit ? 'profit' : 'loss'}`}>
-            {isProfit ? '💰' : '📉'} PKR {overview.profit.toLocaleString()}
-          </span>
+          <span className="overview-value profit">PKR {overview.profit.toLocaleString()}</span>
         </div>
+      </div>
+    );
+  };
+
+  // ✅ GET BRANCH NAME FOR DISPLAY
+  const getBranchDisplayName = () => {
+    if (userRole === 'admin') {
+      if (selectedBranch === 'all') {
+        return 'All Branches';
+      }
+      return branchData[selectedBranch]?.name || `Branch ${selectedBranch}`;
+    }
+    if (userBranch) {
+      return branchData[userBranch]?.name || `Branch ${userBranch}`;
+    }
+    return 'All Branches';
+  };
+
+  // ✅ BRANCH SELECTION DROPDOWN - SIRF ADMIN KE LIYE
+  const renderBranchSelector = () => {
+    if (userRole !== 'admin') return null;
+
+    return (
+      <div className="branch-selector-wrapper">
+        <select 
+          className="branch-selector"
+          value={selectedBranch}
+          onChange={(e) => setSelectedBranch(e.target.value)}
+        >
+          <option value="all">All Branches</option>
+          <option value="1">Branch 1</option>
+          <option value="2">Branch 2</option>
+        </select>
       </div>
     );
   };
@@ -352,9 +381,12 @@ const Dashboard = () => {
           </div>
           <p className="branch-label">
             <Building size={16} />
-            {data.name}
+            {getBranchDisplayName()}
           </p>
         </div>
+
+        {/* ✅ ADMIN KE LIYE BRANCH SELECTOR */}
+        {renderBranchSelector()}
        
         {userRole === 'manager' && userBranch && (
           <span className="manager-badge">
@@ -368,16 +400,16 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* ===== 4 STATS CARDS - COLORFUL ===== */}
+      {/* ===== 4 STATS CARDS ===== */}
       <div className="stats-grid-4">
         {stats.map((stat, index) => (
-          <div key={index} className="stat-card-4" style={{ borderLeft: `4px solid ${stat.color}` }}>
-            <div className="stat-card-4-icon" style={{ background: stat.bg, color: stat.color }}>
+          <div key={index} className="stat-card-4">
+            <div className="stat-card-4-icon">
               <stat.icon size={24} />
             </div>
             <div className="stat-card-4-info">
               <span className="stat-card-4-label">{stat.label}</span>
-              <span className="stat-card-4-value" style={{ color: stat.color }}>{stat.value}</span>
+              <span className="stat-card-4-value">{stat.value}</span>
               <span className="stat-card-4-sub">{stat.subtitle}</span>
             </div>
           </div>
@@ -449,32 +481,14 @@ const Dashboard = () => {
           </div>
           
           <div className="revenue-bars">
-            {selectedBranch === 'all' ? (
-              <>
-                <div className="branch-row" onClick={() => setSelectedBranch('1')} style={{ cursor: 'pointer' }}>
-                  <span>Branch 1</span>
-                  <div className="bar-track">
-                    <div className="bar-fill dark" style={{ width: '65%' }}></div>
-                  </div>
-                  <span>PKR 28,400,000</span>
-                </div>
-                <div className="branch-row" onClick={() => setSelectedBranch('2')} style={{ cursor: 'pointer' }}>
-                  <span>Branch 2</span>
-                  <div className="bar-track">
-                    <div className="bar-fill gold" style={{ width: '60%' }}></div>
-                  </div>
-                  <span>PKR 26,320,000</span>
-                </div>
-              </>
-            ) : (
-              <div className="branch-row">
-                <span>{data.name}</span>
-                <div className="bar-track">
-                  <div className="bar-fill dark" style={{ width: '100%' }}></div>
-                </div>
-                <span>PKR {data.revenue.toLocaleString()}</span>
+            {/* ✅ SIRF SELECTED BRANCH KA DATA DIKHAYEIN */}
+            <div className="branch-row">
+              <span>{data.name}</span>
+              <div className="bar-track">
+                <div className="bar-fill dark" style={{ width: '100%' }}></div>
               </div>
-            )}
+              <span>PKR {data.revenue.toLocaleString()}</span>
+            </div>
           </div>
 
           {/* Expanded Branch Overview - INSIDE revenue card */}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, DollarSign, X, Calendar, Clock, Building, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
 import './FixedExpense.css';
+import { API_URL } from '../../../config';
 
 const FixedExpense = () => {
   const [search, setSearch] = useState('');
@@ -12,6 +13,7 @@ const FixedExpense = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [loading, setLoading] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -160,55 +162,151 @@ const FixedExpense = () => {
     return `${date} ${time}`;
   };
 
-  const handleAddExpense = () => {
-    if (!newExpense.name || !newExpense.amount || !newExpense.dueDate) {
-      alert('Please fill all fields');
-      return;
-    }
-
-    const branch = userBranch ? parseInt(userBranch) : 1;
-
-    const newId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
-    setExpenses([...expenses, {
-      id: newId,
-      name: newExpense.name,
-      amount: parseInt(newExpense.amount),
-      branch: branch,
-      dueDate: newExpense.dueDate,
-      paid: false,
-      lastPaid: 'Never',
-      history: []
-    }]);
-
-    setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
-    setShowModal(false);
+  // ============================================
+  // ✅ CHECK IF USER CAN MANAGE EXPENSES
+  // Only Manager or Admin can manage
+  // ============================================
+  const canManageExpenses = () => {
+    return userRole === 'admin' || userRole === 'manager';
   };
 
-  const handleEditExpense = () => {
+  // ============================================
+  // ✅ ADD EXPENSE - SEND TO API
+  // ============================================
+  const handleAddExpense = async () => {
     if (!newExpense.name || !newExpense.amount || !newExpense.dueDate) {
       alert('Please fill all fields');
       return;
     }
 
-    setExpenses(expenses.map(e => {
-      if (e.id === editingExpense.id) {
-        return {
-          ...e,
+    const branch = userBranch ? parseInt(userBranch) : parseInt(newExpense.branch);
+    
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/expenses/fixed`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           name: newExpense.name,
           amount: parseInt(newExpense.amount),
-          branch: userBranch ? parseInt(userBranch) : parseInt(newExpense.branch),
-          dueDate: newExpense.dueDate,
-        };
-      }
-      return e;
-    }));
+          branch_id: branch,
+          due_date: newExpense.dueDate,
+          paid: false,
+        }),
+      });
 
-    setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
-    setShowModal(false);
-    setEditingExpense(null);
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Failed to add expense');
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        const newId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
+        setExpenses([...expenses, {
+          id: newId,
+          name: newExpense.name,
+          amount: parseInt(newExpense.amount),
+          branch: branch,
+          dueDate: newExpense.dueDate,
+          paid: false,
+          lastPaid: 'Never',
+          history: []
+        }]);
+
+        setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
+        setShowModal(false);
+        alert('✅ Fixed expense added successfully!');
+      } else {
+        alert(data.message || 'Failed to add expense');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+
+    setLoading(false);
   };
 
-  const handlePayExpense = () => {
+  // ============================================
+  // ✅ EDIT EXPENSE
+  // ============================================
+  const handleEditExpense = async () => {
+    if (!newExpense.name || !newExpense.amount || !newExpense.dueDate) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    const branch = userBranch ? parseInt(userBranch) : parseInt(newExpense.branch);
+    
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/expenses/fixed/${editingExpense.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newExpense.name,
+          amount: parseInt(newExpense.amount),
+          branch_id: branch,
+          due_date: newExpense.dueDate,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Failed to update expense');
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        setExpenses(expenses.map(e => {
+          if (e.id === editingExpense.id) {
+            return {
+              ...e,
+              name: newExpense.name,
+              amount: parseInt(newExpense.amount),
+              branch: branch,
+              dueDate: newExpense.dueDate,
+            };
+          }
+          return e;
+        }));
+
+        setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
+        setShowModal(false);
+        setEditingExpense(null);
+        alert('✅ Fixed expense updated successfully!');
+      } else {
+        alert(data.message || 'Failed to update expense');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+
+    setLoading(false);
+  };
+
+  // ============================================
+  // ✅ PAY EXPENSE
+  // ============================================
+  const handlePayExpense = async () => {
     if (!payAmount || parseInt(payAmount) <= 0) {
       alert('Please enter valid amount');
       return;
@@ -216,36 +314,113 @@ const FixedExpense = () => {
 
     const dateTime = getCurrentDateTime();
     const amount = parseInt(payAmount);
+    
+    setLoading(true);
 
-    setExpenses(expenses.map(e => {
-      if (e.id === selectedExpense.id) {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/expenses/fixed/${selectedExpense.id}/pay`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: amount,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Failed to pay expense');
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
         const newHistory = [
           { date: dateTime, amount: amount, status: 'Paid' },
-          ...e.history
+          ...selectedExpense.history
         ];
-        return {
-          ...e,
-          paid: true,
-          lastPaid: dateTime,
-          history: newHistory,
-          amount: amount
-        };
-      }
-      return e;
-    }));
 
-    setPayAmount('');
-    setShowPayModal(false);
-    setSelectedExpense(null);
+        setExpenses(expenses.map(e => {
+          if (e.id === selectedExpense.id) {
+            return {
+              ...e,
+              paid: true,
+              lastPaid: dateTime,
+              history: newHistory,
+              amount: amount
+            };
+          }
+          return e;
+        }));
+
+        setPayAmount('');
+        setShowPayModal(false);
+        setSelectedExpense(null);
+        alert('✅ Payment recorded successfully!');
+      } else {
+        alert(data.message || 'Failed to pay expense');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+
+    setLoading(false);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      setExpenses(expenses.filter(e => e.id !== id));
+  // ============================================
+  // ✅ DELETE EXPENSE
+  // ============================================
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) {
+      return;
     }
+
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/expenses/fixed/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Failed to delete expense');
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        setExpenses(expenses.filter(e => e.id !== id));
+        alert('✅ Fixed expense deleted successfully!');
+      } else {
+        alert(data.message || 'Failed to delete expense');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+
+    setLoading(false);
   };
 
   const openAddModal = () => {
+    if (!canManageExpenses()) {
+      alert('Only managers and admins can add expenses');
+      return;
+    }
+
     setEditingExpense(null);
     setNewExpense({ 
       name: '', 
@@ -257,6 +432,11 @@ const FixedExpense = () => {
   };
 
   const openEditModal = (expense) => {
+    if (!canManageExpenses()) {
+      alert('Only managers and admins can edit expenses');
+      return;
+    }
+
     setEditingExpense(expense);
     setNewExpense({
       name: expense.name,
@@ -268,6 +448,11 @@ const FixedExpense = () => {
   };
 
   const openPayModal = (expense) => {
+    if (!canManageExpenses()) {
+      alert('Only managers and admins can pay expenses');
+      return;
+    }
+
     setSelectedExpense(expense);
     setPayAmount(expense.amount.toString());
     setShowPayModal(true);
@@ -370,10 +555,13 @@ const FixedExpense = () => {
           ))}
         </div>
 
-        <button className="btn-accent" onClick={openAddModal}>
-          <Plus size={18} />
-          Add Fixed Expense
-        </button>
+        {/* ✅ Only show Add button for Manager/Admin */}
+        {canManageExpenses() && (
+          <button className="btn-accent" onClick={openAddModal}>
+            <Plus size={18} />
+            Add Fixed Expense
+          </button>
+        )}
       </div>
 
       <div className="expense-controls">
@@ -440,6 +628,8 @@ const FixedExpense = () => {
                         className="btn-edit" 
                         onClick={() => openEditModal(exp)}
                         title="Edit"
+                        disabled={!canManageExpenses()}
+                        style={!canManageExpenses() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         <Edit size={15} />
                       </button>
@@ -448,6 +638,8 @@ const FixedExpense = () => {
                           className="btn-pay" 
                           onClick={() => openPayModal(exp)}
                           title="Pay Now"
+                          disabled={!canManageExpenses()}
+                          style={!canManageExpenses() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                         >
                           <DollarSign size={15} />
                         </button>
@@ -456,6 +648,8 @@ const FixedExpense = () => {
                         className="btn-delete" 
                         onClick={() => handleDelete(exp.id)}
                         title="Delete"
+                        disabled={!canManageExpenses()}
+                        style={!canManageExpenses() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -529,13 +723,13 @@ const FixedExpense = () => {
                     value={newExpense.branch}
                     onChange={(e) => setNewExpense({ ...newExpense, branch: parseInt(e.target.value) })}
                     disabled={!!userBranch}
-                    style={userBranch ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
+                    style={userBranch ? { opacity: 0.7, cursor: 'not-allowed', fontWeight: 500 } : { fontWeight: 500 }}
                   >
                     <option value={1}>Branch 1</option>
                     <option value={2}>Branch 2</option>
                   </select>
                   {userBranch && (
-                    <small className="field-hint">Branch locked to {branchLabel}</small>
+                    <small className="field-hint" style={{ fontWeight: 500 }}>Branch locked to {branchLabel}</small>
                   )}
                 </div>
 
@@ -553,9 +747,16 @@ const FixedExpense = () => {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={closeModal}>Cancel</button>
-              <button className="btn-save" onClick={editingExpense ? handleEditExpense : handleAddExpense}>
-                {editingExpense ? 'Update' : 'Add'}
+              <button className="btn-cancel" onClick={closeModal} style={{ fontWeight: 700 }}>
+                Cancel
+              </button>
+              <button 
+                className="btn-save" 
+                onClick={editingExpense ? handleEditExpense : handleAddExpense}
+                style={{ fontWeight: 700 }}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : (editingExpense ? 'Update' : 'Add')}
               </button>
             </div>
           </div>
@@ -611,9 +812,16 @@ const FixedExpense = () => {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={() => setShowPayModal(false)}>Cancel</button>
-              <button className="btn-pay-save" onClick={handlePayExpense}>
-                Confirm Payment
+              <button className="btn-cancel" onClick={() => setShowPayModal(false)} style={{ fontWeight: 700 }}>
+                Cancel
+              </button>
+              <button 
+                className="btn-pay-save" 
+                onClick={handlePayExpense}
+                style={{ fontWeight: 700 }}
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : 'Confirm Payment'}
               </button>
             </div>
           </div>
@@ -688,7 +896,9 @@ const FixedExpense = () => {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={() => setShowHistoryModal(false)}>Close</button>
+              <button className="btn-cancel" onClick={() => setShowHistoryModal(false)} style={{ fontWeight: 700 }}>
+                Close
+              </button>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Login.css';
 import logo from '../../assets/logo.jpeg';
+import { API_URL } from '../../../config';
 
 const Login = ({ setIsLoggedIn }) => {
   const navigate = useNavigate();
@@ -15,41 +16,19 @@ const Login = ({ setIsLoggedIn }) => {
   });
   const [error, setError] = useState('');
 
-  // ===== FIXED CREDENTIALS =====
-  const credentials = {
-    admin: {
-      email: 'xahmedmalik30600@gmail.com',
-      password: 'password',
-    },
-    manager1: {
-      email: 'manager1@gmail.com',
-      password: 'password',
-    },
-    manager2: {
-      email: 'manager2@gmail.com',
-      password: 'password',
-    },
-    employee1: {
-      email: 'empb1@gmail.com',
-      password: 'password',
-      branch: '1'
-    },
-    employee2: {
-      email: 'empb2@gmail.com',
-      password: 'password',
-      branch: '2'
-    },
-    employee3: {
-      email: 'employee1@gmail.com',
-      password: 'password',
-      branch: '1'
-    },
-    employee4: {
-      email: 'employee2@gmail.com',
-      password: 'password',
-      branch: '2'
-    }
-  };
+  // ===== FORGOT PASSWORD STATES =====
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotData, setForgotData] = useState({
+    role: '',
+    email: '',
+    otp: '',
+    generatedOtp: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
 
   // ===== HANDLE BRANCH SELECTION =====
   const handleBranchSelect = (branch) => {
@@ -65,104 +44,330 @@ const Login = ({ setIsLoggedIn }) => {
     setError('');
   };
 
-  // ===== HANDLE LOGIN =====
-  const handleLogin = (e) => {
+  // ===== HANDLE LOGIN WITH DATABASE =====
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      let isValid = false;
-      let userData = null;
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginData.email,
+          password: loginData.password,
+        }),
+      });
 
-      if (loginData.role === 'admin') {
-        if (loginData.email === credentials.admin.email && 
-            loginData.password === credentials.admin.password) {
-          isValid = true;
-          userData = {
-            email: loginData.email,
-            role: 'admin',
-            branch: loginData.branch
-          };
-        }
-      } 
-      else if (loginData.role === 'manager') {
-        if (loginData.email === credentials.manager1.email && 
-            loginData.password === credentials.manager1.password) {
-          isValid = true;
-          userData = {
-            email: loginData.email,
-            role: 'manager',
-            branch: loginData.branch
-          };
-        }
-      } 
-      else if (loginData.role === 'employee') {
-        if (loginData.email === credentials.employee1.email && 
-            loginData.password === credentials.employee1.password) {
-          if (loginData.branch === '1') {
-            isValid = true;
-            userData = {
-              email: loginData.email,
-              role: 'employee',
-              branch: '1',
-              employeeId: 1
-            };
-          } else {
-            setError('This employee is only allowed on Branch 1');
-          }
-        }
-        else if (loginData.email === credentials.employee2.email && 
-                 loginData.password === credentials.employee2.password) {
-          if (loginData.branch === '2') {
-            isValid = true;
-            userData = {
-              email: loginData.email,
-              role: 'employee',
-              branch: '2',
-              employeeId: 2
-            };
-          } else {
-            setError('This employee is only allowed on Branch 2');
-          }
-        }
-        else if (loginData.email === credentials.employee3.email && 
-                 loginData.password === credentials.employee3.password) {
-          isValid = true;
-          userData = {
-            email: loginData.email,
-            role: 'employee',
-            branch: loginData.branch,
-            employeeId: 3
-          };
-        }
-        else if (loginData.email === credentials.employee4.email && 
-                 loginData.password === credentials.employee4.password) {
-          isValid = true;
-          userData = {
-            email: loginData.email,
-            role: 'employee',
-            branch: loginData.branch,
-            employeeId: 4
-          };
-        }
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError('Invalid credentials');
+        setLoading(false);
+        return;
       }
 
-      if (isValid && userData) {
-        localStorage.setItem('token', 'dummy-token');
+      if (data.success && data.data) {
+        const user = data.data.user;
+        const token = data.data.token;
+
+        const selectedRole = loginData.role;
+        
+        if (user.role !== selectedRole) {
+          setError('Invalid credentials');
+          setLoading(false);
+          return;
+        }
+
+        if (user.role === 'admin') {
+          // Admin is allowed on any branch
+        } else if (user.role === 'manager' || user.role === 'employee') {
+          if (user.branch_id !== parseInt(loginData.branch)) {
+            setError('Invalid credentials');
+            setLoading(false);
+            return;
+          }
+        }
+
+        const userData = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          branch: user.branch_id,
+          branchName: user.branch?.name || `Branch ${user.branch_id}`,
+          employeeId: user.id,
+        };
+
+        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
+
         setIsLoggedIn(true);
-        if (userData.role === 'employee') {
-          navigate('/employee-performance');  // ✅ YAHAN CHANGE KIYA
+
+        if (user.role === 'employee') {
+          navigate('/employee-performance');
         } else {
           navigate('/');
         }
-      } else if (!error) {
-        setError('Invalid credentials. Please check your email and password.');
+      } else {
+        setError('Invalid credentials');
       }
+    } catch (err) {
+      setError('Invalid credentials');
+    }
+
+    setLoading(false);
+  };
+
+  // ============================================
+  // ✅ GENERATE OTP (FALLBACK)
+  // ============================================
+  const generateOtp = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // ============================================
+  // ✅ FORGOT PASSWORD - SEND OTP (BACKEND API)
+  // ============================================
+  const handleSendOtp = async () => {
+    setForgotError('');
+    setForgotSuccess('');
+    
+    if (!forgotData.role) {
+      setForgotError('Please select your role');
+      return;
+    }
+    if (!forgotData.email) {
+      setForgotError('Please enter your email');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/otp/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: forgotData.email,
+          role: forgotData.role,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // ✅ FALLBACK: Generate OTP locally if API fails
+        const fallbackOtp = generateOtp();
+        setForgotData({ 
+          ...forgotData, 
+          generatedOtp: fallbackOtp 
+        });
+        alert(
+          `⚠️ Email sending failed. Please use this OTP:\n\n` +
+          `📧 OTP: ${fallbackOtp}`
+        );
+        setForgotSuccess('OTP generated locally. Please use the OTP shown in alert.');
+        setForgotStep(2);
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        setForgotData({ 
+          ...forgotData, 
+          generatedOtp: data.otp 
+        });
+        
+        setForgotSuccess('✅ OTP sent successfully! Please check your email.');
+        setForgotStep(2);
+        
+        alert(`✅ OTP sent to your email!\n\n📧 OTP: ${data.otp}\n\nPlease check your inbox.`);
+      } else {
+        // ✅ FALLBACK
+        const fallbackOtp = generateOtp();
+        setForgotData({ 
+          ...forgotData, 
+          generatedOtp: fallbackOtp 
+        });
+        alert(
+          `⚠️ Failed to send email. Please use this OTP:\n\n` +
+          `📧 OTP: ${fallbackOtp}`
+        );
+        setForgotSuccess('OTP generated locally. Please use the OTP shown in alert.');
+        setForgotStep(2);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      // ✅ FALLBACK: Generate OTP locally
+      const fallbackOtp = generateOtp();
+      setForgotData({ 
+        ...forgotData, 
+        generatedOtp: fallbackOtp 
+      });
+      alert(
+        `⚠️ Network error. Please use this OTP:\n\n` +
+        `📧 OTP: ${fallbackOtp}`
+      );
+      setForgotSuccess('OTP generated locally. Please use the OTP shown in alert.');
+      setForgotStep(2);
+    }
+    
+    setLoading(false);
+  };
+
+  // ============================================
+  // ✅ FORGOT PASSWORD - VERIFY OTP
+  // ============================================
+  const handleVerifyOtp = async () => {
+    setForgotError('');
+    
+    if (!forgotData.otp) {
+      setForgotError('Please enter the OTP');
+      return;
+    }
+
+    if (forgotData.otp.length !== 6) {
+      setForgotError('OTP must be exactly 6 digits');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // ✅ First try backend verification
+      const response = await fetch(`${API_URL}/otp/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: forgotData.email,
+          otp: forgotData.otp,
+        }),
+      });
+
+      const data = await response.json();
+
+      // ✅ If backend verification fails, check locally
+      if (!response.ok || !data.success) {
+        // Check against local generated OTP
+        if (forgotData.otp === forgotData.generatedOtp) {
+          setForgotSuccess('✅ OTP verified successfully (local verification)!');
+          setForgotStep(3);
+          setLoading(false);
+          return;
+        }
+        setForgotError(data.message || 'Invalid OTP');
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        setForgotSuccess('✅ OTP verified successfully!');
+        setForgotStep(3);
+      } else {
+        // ✅ Check locally as fallback
+        if (forgotData.otp === forgotData.generatedOtp) {
+          setForgotSuccess('✅ OTP verified successfully (local verification)!');
+          setForgotStep(3);
+        } else {
+          setForgotError(data.message || 'Invalid OTP');
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      // ✅ Local verification as fallback
+      if (forgotData.otp === forgotData.generatedOtp) {
+        setForgotSuccess('✅ OTP verified successfully (local verification)!');
+        setForgotStep(3);
+      } else {
+        setForgotError('Invalid OTP. Please try again.');
+      }
+    }
+    
+    setLoading(false);
+  };
+
+  // ============================================
+  // ✅ FORGOT PASSWORD - RESET PASSWORD
+  // ============================================
+  const handleResetPassword = async () => {
+    setForgotError('');
+    
+    if (!forgotData.newPassword || forgotData.newPassword.length < 6) {
+      setForgotError('Password must be at least 6 characters');
+      return;
+    }
+    
+    if (forgotData.newPassword !== forgotData.confirmPassword) {
+      setForgotError('Passwords do not match');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const response = await fetch(`${API_URL}/users/update-password-public`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: forgotData.email,
+          password: forgotData.newPassword,
+        }),
+      });
       
-      setLoading(false);
-    }, 1000);
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('✅ Password changed successfully! Please login with your new password.');
+        
+        setShowForgotPassword(false);
+        setForgotStep(1);
+        setForgotData({
+          role: '',
+          email: '',
+          otp: '',
+          generatedOtp: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setForgotSuccess('');
+        setLoginData({ ...loginData, password: '' });
+      } else {
+        setForgotError(data.message || 'Failed to update password. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setForgotError('Network error. Please try again.');
+    }
+    
+    setLoading(false);
+  };
+
+  // ============================================
+  // ✅ RESET FORGOT PASSWORD STATE
+  // ============================================
+  const resetForgotPassword = () => {
+    setShowForgotPassword(false);
+    setForgotStep(1);
+    setForgotData({
+      role: '',
+      email: '',
+      otp: '',
+      generatedOtp: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setForgotError('');
+    setForgotSuccess('');
   };
 
   return (
@@ -277,6 +482,17 @@ const Login = ({ setIsLoggedIn }) => {
               {loading ? 'Signing In...' : 'Login'}
             </button>
 
+            {/* ===== FORGOT PASSWORD LINK ===== */}
+            <div className="forgot-password-link">
+              <button 
+                type="button" 
+                className="forgot-password-btn"
+                onClick={() => setShowForgotPassword(true)}
+              >
+                Forgot Password?
+              </button>
+            </div>
+
             {/* ===== DEMO CREDENTIALS ===== */}
             <div className="credentials-hint">
               <p className="hint-title">DEMO CREDENTIALS:</p>
@@ -287,18 +503,23 @@ const Login = ({ setIsLoggedIn }) => {
                   <span>password</span>
                 </div>
                 <div className="hint-item">
-                  <strong>Manager 1</strong>
-                  <span>manager1@gmail.com</span>
+                  <strong>Manager B1</strong>
+                  <span>sara.ali@saraelectronics.com</span>
+                  <span>password</span>
+                </div>
+                <div className="hint-item">
+                  <strong>Manager B2</strong>
+                  <span>imran.ali@saraelectronics.com</span>
                   <span>password</span>
                 </div>
                 <div className="hint-item">
                   <strong>Employee B1</strong>
-                  <span>empb1@gmail.com</span>
+                  <span>ahmed.khan@saraelectronics.com</span>
                   <span>password</span>
                 </div>
                 <div className="hint-item">
                   <strong>Employee B2</strong>
-                  <span>empb2@gmail.com</span>
+                  <span>fatima.noor@saraelectronics.com</span>
                   <span>password</span>
                 </div>
               </div>
@@ -308,6 +529,140 @@ const Login = ({ setIsLoggedIn }) => {
 
         <p className="login-footer">© 2026 FUSIX TECH. All rights reserved.</p>
       </div>
+
+      {/* ===== FORGOT PASSWORD MODAL ===== */}
+      {showForgotPassword && (
+        <div className="forgot-password-overlay" onClick={resetForgotPassword}>
+          <div className="forgot-password-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="forgot-password-header">
+              <h3>Reset Password</h3>
+              <button className="forgot-password-close" onClick={resetForgotPassword}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="forgot-password-body">
+              {forgotError && <div className="forgot-error">{forgotError}</div>}
+              {forgotSuccess && <div className="forgot-success">{forgotSuccess}</div>}
+
+              {/* STEP 1: Role + Email */}
+              {forgotStep === 1 && (
+                <>
+                  <p className="forgot-hint">Enter your role and email to receive OTP</p>
+                  
+                  <div className="form-group">
+                    <label>Select Role *</label>
+                    <select
+                      className="login-input"
+                      value={forgotData.role}
+                      onChange={(e) => setForgotData({ ...forgotData, role: e.target.value })}
+                    >
+                      <option value="">Select Role...</option>
+                      <option value="admin">Admin</option>
+                      <option value="manager">Manager</option>
+                      <option value="employee">Employee</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Email Address *</label>
+                    <input
+                      type="email"
+                      className="login-input"
+                      placeholder="Enter your email"
+                      value={forgotData.email}
+                      onChange={(e) => setForgotData({ ...forgotData, email: e.target.value })}
+                    />
+                  </div>
+
+                  <button 
+                    className="login-btn" 
+                    onClick={handleSendOtp} 
+                    disabled={loading}
+                  >
+                    {loading ? 'Sending...' : 'Send OTP'}
+                  </button>
+                </>
+              )}
+
+              {/* STEP 2: OTP Verification */}
+              {forgotStep === 2 && (
+                <>
+                  <p className="forgot-hint">Enter the OTP sent to your email</p>
+                  
+                  <div className="form-group">
+                    <label>Enter OTP *</label>
+                    <input
+                      type="text"
+                      className="login-input"
+                      placeholder="Enter 6-digit OTP"
+                      value={forgotData.otp}
+                      onChange={(e) => setForgotData({ ...forgotData, otp: e.target.value })}
+                      maxLength="6"
+                    />
+                    <small className="field-hint">OTP sent to {forgotData.email}</small>
+                  </div>
+
+                  <div className="forgot-actions">
+                    <button 
+                      className="login-btn" 
+                      onClick={handleVerifyOtp}
+                    >
+                      Verify OTP
+                    </button>
+                    <button 
+                      className="forgot-resend-btn" 
+                      onClick={handleSendOtp}
+                    >
+                      Resend OTP
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* STEP 3: New Password */}
+              {forgotStep === 3 && (
+                <>
+                  <p className="forgot-hint">Set your new password</p>
+                  
+                  <div className="form-group">
+                    <label>New Password *</label>
+                    <input
+                      type="password"
+                      className="login-input"
+                      placeholder="Enter new password (min 6 chars)"
+                      value={forgotData.newPassword}
+                      onChange={(e) => setForgotData({ ...forgotData, newPassword: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Confirm Password *</label>
+                    <input
+                      type="password"
+                      className="login-input"
+                      placeholder="Confirm new password"
+                      value={forgotData.confirmPassword}
+                      onChange={(e) => setForgotData({ ...forgotData, confirmPassword: e.target.value })}
+                    />
+                  </div>
+
+                  <button 
+                    className="login-btn" 
+                    onClick={handleResetPassword} 
+                    disabled={loading}
+                  >
+                    {loading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

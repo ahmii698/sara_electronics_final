@@ -1176,3 +1176,42 @@
     height: 140px;
   }
 }
+
+/* ===== BRANCH SELECTOR ===== */
+.branch-selector-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.branch-selector {
+  padding: 0.5rem 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-width: 150px;
+}
+
+.branch-selector:focus {
+  border-color: #1E1B4B;
+  box-shadow: 0 0 0 3px rgba(30, 27, 75, 0.12);
+}
+
+.branch-selector:hover {
+  border-color: #1E1B4B;
+}
+
+@media (max-width: 768px) {
+  .branch-selector-wrapper {
+    width: 100%;
+  }
+  
+  .branch-selector {
+    width: 100%;
+  }
+}

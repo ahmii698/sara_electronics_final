@@ -962,3 +962,45 @@
     font-size: 1.2rem;
   }
 }
+
+/* ===== ADD THIS AT THE END OF YOUR CSS FILE ===== */
+
+/* ===== BALANCE COLUMN STYLES ===== */
+.balance-amount {
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.5rem;
+  display: inline-block;
+}
+
+.balance-amount.positive {
+  color: #1E1B4B;
+  background: rgba(30, 27, 75, 0.06);
+}
+
+.balance-amount.zero {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.balance-amount.negative {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Table header for balance */
+.salary-table th:nth-child(6) {
+  min-width: 120px;
+}
+
+/* Responsive balance column */
+@media (max-width: 768px) {
+  .balance-amount {
+    font-size: 0.8rem;
+  }
+  
+  .salary-table th:nth-child(6) {
+    min-width: 90px;
+  }
+}

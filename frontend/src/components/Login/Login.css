@@ -339,3 +339,164 @@
     padding: 1rem;
   }
 }
+
+/* ===== FORGOT PASSWORD LINK ===== */
+.forgot-password-link {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.forgot-password-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.3s;
+}
+
+.forgot-password-btn:hover {
+  color: #1E1B4B;
+}
+
+/* ===== FORGOT PASSWORD MODAL ===== */
+.forgot-password-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.forgot-password-modal {
+  background: white;
+  border-radius: 1rem;
+  max-width: 450px;
+  width: 92%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.forgot-password-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.forgot-password-header h3 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0A1628;
+  margin: 0;
+}
+
+.forgot-password-close {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.forgot-password-close:hover {
+  background: #f3f4f6;
+}
+
+.forgot-password-body {
+  padding: 1.5rem;
+}
+
+.forgot-hint {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-bottom: 1.25rem;
+  font-weight: 500;
+}
+
+.forgot-error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.forgot-success {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.forgot-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.forgot-resend-btn {
+  padding: 0.6rem 1.5rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: #1E1B4B;
+  font-weight: 700;
+  border: 1.5px solid #1E1B4B;
+  cursor: pointer;
+  transition: all 0.3s;
+  flex: 1;
+}
+
+.forgot-resend-btn:hover {
+  background: #f3f4f6;
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.65rem;
+  color: #6b7280;
+  margin-top: 0.15rem;
+  font-weight: 500;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .forgot-password-modal {
+    max-width: 95%;
+  }
+  
+  .forgot-actions {
+    flex-direction: column;
+  }
+  
+  .forgot-password-header h3 {
+    font-size: 1rem;
+  }
+}

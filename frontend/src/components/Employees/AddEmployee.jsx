@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserPlus, Mail, Phone, MapPin, Briefcase, DollarSign, Lock, User, Building, Upload, X, CreditCard, FileText, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
 import './AddEmployee.css';
+import { API_URL } from '../../../config';
 
 const AddEmployee = () => {
   const [employee, setEmployee] = useState({
@@ -27,6 +28,7 @@ const AddEmployee = () => {
   const [userBranch, setUserBranch] = useState(null);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const cnicFrontRef = useRef(null);
   const cnicBackRef = useRef(null);
@@ -133,10 +135,14 @@ const AddEmployee = () => {
     if (agreementRef.current) agreementRef.current.value = '';
   };
 
-  const handleSubmit = (e) => {
+  // ============================================
+  // ✅ HANDLE SUBMIT - SEND TO DATABASE
+  // ============================================
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setFormSubmitted(true);
     setSuccessMessage('');
+    setLoading(true);
     
     const newErrors = {};
     if (!employee.name) newErrors.name = 'Name is required';
@@ -151,15 +157,75 @@ const AddEmployee = () => {
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      setLoading(false);
       return;
     }
-    
-    console.log('Employee Created:', employee);
-    setSuccessMessage('✅ Employee created successfully!');
-    
-    setTimeout(() => {
-      clearForm();
-    }, 500);
+
+    try {
+      // ✅ Get token from localStorage
+      const token = localStorage.getItem('token');
+
+      // ✅ Prepare data for API
+      const formData = new FormData();
+      formData.append('name', employee.name);
+      formData.append('email', employee.email);
+      formData.append('phone', employee.phone);
+      formData.append('branch_id', employee.branch);
+      formData.append('role', employee.role);
+      formData.append('password', employee.password);
+      formData.append('address', employee.address || '');
+      formData.append('salary', employee.salary || 0);
+      
+      // ✅ Append CNIC images
+      if (employee.cnicFront) {
+        formData.append('cnic_front', employee.cnicFront);
+      }
+      if (employee.cnicBack) {
+        formData.append('cnic_back', employee.cnicBack);
+      }
+      if (employee.agreement) {
+        formData.append('agreement_form', employee.agreement);
+      }
+
+      // ✅ Send to API
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.errors) {
+          // ✅ Validation errors from backend
+          const apiErrors = {};
+          Object.keys(data.errors).forEach(key => {
+            apiErrors[key] = data.errors[key][0];
+          });
+          setErrors(apiErrors);
+        } else {
+          setErrors({ form: data.message || 'Failed to create employee' });
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        setSuccessMessage('✅ Employee created successfully!');
+        setTimeout(() => {
+          clearForm();
+        }, 500);
+      } else {
+        setErrors({ form: data.message || 'Failed to create employee' });
+      }
+    } catch (err) {
+      setErrors({ form: 'Network error. Please try again.' });
+    }
+
+    setLoading(false);
   };
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
@@ -188,6 +254,13 @@ const AddEmployee = () => {
         <div className="success-message" style={{ fontWeight: 600 }}>
           <CheckCircle size={18} />
           <span>{successMessage}</span>
+        </div>
+      )}
+
+      {errors.form && (
+        <div className="error-message" style={{ fontWeight: 600, color: '#dc2626', padding: '0.75rem 1rem', background: '#fee2e2', borderRadius: '0.75rem', marginBottom: '1rem' }}>
+          <AlertCircle size={18} style={{ display: 'inline', marginRight: '0.5rem' }} />
+          {errors.form}
         </div>
       )}
 
@@ -454,9 +527,9 @@ const AddEmployee = () => {
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn-primary" style={{ fontWeight: 700 }}>
+          <button type="submit" className="btn-primary" style={{ fontWeight: 700 }} disabled={loading}>
             <CheckCircle size={18} />
-            Create Employee Account
+            {loading ? 'Creating...' : 'Create Employee Account'}
           </button>
           <button type="button" className="btn-reset" onClick={clearForm} style={{ fontWeight: 700 }}>
             <X size={18} />

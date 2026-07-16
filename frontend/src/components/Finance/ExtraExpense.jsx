@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, X, Calendar, DollarSign, Building, Filter } from 'lucide-react';
 import './ExtraExpense.css';
+import { API_URL } from '../../../config';
 
 const ExtraExpense = () => {
   const [search, setSearch] = useState('');
@@ -10,6 +11,7 @@ const ExtraExpense = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [loading, setLoading] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -94,59 +96,195 @@ const ExtraExpense = () => {
     return now.toISOString().split('T')[0];
   };
 
-  const handleAddExpense = () => {
+  // ============================================
+  // ✅ CHECK IF USER CAN ADD EXPENSE
+  // Only Manager or Admin can add
+  // ============================================
+  const canAddExpense = () => {
+    return userRole === 'admin' || userRole === 'manager';
+  };
+
+  // ============================================
+  // ✅ ADD EXPENSE - SEND TO API
+  // ============================================
+  const handleAddExpense = async () => {
+    if (!newExpense.description || !newExpense.amount) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    // ✅ Branch automatically set - Manager ki branch use hogi
+    const branch = userBranch ? parseInt(userBranch) : parseInt(newExpense.branch);
+    const date = newExpense.date || getCurrentDate();
+    
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/expenses/extra`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: newExpense.description,
+          amount: parseInt(newExpense.amount),
+          branch_id: branch,
+          date: date,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Failed to add expense');
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        // ✅ Add to local state
+        const newId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
+        setExpenses([...expenses, {
+          id: newId,
+          description: newExpense.description,
+          amount: parseInt(newExpense.amount),
+          branch: branch,
+          date: date,
+        }]);
+
+        setNewExpense({ description: '', amount: '', branch: 1, date: '' });
+        setShowModal(false);
+        alert('✅ Expense added successfully!');
+      } else {
+        alert(data.message || 'Failed to add expense');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+
+    setLoading(false);
+  };
+
+  // ============================================
+  // ✅ UPDATE EXPENSE
+  // ============================================
+  const handleEditExpense = async () => {
     if (!newExpense.description || !newExpense.amount) {
       alert('Please fill all required fields');
       return;
     }
 
     const branch = userBranch ? parseInt(userBranch) : parseInt(newExpense.branch);
-    const newId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
-    const date = newExpense.date || getCurrentDate();
+    
+    setLoading(true);
 
-    setExpenses([...expenses, {
-      id: newId,
-      description: newExpense.description,
-      amount: parseInt(newExpense.amount),
-      branch: branch,
-      date: date,
-    }]);
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/expenses/extra/${editingExpense.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: newExpense.description,
+          amount: parseInt(newExpense.amount),
+          branch_id: branch,
+          date: newExpense.date || editingExpense.date,
+        }),
+      });
 
-    setNewExpense({ description: '', amount: '', branch: 1, date: '' });
-    setShowModal(false);
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Failed to update expense');
+        setLoading(false);
+        return;
+      }
+
+      if (data.success) {
+        setExpenses(expenses.map(e => {
+          if (e.id === editingExpense.id) {
+            return {
+              ...e,
+              description: newExpense.description,
+              amount: parseInt(newExpense.amount),
+              branch: branch,
+              date: newExpense.date || e.date,
+            };
+          }
+          return e;
+        }));
+
+        setNewExpense({ description: '', amount: '', branch: 1, date: '' });
+        setShowModal(false);
+        setEditingExpense(null);
+        alert('✅ Expense updated successfully!');
+      } else {
+        alert(data.message || 'Failed to update expense');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+
+    setLoading(false);
   };
 
-  const handleEditExpense = () => {
-    if (!newExpense.description || !newExpense.amount) {
-      alert('Please fill all required fields');
+  // ============================================
+  // ✅ DELETE EXPENSE
+  // ============================================
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) {
       return;
     }
 
-    setExpenses(expenses.map(e => {
-      if (e.id === editingExpense.id) {
-        return {
-          ...e,
-          description: newExpense.description,
-          amount: parseInt(newExpense.amount),
-          branch: userBranch ? parseInt(userBranch) : parseInt(newExpense.branch),
-          date: newExpense.date || e.date,
-        };
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/expenses/extra/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || 'Failed to delete expense');
+        setLoading(false);
+        return;
       }
-      return e;
-    }));
 
-    setNewExpense({ description: '', amount: '', branch: 1, date: '' });
-    setShowModal(false);
-    setEditingExpense(null);
-  };
-
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      setExpenses(expenses.filter(e => e.id !== id));
+      if (data.success) {
+        setExpenses(expenses.filter(e => e.id !== id));
+        alert('✅ Expense deleted successfully!');
+      } else {
+        alert(data.message || 'Failed to delete expense');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
     }
+
+    setLoading(false);
   };
 
   const openAddModal = () => {
+    // ✅ Only manager or admin can open add modal
+    if (!canAddExpense()) {
+      alert('Only managers and admins can add expenses');
+      return;
+    }
+
     setEditingExpense(null);
     setNewExpense({ 
       description: '', 
@@ -158,6 +296,12 @@ const ExtraExpense = () => {
   };
 
   const openEditModal = (expense) => {
+    // ✅ Only manager or admin can edit
+    if (!canAddExpense()) {
+      alert('Only managers and admins can edit expenses');
+      return;
+    }
+
     setEditingExpense(expense);
     setNewExpense({
       description: expense.description,
@@ -259,10 +403,13 @@ const ExtraExpense = () => {
           ))}
         </div>
 
-        <button className="btn-accent" onClick={openAddModal}>
-          <Plus size={18} />
-          Add Expense
-        </button>
+        {/* ✅ Only show Add button for Manager/Admin */}
+        {canAddExpense() && (
+          <button className="btn-accent" onClick={openAddModal}>
+            <Plus size={18} />
+            Add Expense
+          </button>
+        )}
       </div>
 
       {/* ===== BRANCH TOTALS CARDS ===== */}
@@ -393,6 +540,8 @@ const ExtraExpense = () => {
                         className="btn-edit" 
                         onClick={() => openEditModal(exp)}
                         title="Edit"
+                        disabled={!canAddExpense()}
+                        style={!canAddExpense() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         <Edit size={15} />
                       </button>
@@ -400,6 +549,8 @@ const ExtraExpense = () => {
                         className="btn-delete" 
                         onClick={() => handleDelete(exp.id)}
                         title="Delete"
+                        disabled={!canAddExpense()}
+                        style={!canAddExpense() ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -473,13 +624,13 @@ const ExtraExpense = () => {
                     value={newExpense.branch}
                     onChange={(e) => setNewExpense({ ...newExpense, branch: parseInt(e.target.value) })}
                     disabled={!!userBranch}
-                    style={userBranch ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
+                    style={userBranch ? { opacity: 0.7, cursor: 'not-allowed', fontWeight: 500 } : { fontWeight: 500 }}
                   >
                     <option value={1}>Branch 1</option>
                     <option value={2}>Branch 2</option>
                   </select>
                   {userBranch && (
-                    <small className="field-hint">Branch locked to {branchLabel}</small>
+                    <small className="field-hint" style={{ fontWeight: 500 }}>Branch locked to {branchLabel}</small>
                   )}
                 </div>
               </div>
@@ -492,14 +643,21 @@ const ExtraExpense = () => {
                   value={newExpense.date}
                   onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
                 />
-                <small className="field-hint">Leave empty to use today's date</small>
+                <small className="field-hint" style={{ fontWeight: 500 }}>Leave empty to use today's date</small>
               </div>
             </div>
 
             <div className="modal-footer">
-              <button className="btn-cancel" onClick={closeModal}>Cancel</button>
-              <button className="btn-save" onClick={editingExpense ? handleEditExpense : handleAddExpense}>
-                {editingExpense ? 'Update' : 'Add'}
+              <button className="btn-cancel" onClick={closeModal} style={{ fontWeight: 700 }}>
+                Cancel
+              </button>
+              <button 
+                className="btn-save" 
+                onClick={editingExpense ? handleEditExpense : handleAddExpense}
+                style={{ fontWeight: 700 }}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : (editingExpense ? 'Update' : 'Add')}
               </button>
             </div>
           </div>
