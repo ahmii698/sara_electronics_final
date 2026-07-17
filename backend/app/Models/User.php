@@ -1,14 +1,15 @@
 <?php
+// app/Models/User.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Laravel\Sanctum\HasApiTokens;  // ✅ YEH LINE ADD KAREIN
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Model
 {
-    use HasFactory, HasApiTokens;  // ✅ HasApiTokens ADD KAREIN
+    use HasFactory, HasApiTokens;
 
     protected $table = 'users';
     protected $primaryKey = 'id';
@@ -24,6 +25,7 @@ class User extends Model
         'password'
     ];
 
+    // Relations
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');
@@ -52,5 +54,32 @@ class User extends Model
     public function recoveries()
     {
         return $this->hasMany(Recovery::class, 'created_by');
+    }
+
+    // ✅ NEW: Employee Account relations
+    public function employeeAccounts()
+    {
+        return $this->hasMany(EmployeeAccount::class, 'employee_id');
+    }
+
+    // ✅ Helper methods for account counts
+    public function getTotalAccountsAttribute()
+    {
+        return $this->employeeAccounts()->count();
+    }
+
+    public function getCurrentMonthAccountsAttribute()
+    {
+        return $this->employeeAccounts()
+            ->where('month', now()->format('Y-m'))
+            ->count();
+    }
+
+    public function getAccountsByMonth($month = null)
+    {
+        $month = $month ?? now()->format('Y-m');
+        return $this->employeeAccounts()
+            ->where('month', $month)
+            ->count();
     }
 }

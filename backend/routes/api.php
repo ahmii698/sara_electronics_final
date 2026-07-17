@@ -1,4 +1,5 @@
 <?php
+// routes/api.php
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
@@ -13,7 +14,7 @@ use App\Http\Controllers\Api\SalaryController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\RecoveryController;
 use App\Http\Controllers\Api\ReportController;
-use App\Http\Controllers\Api\OtpController; // ✅ ADD THIS
+use App\Http\Controllers\Api\OtpController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,11 +27,11 @@ use App\Http\Controllers\Api\OtpController; // ✅ ADD THIS
 // ============================================
 Route::post('/auth/login', [AuthController::class, 'login']);
 
-// ✅ Forgot Password - Public Routes
+// Forgot Password - Public Routes
 Route::get('/users/check', [UserController::class, 'checkUser']);
 Route::post('/users/update-password-public', [UserController::class, 'updatePasswordPublic']);
 
-// ✅ OTP Routes (Public)
+// OTP Routes (Public)
 Route::post('/otp/send', [OtpController::class, 'sendOtp']);
 Route::post('/otp/verify', [OtpController::class, 'verifyOtp']);
 
@@ -62,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/customers/{id}', [CustomerController::class, 'update']);
     Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
     Route::post('/customers/search-cnic', [CustomerController::class, 'searchByCNIC']);
+    Route::post('/customers/check-cnic', [CustomerController::class, 'checkCnic']); // ✅ NEW
 
     // Products
     Route::get('/products', [ProductController::class, 'index']);
@@ -116,11 +118,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/recovery', [RecoveryController::class, 'store']);
     Route::delete('/recovery/{id}', [RecoveryController::class, 'destroy']);
 
-    // Reports
+    // ============================================
+    // ✅ REPORTS - UPDATED WITH NEW ROUTES
+    // ============================================
+    
+    // Existing report routes
     Route::get('/reports/dashboard', [ReportController::class, 'dashboard']);
     Route::get('/reports/branch-recovery', [ReportController::class, 'branchWiseRecovery']);
     Route::get('/reports/monthly-installments', [ReportController::class, 'monthlyInstallmentStatus']);
     Route::get('/reports/top-performers', [ReportController::class, 'topPerformers']);
     Route::get('/reports/employee-performance', [ReportController::class, 'employeePerformance']);
     Route::get('/reports/account-status', [ReportController::class, 'accountStatusSummary']);
+    
+    // ✅ NEW Employee Account Report Routes
+    Route::get('/reports/employee-stats', [ReportController::class, 'getEmployeeStats']);
+    Route::get('/reports/employee-detail/{id}', [ReportController::class, 'getEmployeeDetail']);
+    Route::get('/reports/branch-performance', [ReportController::class, 'getBranchPerformance']);
+    Route::get('/reports/monthly-report', [ReportController::class, 'getMonthlyReport']);
 });

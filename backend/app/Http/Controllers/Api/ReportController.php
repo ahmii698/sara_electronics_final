@@ -1,128 +1,324 @@
 <?php
+// app/Http/Controllers/Api/ReportController.php
 
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\Customer;
 use App\Models\Account;
 use App\Models\Installment;
-use App\Models\User;
+use App\Models\EmployeeAccount;
 use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
-    public function dashboard()
+    // ✅ Your existing dashboard method
+    public function dashboard(Request $request)
     {
-        $data = [
-            'total_customers' => \App\Models\Customer::count(),
-            'total_employees' => User::where('role', '!=', 'admin')->count(),
-            'total_accounts' => Account::count(),
-            'active_accounts' => Account::where('status', 'active')->count(),
-            'total_balance' => Account::sum('balance'),
-            'total_recovery' => Account::sum('paid_amount'),
-            'overdue_installments' => Installment::whereIn('status', ['partial', 'unpaid'])
-                ->where('month', '<', date('Y-m'))->count()
-        ];
-
-        return $this->sendResponse($data, 'Dashboard stats');
+        // ... existing code ...
     }
 
-    public function branchWiseRecovery()
+    // ✅ Your existing branch recovery method
+    public function branchWiseRecovery(Request $request)
     {
-        $data = Branch::select(
-            'branches.id',
-            'branches.name',
-            DB::raw('COUNT(DISTINCT accounts.id) as total_accounts'),
-            DB::raw('SUM(accounts.total_amount) as total_amount'),
-            DB::raw('SUM(accounts.paid_amount) as total_paid'),
-            DB::raw('SUM(accounts.balance) as total_balance'),
-            DB::raw('AVG(accounts.monthly_installment) as avg_installment')
-        )
-        ->leftJoin('accounts', 'branches.id', '=', 'accounts.branch_id')
-        ->groupBy('branches.id', 'branches.name')
-        ->get();
-
-        return $this->sendResponse($data, 'Branch wise recovery');
+        // ... existing code ...
     }
 
-    public function monthlyInstallmentStatus()
+    // ✅ Your existing monthly installments method
+    public function monthlyInstallmentStatus(Request $request)
     {
-        $data = Installment::select(
-            'month',
-            DB::raw('COUNT(*) as total_installments'),
-            DB::raw('SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid_count'),
-            DB::raw('SUM(CASE WHEN status = "partial" THEN 1 ELSE 0 END) as partial_count'),
-            DB::raw('SUM(CASE WHEN status = "unpaid" THEN 1 ELSE 0 END) as unpaid_count'),
-            DB::raw('SUM(paid_amount) as total_paid'),
-            DB::raw('SUM(due_amount) as total_due'),
-            DB::raw('SUM(balance) as total_balance')
-        )
-        ->groupBy('month')
-        ->orderBy('month', 'desc')
-        ->get();
-
-        return $this->sendResponse($data, 'Monthly installment status');
+        // ... existing code ...
     }
 
-    public function topPerformers()
+    // ✅ Your existing top performers method
+    public function topPerformers(Request $request)
     {
-        $data = User::select(
-            'users.id',
-            'users.name',
-            'users.branch_id',
-            DB::raw('COUNT(accounts.id) as accounts_opened'),
-            DB::raw('SUM(accounts.total_amount) as total_recovery'),
-            DB::raw('SUM(accounts.paid_amount) as total_collected')
-        )
-        ->leftJoin('accounts', 'users.id', '=', 'accounts.created_by')
-        ->where('users.role', 'employee')
-        ->groupBy('users.id', 'users.name', 'users.branch_id')
-        ->orderBy('accounts_opened', 'desc')
-        ->limit(10)
-        ->get();
-
-        return $this->sendResponse($data, 'Top performers');
+        // ... existing code ...
     }
 
+    // ✅ Your existing employee performance method
     public function employeePerformance(Request $request)
     {
-        $query = User::select(
-            'users.id',
-            'users.name',
-            DB::raw('COUNT(DISTINCT accounts.id) as total_accounts'),
-            DB::raw('SUM(accounts.total_amount) as total_amount'),
-            DB::raw('SUM(accounts.paid_amount) as total_collected'),
-            DB::raw('SUM(accounts.balance) as total_balance'),
-            DB::raw('COUNT(DISTINCT customers.id) as total_customers')
-        )
-        ->leftJoin('accounts', 'users.id', '=', 'accounts.created_by')
-        ->leftJoin('customers', 'users.id', '=', 'customers.created_by')
-        ->where('users.role', 'employee');
-
-        if ($request->user_id) {
-            $query->where('users.id', $request->user_id);
-        }
-
-        $data = $query->groupBy('users.id', 'users.name')->get();
-        return $this->sendResponse($data, 'Employee performance');
+        // ... existing code ...
     }
 
-    public function accountStatusSummary()
+    // ✅ Your existing account status summary method
+    public function accountStatusSummary(Request $request)
     {
-        $data = Account::select(
-            'branch_id',
-            'status',
-            DB::raw('COUNT(*) as count'),
-            DB::raw('SUM(total_amount) as total_amount'),
-            DB::raw('SUM(paid_amount) as total_paid'),
-            DB::raw('SUM(balance) as total_balance')
-        )
-        ->groupBy('branch_id', 'status')
-        ->orderBy('branch_id')
-        ->orderBy('status')
-        ->get();
+        // ... existing code ...
+    }
 
-        return $this->sendResponse($data, 'Account status summary');
+    // ============================================
+    // ✅ NEW: Employee Account Stats
+    // ============================================
+    
+    /**
+     * Get all employees with account stats
+     */
+    public function getEmployeeStats(Request $request)
+    {
+        $month = $request->get('month', now()->format('Y-m'));
+        $branchId = $request->get('branch_id');
+
+        $query = User::where('role', 'employee')
+            ->with(['branch']);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        $employees = $query->get();
+
+        $stats = $employees->map(function($employee) use ($month) {
+            // Total accounts
+            $totalAccounts = EmployeeAccount::where('employee_id', $employee->id)->count();
+            
+            // Current month accounts
+            $currentMonthAccounts = EmployeeAccount::where('employee_id', $employee->id)
+                ->where('month', $month)
+                ->count();
+
+            // Monthly breakdown for this employee
+            $monthlyBreakdown = EmployeeAccount::where('employee_id', $employee->id)
+                ->select('month', DB::raw('count(*) as total'))
+                ->groupBy('month')
+                ->orderBy('month', 'desc')
+                ->limit(6)
+                ->get();
+
+            return [
+                'employee_id' => $employee->id,
+                'name' => $employee->name,
+                'email' => $employee->email,
+                'phone' => $employee->phone,
+                'branch_id' => $employee->branch_id,
+                'branch_name' => $employee->branch->name ?? 'N/A',
+                'salary' => $employee->salary,
+                'is_active' => $employee->is_active == 1,
+                'total_accounts' => $totalAccounts,
+                'current_month_accounts' => $currentMonthAccounts,
+                'monthly_breakdown' => $monthlyBreakdown,
+                'performance_score' => $this->calculatePerformance($employee->id, $month),
+            ];
+        });
+
+        // Summary stats
+        $summary = [
+            'total_employees' => $stats->count(),
+            'active_employees' => $stats->where('is_active', true)->count(),
+            'total_accounts_all_time' => $stats->sum('total_accounts'),
+            'total_accounts_this_month' => $stats->sum('current_month_accounts'),
+            'month' => $month,
+        ];
+
+        return $this->sendResponse([
+            'summary' => $summary,
+            'data' => $stats
+        ], 'Employee stats retrieved successfully');
+    }
+
+    /**
+     * Get single employee details with complete history
+     */
+    public function getEmployeeDetail($employeeId, Request $request)
+    {
+        $employee = User::with(['branch'])
+            ->where('role', 'employee')
+            ->find($employeeId);
+
+        if (!$employee) {
+            return $this->sendError('Employee not found', 404);
+        }
+
+        $month = $request->get('month', now()->format('Y-m'));
+
+        // Get all accounts with customer details
+        $accounts = EmployeeAccount::with(['customer'])
+            ->where('employee_id', $employeeId)
+            ->orderBy('account_opened_date', 'desc')
+            ->get();
+
+        // Monthly summary
+        $monthlySummary = EmployeeAccount::where('employee_id', $employeeId)
+            ->select('month', 'year', DB::raw('count(*) as total'))
+            ->groupBy('month', 'year')
+            ->orderBy('year', 'desc')
+            ->orderBy('month', 'desc')
+            ->get();
+
+        // Current month stats
+        $currentMonthAccounts = EmployeeAccount::where('employee_id', $employeeId)
+            ->where('month', $month)
+            ->count();
+
+        // Account status breakdown
+        $statusBreakdown = EmployeeAccount::where('employee_id', $employeeId)
+            ->select('status', DB::raw('count(*) as total'))
+            ->groupBy('status')
+            ->get();
+
+        return $this->sendResponse([
+            'employee' => [
+                'id' => $employee->id,
+                'name' => $employee->name,
+                'email' => $employee->email,
+                'phone' => $employee->phone,
+                'branch' => $employee->branch->name ?? 'N/A',
+                'salary' => $employee->salary,
+                'total_accounts' => $accounts->count(),
+                'current_month_accounts' => $currentMonthAccounts,
+            ],
+            'monthly_summary' => $monthlySummary,
+            'status_breakdown' => $statusBreakdown,
+            'accounts' => $accounts->map(function($account) {
+                return [
+                    'id' => $account->id,
+                    'customer_name' => $account->customer->name ?? 'N/A',
+                    'customer_cnic' => $account->customer->cnic ?? 'N/A',
+                    'account_opened_date' => $account->account_opened_date->format('Y-m-d'),
+                    'month' => $account->month,
+                    'status' => $account->status,
+                    'created_at' => $account->created_at->format('Y-m-d H:i:s'),
+                ];
+            }),
+        ], 'Employee details retrieved successfully');
+    }
+
+    /**
+     * Get branch-wise performance
+     */
+    public function getBranchPerformance(Request $request)
+    {
+        $month = $request->get('month', now()->format('Y-m'));
+
+        $branches = Branch::with(['users' => function($q) {
+            $q->where('role', 'employee')
+              ->where('is_active', 1);
+        }])->get();
+
+        $data = $branches->map(function($branch) use ($month) {
+            $employees = $branch->users;
+            
+            // Total accounts for this branch
+            $totalAccounts = EmployeeAccount::where('branch_id', $branch->id)->count();
+            $currentMonthAccounts = EmployeeAccount::where('branch_id', $branch->id)
+                ->where('month', $month)
+                ->count();
+
+            // Top performer in this branch
+            $topPerformer = EmployeeAccount::where('branch_id', $branch->id)
+                ->where('month', $month)
+                ->select('employee_id', DB::raw('count(*) as total'))
+                ->groupBy('employee_id')
+                ->orderBy('total', 'desc')
+                ->first();
+
+            $topPerformerName = null;
+            if ($topPerformer) {
+                $user = User::find($topPerformer->employee_id);
+                $topPerformerName = $user ? $user->name : null;
+            }
+
+            return [
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->name,
+                'total_employees' => $employees->count(),
+                'total_accounts' => $totalAccounts,
+                'current_month_accounts' => $currentMonthAccounts,
+                'top_performer' => $topPerformerName,
+                'top_performer_count' => $topPerformer->total ?? 0,
+                'employees' => $employees->map(function($employee) use ($month) {
+                    return [
+                        'id' => $employee->id,
+                        'name' => $employee->name,
+                        'total_accounts' => EmployeeAccount::where('employee_id', $employee->id)->count(),
+                        'current_month_accounts' => EmployeeAccount::where('employee_id', $employee->id)
+                            ->where('month', $month)
+                            ->count(),
+                    ];
+                }),
+            ];
+        });
+
+        return $this->sendResponse($data, 'Branch performance retrieved successfully');
+    }
+
+    /**
+     * Get monthly report
+     */
+    public function getMonthlyReport(Request $request)
+    {
+        $month = $request->get('month', now()->format('Y-m'));
+
+        // Top employees this month
+        $topEmployees = EmployeeAccount::where('month', $month)
+            ->select('employee_id', DB::raw('count(*) as total'))
+            ->groupBy('employee_id')
+            ->orderBy('total', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function($item) {
+                $user = User::find($item->employee_id);
+                return [
+                    'employee_id' => $item->employee_id,
+                    'name' => $user->name ?? 'Unknown',
+                    'total' => $item->total,
+                    'branch' => $user->branch->name ?? 'N/A',
+                ];
+            });
+
+        // Branch-wise this month
+        $branchWise = EmployeeAccount::where('month', $month)
+            ->select('branch_id', DB::raw('count(*) as total'))
+            ->groupBy('branch_id')
+            ->get()
+            ->map(function($item) {
+                $branch = Branch::find($item->branch_id);
+                return [
+                    'branch_id' => $item->branch_id,
+                    'branch_name' => $branch->name ?? 'N/A',
+                    'total' => $item->total,
+                ];
+            });
+
+        // Total accounts this month
+        $totalAccounts = EmployeeAccount::where('month', $month)->count();
+
+        return $this->sendResponse([
+            'month' => $month,
+            'total_accounts' => $totalAccounts,
+            'top_employees' => $topEmployees,
+            'branch_wise' => $branchWise,
+        ], 'Monthly report retrieved successfully');
+    }
+
+    /**
+     * Calculate performance score
+     */
+    private function calculatePerformance($employeeId, $month)
+    {
+        // Get this employee's accounts this month
+        $thisMonth = EmployeeAccount::where('employee_id', $employeeId)
+            ->where('month', $month)
+            ->count();
+
+        // Get average accounts per employee this month
+        $avg = EmployeeAccount::where('month', $month)
+            ->select('employee_id', DB::raw('count(*) as total'))
+            ->groupBy('employee_id')
+            ->get()
+            ->avg('total') ?? 1;
+
+        // Calculate score (percentage)
+        if ($avg > 0) {
+            $score = ($thisMonth / $avg) * 100;
+        } else {
+            $score = 0;
+        }
+
+        return round(min($score, 100), 2);
     }
 }

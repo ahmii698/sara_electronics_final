@@ -1532,3 +1532,56 @@
     max-width: 80px;
   }
 }
+
+/* ===== REMARKS FIELD (Overdue Table) ===== */
+.remarks-input {
+  width: 100%;
+  min-width: 140px;
+  padding: 0.4rem 0.6rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #1f2937;
+  background: white;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.remarks-input:focus {
+  border-color: #1E1B4B;
+  box-shadow: 0 0 0 3px rgba(30, 27, 75, 0.12);
+}
+
+.remarks-input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.remarks-display {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: normal;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  .remarks-input {
+    min-width: 110px;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .remarks-input {
+    min-width: 90px;
+    font-size: 0.65rem;
+    padding: 0.25rem 0.4rem;
+  }
+  .remarks-display {
+    font-size: 0.65rem;
+  }
+}

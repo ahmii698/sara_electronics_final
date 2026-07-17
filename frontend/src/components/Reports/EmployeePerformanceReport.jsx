@@ -28,6 +28,7 @@ const EmployeePerformanceReport = () => {
   const isEmployee = userRole === 'employee';
   const isAdmin = userRole === 'admin';
   const isManager = userRole === 'manager';
+  const canEditRemarks = isAdmin || isManager;
 
   const employeesList = [
     { id: 1, name: 'Ahmed Khan', branch: 1, role: 'employee' },
@@ -64,6 +65,9 @@ const EmployeePerformanceReport = () => {
         balance: 35000,
         monthly: 5000,
         date: '2026-01-15',
+        dueDate: 'May 5, 2026',
+        mirror: 40000,
+        remarks: '',
         status: 'pending',
         cnic: '12345-6789012-3',
         phone: '0300-1234567',
@@ -92,6 +96,9 @@ const EmployeePerformanceReport = () => {
         balance: 25000,
         monthly: 4000,
         date: '2026-01-20',
+        dueDate: 'May 20, 2026',
+        mirror: 28000,
+        remarks: '',
         status: 'pending',
         cnic: '12345-6789012-6',
         phone: '0300-2345678',
@@ -120,6 +127,9 @@ const EmployeePerformanceReport = () => {
         balance: 30000,
         monthly: 3000,
         date: '2026-02-10',
+        dueDate: 'Mar 10, 2026',
+        mirror: 32000,
+        remarks: '',
         status: 'overdue',
         cnic: '12345-6789012-8',
         phone: '0300-3456789',
@@ -145,6 +155,9 @@ const EmployeePerformanceReport = () => {
         balance: 0,
         monthly: 0,
         date: '2026-01-05',
+        dueDate: '-',
+        mirror: 0,
+        remarks: '',
         status: 'paid',
         cnic: '12345-6789012-0',
         phone: '0300-4567890',
@@ -174,6 +187,9 @@ const EmployeePerformanceReport = () => {
         balance: 15000,
         monthly: 3000,
         date: '2026-03-01',
+        dueDate: 'Jun 1, 2026',
+        mirror: 17000,
+        remarks: '',
         status: 'pending',
         cnic: '12345-6789012-1',
         phone: '0300-5678901',
@@ -197,6 +213,9 @@ const EmployeePerformanceReport = () => {
         balance: 0,
         monthly: 0,
         date: '2026-03-15',
+        dueDate: '-',
+        mirror: 0,
+        remarks: '',
         status: 'paid',
         cnic: '12345-6789012-2',
         phone: '0300-6789012',
@@ -271,6 +290,15 @@ const EmployeePerformanceReport = () => {
   const openAccountModal = (account) => {
     setSelectedAccount(account);
     setShowAccountModal(true);
+  };
+
+  // ===== UPDATE REMARKS (admin/manager only) =====
+  const updateRemarks = (accountId, value) => {
+    if (!canEditRemarks) return;
+    const updatedAccounts = allData.accounts.map(acc => 
+      acc.id === accountId ? { ...acc, remarks: value } : acc
+    );
+    setAllData({ ...allData, accounts: updatedAccounts });
   };
 
   const getStatusColor = (status) => {
@@ -516,6 +544,7 @@ const EmployeePerformanceReport = () => {
       );
     }
 
+
     if (activeTab === 'recovery') {
       const accounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
       return (
@@ -531,13 +560,13 @@ const EmployeePerformanceReport = () => {
             <table className="accounts-table">
               <thead>
                 <tr>
-                  <th>Case #</th>
                   <th>Customer</th>
-                  <th>Product</th>
-                  <th>Total (PKR)</th>
-                  <th>Paid (PKR)</th>
+                  <th>Case #</th>
+                  <th>Date</th>
+                  <th>Installment</th>
                   <th>Balance (PKR)</th>
-                  <th>Monthly</th>
+                  <th>Mirror (PKR)</th>
+                  <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -547,18 +576,36 @@ const EmployeePerformanceReport = () => {
                 ) : (
                   accounts.map((item, index) => (
                     <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                      <td className="case-number">{item.caseNo}</td>
                       <td>
                         <div className="customer-info">
                           <div className="customer-avatar">{item.customer.charAt(0)}</div>
                           {item.customer}
                         </div>
                       </td>
-                      <td>{item.product}</td>
-                      <td className="amount">PKR {item.amount.toLocaleString()}</td>
-                      <td className="paid-amount">PKR {item.paid.toLocaleString()}</td>
-                      <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
+                      <td className="case-number">{item.caseNo}</td>
+                      <td>
+                        <div className="date-info">
+                          <Calendar size={12} />
+                          {item.dueDate || '-'}
+                        </div>
+                      </td>
                       <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
+                      <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
+                      <td>{item.mirror > 0 ? `PKR ${item.mirror.toLocaleString()}` : '---'}</td>
+                      <td>
+                        {canEditRemarks ? (
+                          <input
+                            type="text"
+                            className="remarks-input"
+                            value={item.remarks || ''}
+                            onChange={(e) => updateRemarks(item.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="Add remarks..."
+                          />
+                        ) : (
+                          <span className="remarks-display">{item.remarks && item.remarks.trim() ? item.remarks : '-'}</span>
+                        )}
+                      </td>
                       <td>
                         <div className="action-group">
                           <button 
@@ -579,6 +626,7 @@ const EmployeePerformanceReport = () => {
         </div>
       );
     }
+   
 
     if (activeTab === 'overdue') {
       const accounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
@@ -595,13 +643,13 @@ const EmployeePerformanceReport = () => {
             <table className="accounts-table">
               <thead>
                 <tr>
-                  <th>Case #</th>
                   <th>Customer</th>
-                  <th>Product</th>
-                  <th>Total (PKR)</th>
-                  <th>Paid (PKR)</th>
+                  <th>Case #</th>
+                  <th>Date</th>
+                  <th>Installment</th>
                   <th>Balance (PKR)</th>
-                  <th>Status</th>
+                  <th>Mirror (PKR)</th>
+                  <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -611,22 +659,35 @@ const EmployeePerformanceReport = () => {
                 ) : (
                   accounts.map((item, index) => (
                     <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                      <td className="case-number">{item.caseNo}</td>
                       <td>
                         <div className="customer-info">
                           <div className="customer-avatar">{item.customer.charAt(0)}</div>
                           {item.customer}
                         </div>
                       </td>
-                      <td>{item.product}</td>
-                      <td className="amount">PKR {item.amount.toLocaleString()}</td>
-                      <td className="paid-amount">PKR {item.paid.toLocaleString()}</td>
-                      <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
+                      <td className="case-number">{item.caseNo}</td>
                       <td>
-                        <span className={`status-badge ${item.status}`}>
-                          {item.status === 'paid' ? 'Paid' : 
-                           item.status === 'pending' ? 'Pending' : 'Overdue'}
-                        </span>
+                        <div className="date-info">
+                          <Calendar size={12} />
+                          {item.dueDate || '-'}
+                        </div>
+                      </td>
+                      <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
+                      <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
+                      <td>{item.mirror > 0 ? `PKR ${item.mirror.toLocaleString()}` : '---'}</td>
+                      <td>
+                        {canEditRemarks ? (
+                          <input
+                            type="text"
+                            className="remarks-input"
+                            value={item.remarks || ''}
+                            onChange={(e) => updateRemarks(item.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            placeholder="Add remarks..."
+                          />
+                        ) : (
+                          <span className="remarks-display">{item.remarks && item.remarks.trim() ? item.remarks : '-'}</span>
+                        )}
                       </td>
                       <td>
                         <div className="action-group">

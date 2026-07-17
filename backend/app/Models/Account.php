@@ -1,9 +1,11 @@
 <?php
+// app/Models/Account.php
 
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Account extends Model
 {
@@ -14,22 +16,35 @@ class Account extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'customer_id', 'product_id', 'case_no', 'total_amount',
-        'paid_amount', 'balance', 'monthly_installment',
-        'invoice_price', 'advance_amount', 'total_installments',
-        'installments_paid', 'due_date', 'next_due_date',
-        'last_payment_date', 'payment_type', 'status',
-        'branch_id', 'created_by'
+        'customer_id',
+        'product_name',
+        'chalan_front',
+        'chalan_back',
+        'case_no',
+        'total_amount',
+        'paid_amount',
+        'balance',
+        'monthly_installment',
+        'invoice_price',
+        'advance_amount',
+        'total_installments',
+        'installments_paid',
+        'due_date',
+        'next_due_date',
+        'last_payment_date',
+        'payment_type',
+        'status',
+        'branch_id',
+        'created_by'
     ];
 
+    // ============================================
+    // ✅ RELATIONS
+    // ============================================
+    
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'customer_id');
-    }
-
-    public function product()
-    {
-        return $this->belongsTo(Product::class, 'product_id');
     }
 
     public function branch()
@@ -50,5 +65,154 @@ class Account extends Model
     public function recoveries()
     {
         return $this->hasMany(Recovery::class, 'account_id');
+    }
+
+    // ============================================
+    // ✅ IMAGE URL ACCESSORS
+    // ============================================
+    
+    public function getChalanFrontUrlAttribute()
+    {
+        if ($this->chalan_front && Storage::disk('public')->exists($this->chalan_front)) {
+            return asset('storage/' . $this->chalan_front);
+        }
+        return null;
+    }
+
+    public function getChalanBackUrlAttribute()
+    {
+        if ($this->chalan_back && Storage::disk('public')->exists($this->chalan_back)) {
+            return asset('storage/' . $this->chalan_back);
+        }
+        return null;
+    }
+
+    // ============================================
+    // ✅ HELPER METHODS
+    // ============================================
+    
+    public function getRemainingBalance()
+    {
+        return $this->balance - $this->paid_amount;
+    }
+
+    public function getNextDueDate()
+    {
+        if ($this->installments_paid < $this->total_installments) {
+            return $this->next_due_date;
+        }
+        return null;
+    }
+
+    public function isFullyPaid()
+    {
+        return $this->balance <= 0 || $this->installments_paid >= $this->total_installments;
+    }
+
+    public function getProgressPercentage()
+    {
+        if ($this->total_installments > 0) {
+            return round(($this->installments_paid / $this->total_installments) * 100, 2);
+        }
+        return 0;
+    }
+
+    public function getFormattedTotalAmount()
+    {
+        return number_format($this->total_amount, 2);
+    }
+
+    public function getFormattedPaidAmount()
+    {
+        return number_format($this->paid_amount, 2);
+    }
+
+    public function getFormattedBalance()
+    {
+        return number_format($this->balance, 2);
+    }
+
+    public function getFormattedMonthlyInstallment()
+    {
+        return number_format($this->monthly_installment, 2);
+    }
+
+    // ============================================
+    // ✅ SCOPES
+    // ============================================
+    
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('status', 'paid');
+    }
+
+    public function scopeHold($query)
+    {
+        return $query->where('status', 'hold');
+    }
+
+    public function scopeClosed($query)
+    {
+        return $query->where('status', 'closed');
+    }
+
+    public function scopeByBranch($query, $branchId)
+    {
+        return $query->where('branch_id', $branchId);
+    }
+
+    public function scopeByCustomer($query, $customerId)
+    {
+        return $query->where('customer_id', $customerId);
+    }
+
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    public function scopeByPaymentType($query, $type)
+    {
+        return $query->where('payment_type', $type);
+    }
+
+    public function scopeSearch($query, $search)
+    {
+        return $query->where('case_no', 'LIKE', "%{$search}%")
+            ->orWhere('product_name', 'LIKE', "%{$search}%")
+            ->orWhereHas('customer', function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('cnic', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%");
+            });
+    }
+
+    // ============================================
+    // ✅ ATTRIBUTES / ACCESSORS
+    // ============================================
+    
+    public function getStatusBadgeAttribute()
+    {
+        $badges = [
+            'active' => '<span class="badge badge-success">Active</span>',
+            'hold' => '<span class="badge badge-warning">Hold</span>',
+            'paid' => '<span class="badge badge-info">Paid</span>',
+            'closed' => '<span class="badge badge-danger">Closed</span>',
+        ];
+        return $badges[$this->status] ?? '<span class="badge badge-secondary">Unknown</span>';
+    }
+
+    public function getPaymentTypeBadgeAttribute()
+    {
+        $badges = [
+            'cash' => '<span class="badge badge-primary">Cash</span>',
+            'installment' => '<span class="badge badge-info">Installment</span>',
+        ];
+        return $badges[$this->payment_type] ?? '<span class="badge badge-secondary">Unknown</span>';
     }
 }

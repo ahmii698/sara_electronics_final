@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Api/AccountController.php
 
 namespace App\Http\Controllers\Api;
 
@@ -7,17 +8,21 @@ use App\Models\Account;
 use App\Models\Installment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class AccountController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Account::with(['customer', 'product', 'branch', 'creator']);
+        $query = Account::with(['customer', 'branch', 'creator']);
 
         if ($request->search) {
             $query->where('case_no', 'LIKE', "%{$request->search}%")
+                  ->orWhere('product_name', 'LIKE', "%{$request->search}%")
                   ->orWhereHas('customer', function($q) use ($request) {
-                      $q->where('name', 'LIKE', "%{$request->search}%");
+                      $q->where('name', 'LIKE', "%{$request->search}%")
+                        ->orWhere('cnic', 'LIKE', "%{$request->search}%");
                   });
         }
 
@@ -33,6 +38,10 @@ class AccountController extends Controller
             $query->where('payment_type', $request->payment_type);
         }
 
+        if ($request->customer_id) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
         $accounts = $query->orderBy('id', 'desc')->paginate(20);
         return $this->sendResponse($accounts, 'Accounts retrieved successfully');
     }
@@ -40,7 +49,9 @@ class AccountController extends Controller
     public function show($id)
     {
         $account = Account::with([
-            'customer', 'product', 'branch', 'creator',
+            'customer', 
+            'branch', 
+            'creator',
             'installments' => function($q) {
                 $q->orderBy('month', 'desc');
             },
@@ -54,18 +65,23 @@ class AccountController extends Controller
         return $this->sendResponse($account, 'Account details retrieved');
     }
 
+    // ============================================
+    // ✅ STORE - WITH IMAGE UPLOAD
+    // ============================================
     public function store(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
-            'product_id' => 'required|exists:products,id',
+            'product_name' => 'nullable|string|max:255',
             'case_no' => 'required|string|unique:accounts,case_no',
-            'total_amount' => 'required|numeric|min:1',
+            'total_amount' => 'required|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
-            'monthly_installment' => 'required|numeric|min:1',
+            'balance' => 'nullable|numeric|min:0',
+            'monthly_installment' => 'required|numeric|min:0',
             'invoice_price' => 'nullable|numeric|min:0',
             'advance_amount' => 'nullable|numeric|min:0',
             'total_installments' => 'required|integer|min:1',
+            'installments_paid' => 'nullable|integer|min:0',
             'due_date' => 'required|date',
             'next_due_date' => 'nullable|date',
             'payment_type' => 'nullable|in:installment,cash',
@@ -74,15 +90,64 @@ class AccountController extends Controller
             'created_by' => 'required|exists:users,id'
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
-            $balance = $request->total_amount - ($request->paid_amount ?? 0);
-            $request->merge(['balance' => $balance]);
+            // ✅ Handle Chalan Front Upload
+            $chalanFrontPath = null;
+            if ($request->hasFile('chalan_front')) {
+                $file = $request->file('chalan_front');
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $chalanFrontPath = $file->storeAs('accounts/chalan_front', $filename, 'public');
+            } elseif ($request->chalan_front && $request->chalan_front !== 'null') {
+                $chalanFrontPath = $request->chalan_front;
+            }
 
-            $account = Account::create($request->all());
+            // ✅ Handle Chalan Back Upload
+            $chalanBackPath = null;
+            if ($request->hasFile('chalan_back')) {
+                $file = $request->file('chalan_back');
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $chalanBackPath = $file->storeAs('accounts/chalan_back', $filename, 'public');
+            } elseif ($request->chalan_back && $request->chalan_back !== 'null') {
+                $chalanBackPath = $request->chalan_back;
+            }
 
-            // Generate installments
+            $paidAmount = $request->paid_amount ?? 0;
+            $balance = $request->total_amount - $paidAmount;
+            $installmentsPaid = $request->installments_paid ?? 0;
+
+            // ✅ Create Account
+            $account = Account::create([
+                'customer_id' => $request->customer_id,
+                'product_name' => $request->product_name,
+                'chalan_front' => $chalanFrontPath,
+                'chalan_back' => $chalanBackPath,
+                'case_no' => $request->case_no,
+                'total_amount' => $request->total_amount,
+                'paid_amount' => $paidAmount,
+                'balance' => $balance,
+                'monthly_installment' => $request->monthly_installment,
+                'invoice_price' => $request->invoice_price ?? $request->total_amount,
+                'advance_amount' => $request->advance_amount ?? 0,
+                'total_installments' => $request->total_installments,
+                'installments_paid' => $installmentsPaid,
+                'due_date' => $request->due_date,
+                'next_due_date' => $request->next_due_date ?? $request->due_date,
+                'payment_type' => $request->payment_type ?? 'installment',
+                'status' => $request->status ?? 'active',
+                'branch_id' => $request->branch_id,
+                'created_by' => $request->created_by,
+            ]);
+
+            // ✅ GENERATE INSTALLMENTS
             $monthly = $request->monthly_installment;
             $totalMonths = $request->total_installments;
             $startDate = date('Y-m', strtotime($request->due_date));
@@ -90,28 +155,22 @@ class AccountController extends Controller
             for ($i = 0; $i < $totalMonths; $i++) {
                 $month = date('Y-m', strtotime("+{$i} months", strtotime($startDate . '-01')));
                 $due = $monthly;
-                $paid = 0;
-                $status = 'unpaid';
-
-                if ($i == 0 && $request->advance_amount) {
-                    $paid = min($request->advance_amount, $due);
-                    $status = $paid >= $due ? 'paid' : ($paid > 0 ? 'partial' : 'unpaid');
-                }
-
+                
                 Installment::create([
                     'account_id' => $account->id,
                     'month' => $month,
                     'due_amount' => $due,
-                    'paid_amount' => $paid,
-                    'balance' => $due - $paid,
-                    'status' => $status,
-                    'payment_date' => $paid > 0 ? date('Y-m-d') : null,
-                    'description' => "Installment " . ($i + 1)
+                    'paid_amount' => 0,
+                    'balance' => $due,
+                    'status' => 'unpaid',
+                    'payment_date' => null,
+                    'description' => "Installment " . ($i + 1) . " - " . date('F Y', strtotime($month . '-01'))
                 ]);
             }
 
             DB::commit();
-            return $this->sendResponse($account->load('installments'), 'Account created successfully', 201);
+            return $this->sendResponse($account->load(['customer', 'branch', 'creator', 'installments']), 'Account created successfully', 201);
+            
         } catch (\Exception $e) {
             DB::rollBack();
             return $this->sendError('Failed to create account: ' . $e->getMessage(), 500);
@@ -125,11 +184,20 @@ class AccountController extends Controller
             return $this->sendError('Account not found', 404);
         }
 
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'status' => 'nullable|in:active,hold,paid,closed',
             'paid_amount' => 'nullable|numeric|min:0',
-            'installments_paid' => 'nullable|integer|min:0'
+            'installments_paid' => 'nullable|integer|min:0',
+            'balance' => 'nullable|numeric|min:0',
+            'due_date' => 'nullable|date',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         if ($request->has('paid_amount')) {
             $balance = $account->total_amount - $request->paid_amount;
@@ -142,7 +210,7 @@ class AccountController extends Controller
             $account->update(['status' => 'paid']);
         }
 
-        return $this->sendResponse($account, 'Account updated successfully');
+        return $this->sendResponse($account->load(['customer', 'branch', 'creator']), 'Account updated successfully');
     }
 
     public function destroy($id)
@@ -152,7 +220,49 @@ class AccountController extends Controller
             return $this->sendError('Account not found', 404);
         }
 
+        if ($account->installments()->where('paid_amount', '>', 0)->exists()) {
+            return $this->sendError('Cannot delete account with paid installments', 422);
+        }
+
         $account->delete();
         return $this->sendResponse(null, 'Account deleted successfully');
+    }
+
+    public function getCustomerAccounts($customerId)
+    {
+        $customer = \App\Models\Customer::find($customerId);
+        if (!$customer) {
+            return $this->sendError('Customer not found', 404);
+        }
+
+        $accounts = Account::with(['branch', 'creator', 'installments'])
+            ->where('customer_id', $customerId)
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return $this->sendResponse($accounts, 'Customer accounts retrieved');
+    }
+
+    public function getStats(Request $request)
+    {
+        $query = Account::query();
+
+        if ($request->branch_id) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        $stats = [
+            'total_accounts' => $query->count(),
+            'active_accounts' => (clone $query)->where('status', 'active')->count(),
+            'hold_accounts' => (clone $query)->where('status', 'hold')->count(),
+            'paid_accounts' => (clone $query)->where('status', 'paid')->count(),
+            'closed_accounts' => (clone $query)->where('status', 'closed')->count(),
+            'total_receivable' => (clone $query)->sum('balance'),
+            'total_paid' => (clone $query)->sum('paid_amount'),
+            'total_installments' => (clone $query)->sum('total_installments'),
+            'installments_paid' => (clone $query)->sum('installments_paid'),
+        ];
+
+        return $this->sendResponse($stats, 'Account statistics retrieved');
     }
 }

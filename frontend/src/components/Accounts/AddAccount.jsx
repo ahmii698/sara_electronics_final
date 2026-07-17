@@ -14,6 +14,7 @@ const AddAccount = () => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('active');
   const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState([]);
 
   const [voiceFiles, setVoiceFiles] = useState([]);
   const [playingIndex, setPlayingIndex] = useState(null);
@@ -167,9 +168,6 @@ const AddAccount = () => {
     setToast({ message, type, details });
   };
 
-  // ============================================
-  // ✅ handleCnicBlur - FIXED
-  // ============================================
   const handleCnicBlur = () => {
     if (!formData.cnic || formData.cnic.length < 5) return;
     
@@ -208,9 +206,6 @@ const AddAccount = () => {
     }
   };
 
-  // ============================================
-  // ✅ handleGuarantorCnicBlur - FIXED
-  // ============================================
   const handleGuarantorCnicBlur = (index) => {
     const cnic = formData.guarantors[index].cnic;
     if (!cnic || cnic.length < 5) return;
@@ -246,23 +241,16 @@ const AddAccount = () => {
     }
   };
 
-  // ============================================
-  // ✅ handleNameChange - FIXED
-  // ============================================
-  const handleNameChange = (e) => {
-    // This is used for CNIC search, but we're using handleChange for form
-    // Keeping it as a placeholder
-  };
-
   const allEmployees = [
-    { id: 1, name: 'Ahmed Khan', branch: 1 },
-    { id: 2, name: 'Sara Ali', branch: 2 },
-    { id: 3, name: 'Usman Malik', branch: 1 },
-    { id: 4, name: 'Fatima Noor', branch: 2 },
-    { id: 5, name: 'Bilal Ahmed', branch: 1 },
-    { id: 6, name: 'Hina Riaz', branch: 2 },
-    { id: 7, name: 'Imran Ali', branch: 1 },
-    { id: 8, name: 'Nadia Khan', branch: 2 },
+    { id: 2, name: 'Ahmed Khan', branch: 1, role: 'employee' },
+    { id: 4, name: 'Usman Malik', branch: 1, role: 'employee' },
+    { id: 5, name: 'Fatima Noor', branch: 2, role: 'employee' },
+    { id: 6, name: 'Bilal Ahmed', branch: 1, role: 'employee' },
+    { id: 7, name: 'Hina Riaz', branch: 2, role: 'employee' },
+    { id: 9, name: 'Nadia Khan', branch: 2, role: 'employee' },
+    { id: 11, name: 'hamza', branch: 1, role: 'employee' },
+    { id: 3, name: 'Sara Ali', branch: 2, role: 'manager' },
+    { id: 8, name: 'Imran Ali', branch: 1, role: 'manager' },
   ];
 
   const [formData, setFormData] = useState({
@@ -326,7 +314,7 @@ const AddAccount = () => {
   }, []);
 
   const getEmployeesByBranch = (branch) => {
-    return allEmployees.filter(emp => emp.branch === branch);
+    return allEmployees.filter(emp => emp.branch === branch && emp.role === 'employee');
   };
 
   const getAvailableEmployees = () => {
@@ -407,7 +395,33 @@ const AddAccount = () => {
     const { name, value } = e.target;
     if (name === 'branch' && userBranch) return;
     setFormData({ ...formData, [name]: value });
+    
+    if (name === 'invoicePrice' || name === 'advanceAmount' || name === 'noOfInstallments') {
+      calculateInstallment();
+    }
   };
+
+  const calculateInstallment = () => {
+    const invoice = parseFloat(formData.invoicePrice) || 0;
+    const advance = parseFloat(formData.advanceAmount) || 0;
+    const installments = parseInt(formData.noOfInstallments) || 0;
+    
+    const remaining = invoice - advance;
+    
+    let perInstallment = 0;
+    if (installments > 0 && remaining > 0) {
+      perInstallment = remaining / installments;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      installmentAmount: perInstallment > 0 ? perInstallment.toFixed(2) : ''
+    }));
+  };
+
+  useEffect(() => {
+    calculateInstallment();
+  }, [formData.invoicePrice, formData.advanceAmount, formData.noOfInstallments]);
 
   const handleGuarantorChange = (index, field, value) => {
     const updated = [...formData.guarantors];
@@ -448,21 +462,34 @@ const AddAccount = () => {
   const handleFileUpload = (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (type === 'cnicFront') setFormData({ ...formData, cnicFront: file, cnicFrontPreview: reader.result });
-      else if (type === 'cnicBack') setFormData({ ...formData, cnicBack: file, cnicBackPreview: reader.result });
-      else if (type === 'chalanFront') setFormData({ ...formData, chalanFront: file, chalanFrontPreview: reader.result });
-      else if (type === 'chalanBack') setFormData({ ...formData, chalanBack: file, chalanBackPreview: reader.result });
-    };
-    reader.readAsDataURL(file);
+    
+    const previewUrl = URL.createObjectURL(file);
+    
+    if (type === 'cnicFront') {
+      setFormData({ ...formData, cnicFront: file, cnicFrontPreview: previewUrl });
+    } else if (type === 'cnicBack') {
+      setFormData({ ...formData, cnicBack: file, cnicBackPreview: previewUrl });
+    } else if (type === 'chalanFront') {
+      setFormData({ ...formData, chalanFront: file, chalanFrontPreview: previewUrl });
+    } else if (type === 'chalanBack') {
+      setFormData({ ...formData, chalanBack: file, chalanBackPreview: previewUrl });
+    }
   };
 
   const removeFile = (type) => {
-    if (type === 'cnicFront') { setFormData({ ...formData, cnicFront: null, cnicFrontPreview: '' }); if (cnicFrontRef.current) cnicFrontRef.current.value = ''; }
-    else if (type === 'cnicBack') { setFormData({ ...formData, cnicBack: null, cnicBackPreview: '' }); if (cnicBackRef.current) cnicBackRef.current.value = ''; }
-    else if (type === 'chalanFront') { setFormData({ ...formData, chalanFront: null, chalanFrontPreview: '' }); if (chalanFrontRef.current) chalanFrontRef.current.value = ''; }
-    else if (type === 'chalanBack') { setFormData({ ...formData, chalanBack: null, chalanBackPreview: '' }); if (chalanBackRef.current) chalanBackRef.current.value = ''; }
+    if (type === 'cnicFront') { 
+      setFormData({ ...formData, cnicFront: null, cnicFrontPreview: '' }); 
+      if (cnicFrontRef.current) cnicFrontRef.current.value = ''; 
+    } else if (type === 'cnicBack') { 
+      setFormData({ ...formData, cnicBack: null, cnicBackPreview: '' }); 
+      if (cnicBackRef.current) cnicBackRef.current.value = ''; 
+    } else if (type === 'chalanFront') { 
+      setFormData({ ...formData, chalanFront: null, chalanFrontPreview: '' }); 
+      if (chalanFrontRef.current) chalanFrontRef.current.value = ''; 
+    } else if (type === 'chalanBack') { 
+      setFormData({ ...formData, chalanBack: null, chalanBackPreview: '' }); 
+      if (chalanBackRef.current) chalanBackRef.current.value = ''; 
+    }
   };
 
   const validateStep1 = () => {
@@ -491,8 +518,11 @@ const AddAccount = () => {
     if (!formData.invoicePrice) newErrors.invoicePrice = 'Invoice price is required';
     if (!formData.noOfInstallments) newErrors.noOfInstallments = 'Number of installments is required';
     if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
-    if (!formData.chalanFront) newErrors.chalanFront = 'Chalan Front image is required';
-    if (!formData.chalanBack) newErrors.chalanBack = 'Chalan Back image is required';
+    
+    if (!formData.chalanFront) {
+      newErrors.chalanFront = 'Chalan Front image is required';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -500,7 +530,6 @@ const AddAccount = () => {
   const handleNext = () => { if (validateStep1()) setStep(2); };
   const handlePrev = () => setStep(1);
 
-  // ===== HANDLE FINAL SUBMIT WITH STATUS POPUP =====
   const handleFinalSubmit = (e) => {
     e.preventDefault();
     if (validateStep2()) {
@@ -509,7 +538,7 @@ const AddAccount = () => {
   };
 
   // ============================================
-  // ✅ CONFIRM ACCOUNT CREATION - FIXED GUARANTORS
+  // ✅ CONFIRM ACCOUNT CREATION - FIXED
   // ============================================
   const confirmAccountCreation = async () => {
     setLoading(true);
@@ -517,9 +546,7 @@ const AddAccount = () => {
     try {
       const token = localStorage.getItem('token');
       
-      // ============================================
       // 1. CREATE CUSTOMER
-      // ============================================
       const customerFormData = new FormData();
       customerFormData.append('name', formData.name);
       customerFormData.append('cnic', formData.cnic);
@@ -529,6 +556,7 @@ const AddAccount = () => {
       customerFormData.append('branch_id', formData.branch);
       customerFormData.append('status', selectedStatus);
       customerFormData.append('created_by', formData.employeeId);
+      customerFormData.append('product_name', formData.productName);
       
       if (formData.cnicFront) {
         customerFormData.append('cnic_front', formData.cnicFront);
@@ -537,36 +565,40 @@ const AddAccount = () => {
         customerFormData.append('cnic_back', formData.cnicBack);
       }
       
-      // Voice consent file
       if (voiceFiles.length > 0) {
         customerFormData.append('voice_consent', voiceFiles[0].file);
       }
 
-      // ============================================
-      // 2. ✅ GUARANTORS DATA - FIXED
-      // ============================================
-      // Sirf complete guarantors ko include karein (name + cnic)
-      const guarantorsData = formData.guarantors
-        .filter(g => g.name.trim() && g.cnic.trim())
-        .map(g => ({
-          name: g.name,
-          cnic: g.cnic,
-          phone: g.phone || '',
-          address: g.address || ''
-        }));
+      // ✅ 2. GUARANTORS - KEEP ORIGINAL OBJECTS WITH FILE REFS
+      const validGuarantors = formData.guarantors
+        .filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim());
 
-      console.log('Guarantors Data being sent:', guarantorsData);
+      console.log('Guarantors Data being sent:', validGuarantors.map(g => ({
+        name: g.name.trim(),
+        cnic: g.cnic.trim(),
+        phone: g.phone.trim(),
+        address: g.address?.trim() || '',
+        hasFront: !!g.cnicFront,
+        hasBack: !!g.cnicBack
+      })));
 
-      // ============================================
-      // 3. CREATE ACCOUNT DATA
-      // ============================================
-      const monthlyInstallment = formData.productPrice && formData.noOfInstallments 
-        ? parseInt(formData.productPrice) / parseInt(formData.noOfInstallments) 
+      customerFormData.append('guarantors', JSON.stringify(
+        validGuarantors.map(g => ({
+          name: g.name.trim(),
+          cnic: g.cnic.trim(),
+          phone: g.phone.trim(),
+          address: g.address?.trim() || ''
+        }))
+      ));
+
+      // 3. INSTALLMENT CALCULATION
+      const remainingAmount = (parseFloat(formData.invoicePrice) || 0) - (parseFloat(formData.advanceAmount) || 0);
+      const totalInstallments = parseInt(formData.noOfInstallments) || 0;
+      const monthlyInstallment = totalInstallments > 0 && remainingAmount > 0 
+        ? remainingAmount / totalInstallments 
         : 0;
 
-      // ============================================
-      // ✅ SEND CUSTOMER TO API
-      // ============================================
+      // SEND CUSTOMER TO API
       const response = await fetch(`${API_URL}/customers`, {
         method: 'POST',
         headers: {
@@ -584,8 +616,10 @@ const AddAccount = () => {
             apiErrors[key] = data.errors[key][0];
           });
           setErrors(apiErrors);
+          alert('Validation Errors:\n' + JSON.stringify(data.errors, null, 2));
         } else {
           setErrors({ form: data.message || 'Failed to create customer' });
+          alert('Error: ' + (data.message || 'Failed to create customer'));
         }
         setLoading(false);
         setShowStatusModal(false);
@@ -597,75 +631,96 @@ const AddAccount = () => {
         console.log('Customer created with ID:', customerId);
 
         // ============================================
-        // ✅ CREATE GUARANTORS - ONE BY ONE
+        // ✅ CREATE GUARANTORS - WITH IMAGES (FIXED)
         // ============================================
-        if (guarantorsData.length > 0) {
-          for (const guarantor of guarantorsData) {
+        if (validGuarantors.length > 0) {
+          for (let i = 0; i < validGuarantors.length; i++) {
+            const guarantor = validGuarantors[i];
             try {
+              const cleanCnic = guarantor.cnic.trim().replace(/[^0-9]/g, '');
+              
+              const guarantorFormData = new FormData();
+              guarantorFormData.append('customer_id', customerId);
+              guarantorFormData.append('name', guarantor.name.trim());
+              guarantorFormData.append('cnic', cleanCnic);
+              guarantorFormData.append('phone', guarantor.phone.trim());
+              guarantorFormData.append('address', guarantor.address?.trim() || '');
+              
+              // ✅ FIX: Images direct guarantor object se le rahe hain
+              if (guarantor.cnicFront) {
+                guarantorFormData.append('cnic_front', guarantor.cnicFront);
+                console.log('✅ Adding guarantor CNIC Front:', guarantor.cnicFront.name);
+              }
+              if (guarantor.cnicBack) {
+                guarantorFormData.append('cnic_back', guarantor.cnicBack);
+                console.log('✅ Adding guarantor CNIC Back:', guarantor.cnicBack.name);
+              }
+              
               const guarantorResponse = await fetch(`${API_URL}/guarantors`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                  customer_id: customerId,
-                  name: guarantor.name,
-                  cnic: guarantor.cnic,
-                  phone: guarantor.phone,
-                  address: guarantor.address,
-                }),
+                body: guarantorFormData,
               });
               
               const guarantorResult = await guarantorResponse.json();
-              console.log('Guarantor created:', guarantorResult);
               
               if (!guarantorResponse.ok) {
-                console.warn('Failed to create guarantor:', guarantorResult);
+                const reason = guarantorResult.message || guarantorResult.errors?.cnic?.[0] || 'Unknown error';
+                console.warn(`⚠️ Guarantor "${guarantor.name}" (${cleanCnic}) not created: ${reason}`);
+                continue;
               }
+              
+              console.log('✅ Guarantor created:', guarantorResult);
+              
             } catch (gError) {
-              console.error('Error creating guarantor:', gError);
+              console.warn('⚠️ Error creating guarantor (continuing):', gError.message);
             }
           }
         }
 
-        // ============================================
-        // ✅ CREATE ACCOUNT
-        // ============================================
+        // ✅ CREATE ACCOUNT - WITH FILE UPLOADS
+        const accountFormData = new FormData();
+        accountFormData.append('customer_id', customerId);
+        accountFormData.append('product_name', formData.productName);
+        accountFormData.append('case_no', `SR-${String(Date.now()).slice(-6)}`);
+        accountFormData.append('total_amount', parseFloat(formData.invoicePrice) || 0);
+        accountFormData.append('paid_amount', parseFloat(formData.advanceAmount) || 0);
+        accountFormData.append('balance', remainingAmount);
+        accountFormData.append('monthly_installment', Math.round(monthlyInstallment * 100) / 100);
+        accountFormData.append('invoice_price', parseFloat(formData.invoicePrice) || 0);
+        accountFormData.append('advance_amount', parseFloat(formData.advanceAmount) || 0);
+        accountFormData.append('total_installments', totalInstallments);
+        accountFormData.append('installments_paid', 0);
+        accountFormData.append('due_date', formData.dueDate);
+        accountFormData.append('next_due_date', formData.dueDate);
+        accountFormData.append('payment_type', formData.productType === 'cash' ? 'cash' : 'installment');
+        accountFormData.append('status', selectedStatus === 'active' ? 'active' : 'hold');
+        accountFormData.append('branch_id', formData.branch);
+        accountFormData.append('created_by', parseInt(formData.employeeId));
+        
+        if (formData.chalanFront) {
+          accountFormData.append('chalan_front', formData.chalanFront);
+        }
+        if (formData.chalanBack) {
+          accountFormData.append('chalan_back', formData.chalanBack);
+        }
+
         const accountResponse = await fetch(`${API_URL}/accounts`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            customer_id: customerId,
-            product_id: 1,
-            case_no: `SR-${String(Date.now()).slice(-6)}`,
-            total_amount: parseInt(formData.productPrice) || 0,
-            paid_amount: parseInt(formData.advanceAmount) || 0,
-            balance: (parseInt(formData.productPrice) || 0) - (parseInt(formData.advanceAmount) || 0),
-            monthly_installment: Math.round(monthlyInstallment),
-            invoice_price: parseInt(formData.invoicePrice) || 0,
-            advance_amount: parseInt(formData.advanceAmount) || 0,
-            total_installments: parseInt(formData.noOfInstallments) || 0,
-            installments_paid: parseInt(formData.advanceAmount) > 0 ? 1 : 0,
-            due_date: formData.dueDate,
-            next_due_date: formData.dueDate,
-            payment_type: formData.productType === 'cash' ? 'cash' : 'installment',
-            status: selectedStatus === 'active' ? 'active' : 'hold',
-            branch_id: formData.branch,
-            created_by: parseInt(formData.employeeId),
-          }),
+          body: accountFormData,
         });
 
         const accountData = await accountResponse.json();
 
         if (accountData.success) {
           setShowStatusModal(false);
-          alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nCase: ${accountData.data.case_no}\nStatus: ${selectedStatus.toUpperCase()}\nGuarantors: ${guarantorsData.length} added`);
+          alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${accountData.data.case_no}\nStatus: ${selectedStatus.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}`);
           
-          // Reset form
           setFormData({
             name: '',
             cnic: '',
@@ -702,13 +757,16 @@ const AddAccount = () => {
           setStep(1);
         } else {
           setErrors({ form: accountData.message || 'Failed to create account' });
+          alert('Failed to create account: ' + (accountData.message || 'Unknown error'));
         }
       } else {
         setErrors({ form: data.message || 'Failed to create customer' });
+        alert('Failed to create customer: ' + (data.message || 'Unknown error'));
       }
     } catch (err) {
       console.error('Error:', err);
       setErrors({ form: 'Network error. Please try again.' });
+      alert('Network error. Please check your connection.');
     }
     
     setLoading(false);
@@ -731,7 +789,6 @@ const AddAccount = () => {
 
   return (
     <div className="add-account-container">
-      {/* ===== TOAST NOTIFICATION ===== */}
       {toast && (
         <div className={`toast-notification ${toast.type}`}>
           <div className="toast-content">
@@ -753,7 +810,6 @@ const AddAccount = () => {
         </div>
       )}
 
-      {/* ===== STATUS SELECTION MODAL ===== */}
       {showStatusModal && (
         <div className="status-modal-overlay" onClick={() => setShowStatusModal(false)}>
           <div className="status-modal" onClick={(e) => e.stopPropagation()}>
@@ -1206,11 +1262,22 @@ const AddAccount = () => {
                 </select>
               </div>
               <div className="form-group">
-                <label style={{ fontWeight: 700 }}>Product Name *</label>
+                <label style={{ fontWeight: 700 }}>Product Name / Purpose *</label>
                 <div className="input-with-icon">
                   <Package size={18} style={{ color: '#C9A84C' }} />
-                  <input type="text" name="productName" className="form-input" placeholder="Enter product name" value={formData.productName} onChange={handleChange} style={{ fontWeight: 500 }} />
+                  <input 
+                    type="text" 
+                    name="productName" 
+                    className="form-input" 
+                    placeholder="e.g., Mobile, Delivery, Parhayi ki fees, etc." 
+                    value={formData.productName} 
+                    onChange={handleChange} 
+                    style={{ fontWeight: 500 }}
+                  />
                 </div>
+                <small className="field-hint" style={{ fontWeight: 500 }}>
+                  What is this account for? (Product name, purpose, description)
+                </small>
                 {errors.productName && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productName}</span>}
               </div>
               <div className="form-group">
@@ -1253,20 +1320,31 @@ const AddAccount = () => {
                 <label style={{ fontWeight: 700 }}>Installment Amount</label>
                 <div className="input-with-icon">
                   <DollarSign size={18} style={{ color: '#C9A84C' }} />
-                  <input type="text" className="form-input" value={formData.productPrice && formData.noOfInstallments ? `PKR ${(parseInt(formData.productPrice) / parseInt(formData.noOfInstallments)).toLocaleString()}` : 'Calculate from price and installments'} readOnly style={{ background: '#f8f9fa', fontWeight: 600 }} />
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={formData.installmentAmount ? `PKR ${parseFloat(formData.installmentAmount).toLocaleString()}` : 'Calculate from invoice - advance / installments'} 
+                    readOnly 
+                    style={{ background: '#f8f9fa', fontWeight: 600 }} 
+                  />
                 </div>
+                <small className="field-hint" style={{ fontWeight: 500 }}>
+                  Calculation: (Invoice - Advance) / Number of Installments
+                </small>
               </div>
             </div>
 
             <div className="image-section" style={{ border: '1px solid #d1fae5', background: '#f0fdf4' }}>
               <div className="section-header">
                 <Upload size={18} style={{ color: '#065f46' }} />
-                <h4 style={{ fontWeight: 700 }}>Chalan Images *</h4>
+                <h4 style={{ fontWeight: 700 }}>Chalan Images</h4>
+                <span className="required-badge" style={{ fontWeight: 600, color: '#065f46', background: '#d1fae5', padding: '2px 10px', borderRadius: '12px', fontSize: '12px' }}>Front Required</span>
               </div>
+              <p className="voice-hint" style={{ fontWeight: 500, color: '#6b7280' }}>Chalan Front is required. Chalan Back is optional.</p>
               <div className="image-grid">
                 <div className="image-upload-box">
-                  <label style={{ fontWeight: 600 }}>Chalan Front</label>
-                  <div className="upload-area" onClick={() => chalanFrontRef.current?.click()}>
+                  <label style={{ fontWeight: 600 }}>Chalan Front *</label>
+                  <div className="upload-area" onClick={() => chalanFrontRef.current?.click()} style={{ borderColor: errors.chalanFront ? '#ef4444' : '#d1fae5' }}>
                     {formData.chalanFrontPreview ? (
                       <div className="preview-container">
                         <img src={formData.chalanFrontPreview} alt="Chalan Front" />
@@ -1278,8 +1356,8 @@ const AddAccount = () => {
                   {errors.chalanFront && <span className="error-text" style={{ fontWeight: 600 }}>{errors.chalanFront}</span>}
                 </div>
                 <div className="image-upload-box">
-                  <label style={{ fontWeight: 600 }}>Chalan Back</label>
-                  <div className="upload-area" onClick={() => chalanBackRef.current?.click()}>
+                  <label style={{ fontWeight: 600 }}>Chalan Back (Optional)</label>
+                  <div className="upload-area" onClick={() => chalanBackRef.current?.click()} style={{ borderColor: '#d1fae5' }}>
                     {formData.chalanBackPreview ? (
                       <div className="preview-container">
                         <img src={formData.chalanBackPreview} alt="Chalan Back" />
@@ -1291,6 +1369,7 @@ const AddAccount = () => {
                   {errors.chalanBack && <span className="error-text" style={{ fontWeight: 600 }}>{errors.chalanBack}</span>}
                 </div>
               </div>
+              {errors.chalan && <span className="error-text" style={{ fontWeight: 600 }}>{errors.chalan}</span>}
             </div>
           </div>
         )}
