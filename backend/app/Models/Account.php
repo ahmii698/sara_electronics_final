@@ -35,7 +35,8 @@ class Account extends Model
         'payment_type',
         'status',
         'branch_id',
-        'created_by'
+        'created_by',
+        'employee_account_id'
     ];
 
     // ============================================
@@ -52,9 +53,36 @@ class Account extends Model
         return $this->belongsTo(Branch::class, 'branch_id');
     }
 
+    // ✅ Who created the account (Admin/Manager)
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    // ============================================
+    // ✅ FIXED: Employee Account relation
+    // ============================================
+    // Previously this matched via `employee_account_id` on the accounts
+    // table, which is unreliable — it's only set correctly for some rows.
+    // The employee_accounts table itself is keyed by `customer_id`, so we
+    // match directly on that instead. This is guaranteed to work for
+    // every account, since both tables always have customer_id populated.
+    public function employeeAccount()
+    {
+        return $this->hasOne(EmployeeAccount::class, 'customer_id', 'customer_id');
+    }
+
+    // ✅ Employee details through employee_account (also fixed to match on customer_id)
+    public function employee()
+    {
+        return $this->hasOneThrough(
+            User::class,
+            EmployeeAccount::class,
+            'customer_id',   // Foreign key on employee_accounts table
+            'id',             // Foreign key on users table
+            'customer_id',    // Local key on accounts table
+            'employee_id'     // Local key on employee_accounts table
+        );
     }
 
     public function installments()

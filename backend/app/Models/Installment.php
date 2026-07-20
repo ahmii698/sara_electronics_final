@@ -1,4 +1,5 @@
 <?php
+// app/Models/Installment.php
 
 namespace App\Models;
 
@@ -18,8 +19,125 @@ class Installment extends Model
         'balance', 'status', 'payment_date', 'description'
     ];
 
+    // ============================================
+    // ✅ RELATIONS
+    // ============================================
+    
     public function account()
     {
         return $this->belongsTo(Account::class, 'account_id');
+    }
+
+    // ✅ Get customer through account
+    public function getCustomerAttribute()
+    {
+        return $this->account ? $this->account->customer : null;
+    }
+
+    // ✅ Get branch through account
+    public function getBranchAttribute()
+    {
+        return $this->account ? $this->account->branch : null;
+    }
+
+    // ============================================
+    // ✅ SCOPES
+    // ============================================
+    
+    public function scopeUnpaid($query)
+    {
+        return $query->where('status', 'unpaid');
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('status', 'paid');
+    }
+
+    public function scopeOverdue($query)
+    {
+        return $query->where('status', 'overdue');
+    }
+
+    public function scopePartial($query)
+    {
+        return $query->where('status', 'partial');
+    }
+
+    public function scopeByAccount($query, $accountId)
+    {
+        return $query->where('account_id', $accountId);
+    }
+
+    public function scopeByMonth($query, $month)
+    {
+        return $query->where('month', $month);
+    }
+
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    // ============================================
+    // ✅ HELPER METHODS
+    // ============================================
+    
+    public function isPaid()
+    {
+        return $this->status === 'paid';
+    }
+
+    public function isOverdue()
+    {
+        return $this->status === 'overdue';
+    }
+
+    public function getBalance()
+    {
+        return $this->due_amount - $this->paid_amount;
+    }
+
+    public function getProgressPercentage()
+    {
+        if ($this->due_amount > 0) {
+            return round(($this->paid_amount / $this->due_amount) * 100, 2);
+        }
+        return 0;
+    }
+
+    public function getFormattedMonth()
+    {
+        return date('F Y', strtotime($this->month . '-01'));
+    }
+
+    public function getFormattedDueAmount()
+    {
+        return number_format($this->due_amount, 2);
+    }
+
+    public function getFormattedPaidAmount()
+    {
+        return number_format($this->paid_amount, 2);
+    }
+
+    public function getFormattedBalance()
+    {
+        return number_format($this->getBalance(), 2);
+    }
+
+    // ============================================
+    // ✅ ACCESSORS / MUTATORS
+    // ============================================
+    
+    public function getStatusBadgeAttribute()
+    {
+        $badges = [
+            'paid' => '<span class="badge badge-success">Paid</span>',
+            'unpaid' => '<span class="badge badge-warning">Unpaid</span>',
+            'overdue' => '<span class="badge badge-danger">Overdue</span>',
+            'partial' => '<span class="badge badge-info">Partial</span>',
+        ];
+        return $badges[$this->status] ?? '<span class="badge badge-secondary">' . $this->status . '</span>';
     }
 }

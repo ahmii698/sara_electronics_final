@@ -19,7 +19,8 @@ class EmployeeAccount extends Model
         'account_opened_date', 
         'month', 
         'year', 
-        'status'
+        'status',
+        'created_by'  // ✅ ADD THIS
     ];
 
     protected $casts = [
@@ -42,6 +43,18 @@ class EmployeeAccount extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    // Account relation - One EmployeeAccount has one Account
+    public function account()
+    {
+        return $this->hasOne(Account::class, 'employee_account_id');
+    }
+
+    // ✅ ADD THIS - Who created this record
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     // Scopes for easy filtering

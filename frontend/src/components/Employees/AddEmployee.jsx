@@ -1,5 +1,11 @@
+// src/components/AddEmployee/AddEmployee.jsx
+
 import React, { useState, useRef, useEffect } from 'react';
-import { UserPlus, Mail, Phone, MapPin, Briefcase, DollarSign, Lock, User, Building, Upload, X, CreditCard, FileText, CheckCircle, AlertCircle, Calendar } from 'lucide-react';
+import { 
+  UserPlus, Mail, Phone, MapPin, Briefcase, DollarSign, Lock, User, 
+  Building, Upload, X, CreditCard, FileText, CheckCircle, AlertCircle, 
+  Calendar, Mic, Play, Trash2, FileAudio, Shield
+} from 'lucide-react';
 import './AddEmployee.css';
 import { API_URL } from '../../../config';
 
@@ -21,6 +27,9 @@ const AddEmployee = () => {
     agreement: null,
     agreementPreview: '',
     agreementName: '',
+    voiceFile: null,
+    voiceFilePreview: '',
+    voiceFileName: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -29,10 +38,12 @@ const AddEmployee = () => {
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [playingIndex, setPlayingIndex] = useState(null);
 
   const cnicFrontRef = useRef(null);
   const cnicBackRef = useRef(null);
   const agreementRef = useRef(null);
+  const voiceFileRef = useRef(null);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -83,6 +94,29 @@ const AddEmployee = () => {
     if (agreementRef.current) agreementRef.current.value = '';
   };
 
+  // ✅ Voice File Upload
+  const handleVoiceFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      alert('Please select an audio file (mp3, wav, etc.)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEmployee({
+        ...employee,
+        voiceFile: file,
+        voiceFilePreview: reader.result,
+        voiceFileName: file.name,
+      });
+    };
+    reader.readAsDataURL(file);
+    if (voiceFileRef.current) voiceFileRef.current.value = '';
+  };
+
   const removeCnicFile = (type) => {
     if (type === 'front') {
       setEmployee({ ...employee, cnicFront: null, cnicFrontPreview: '' });
@@ -96,6 +130,23 @@ const AddEmployee = () => {
   const removeAgreement = () => {
     setEmployee({ ...employee, agreement: null, agreementPreview: '', agreementName: '' });
     if (agreementRef.current) agreementRef.current.value = '';
+  };
+
+  // ✅ Remove Voice File
+  const removeVoiceFile = () => {
+    setEmployee({ ...employee, voiceFile: null, voiceFilePreview: '', voiceFileName: '' });
+    if (voiceFileRef.current) voiceFileRef.current.value = '';
+  };
+
+  // ✅ Play Voice
+  const playVoice = () => {
+    if (!employee.voiceFilePreview) return;
+    const audio = new Audio(employee.voiceFilePreview);
+    audio.play();
+    setPlayingIndex(0);
+    audio.onended = () => {
+      setPlayingIndex(null);
+    };
   };
 
   const handleChange = (e) => {
@@ -125,6 +176,9 @@ const AddEmployee = () => {
       agreement: null,
       agreementPreview: '',
       agreementName: '',
+      voiceFile: null,
+      voiceFilePreview: '',
+      voiceFileName: '',
     });
     setErrors({});
     setFormSubmitted(false);
@@ -133,6 +187,7 @@ const AddEmployee = () => {
     if (cnicFrontRef.current) cnicFrontRef.current.value = '';
     if (cnicBackRef.current) cnicBackRef.current.value = '';
     if (agreementRef.current) agreementRef.current.value = '';
+    if (voiceFileRef.current) voiceFileRef.current.value = '';
   };
 
   // ============================================
@@ -162,10 +217,8 @@ const AddEmployee = () => {
     }
 
     try {
-      // ✅ Get token from localStorage
       const token = localStorage.getItem('token');
 
-      // ✅ Prepare data for API
       const formData = new FormData();
       formData.append('name', employee.name);
       formData.append('email', employee.email);
@@ -176,7 +229,6 @@ const AddEmployee = () => {
       formData.append('address', employee.address || '');
       formData.append('salary', employee.salary || 0);
       
-      // ✅ Append CNIC images
       if (employee.cnicFront) {
         formData.append('cnic_front', employee.cnicFront);
       }
@@ -186,8 +238,11 @@ const AddEmployee = () => {
       if (employee.agreement) {
         formData.append('agreement_form', employee.agreement);
       }
+      // ✅ Voice file
+      if (employee.voiceFile) {
+        formData.append('voice_consent', employee.voiceFile);
+      }
 
-      // ✅ Send to API
       const response = await fetch(`${API_URL}/users`, {
         method: 'POST',
         headers: {
@@ -200,7 +255,6 @@ const AddEmployee = () => {
 
       if (!response.ok) {
         if (data.errors) {
-          // ✅ Validation errors from backend
           const apiErrors = {};
           Object.keys(data.errors).forEach(key => {
             apiErrors[key] = data.errors[key][0];
@@ -418,6 +472,7 @@ const AddEmployee = () => {
           </div>
         </div>
 
+        {/* ===== CNIC IMAGES SECTION ===== */}
         <div className="cnic-image-section" style={{ border: '1px solid #bfdbfe', background: '#eff6ff' }}>
           <div className="section-header">
             <CreditCard size={18} style={{ color: '#2563eb' }} />
@@ -471,19 +526,69 @@ const AddEmployee = () => {
           </div>
         </div>
 
-        <div className="agreement-section" style={{ border: '1px solid #86efac', background: '#f0fdf4' }}>
+        {/* ===== VOICE CONSENT SECTION - Added ===== */}
+        <div className="voice-section" style={{ border: '1px solid #86efac', background: '#f0fdf4' }}>
           <div className="section-header">
-            <FileText size={18} style={{ color: '#065f46' }} />
+            <Mic size={18} style={{ color: '#065f46' }} />
+            <h4 style={{ fontWeight: 700 }}>Voice Consent / Raza Mandi</h4>
+            <span className="optional-badge" style={{ fontWeight: 600 }}>Optional</span>
+          </div>
+          <p className="voice-hint" style={{ fontWeight: 500 }}>Employee ki raza mandi ki voice file upload karein</p>
+          
+          <div className="voice-upload">
+            <div className="upload-area voice-upload-area" onClick={() => voiceFileRef.current?.click()} style={{ borderColor: '#86efac' }}>
+              {employee.voiceFilePreview ? (
+                <div className="voice-preview">
+                  <FileAudio size={32} style={{ color: '#065f46' }} />
+                  <span className="voice-file-name" style={{ fontWeight: 600 }}>{employee.voiceFileName}</span>
+                  <div className="voice-actions">
+                    <button 
+                      className={`btn-play-voice ${playingIndex === 0 ? 'playing' : ''}`} 
+                      onClick={(e) => { e.stopPropagation(); playVoice(); }}
+                      style={{ fontWeight: 600 }}
+                    >
+                      {playingIndex === 0 ? '⏹' : '▶'} Play
+                    </button>
+                    <button 
+                      className="remove-voice-btn" 
+                      onClick={(e) => { e.stopPropagation(); removeVoiceFile(); }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <FileAudio size={32} style={{ color: '#065f46' }} />
+                  <span style={{ fontWeight: 600 }}>Click to upload voice file</span>
+                  <span className="file-hint" style={{ fontWeight: 500 }}>MP3, WAV, M4A (Max 10MB)</span>
+                </>
+              )}
+            </div>
+            <input 
+              type="file" 
+              ref={voiceFileRef} 
+              accept="audio/*" 
+              onChange={handleVoiceFileUpload} 
+              style={{ display: 'none' }} 
+            />
+          </div>
+        </div>
+
+        {/* ===== AGREEMENT SECTION ===== */}
+        <div className="agreement-section" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
+          <div className="section-header">
+            <FileText size={18} style={{ color: '#92400e' }} />
             <h4 style={{ fontWeight: 700 }}>Agreement Form</h4>
             <span className="optional-badge" style={{ fontWeight: 600 }}>Optional</span>
           </div>
           <p className="agreement-hint" style={{ fontWeight: 500 }}>Upload signed agreement form</p>
           
           <div className="agreement-upload">
-            <div className="upload-area agreement-upload-area" onClick={() => agreementRef.current?.click()} style={{ borderColor: '#86efac' }}>
+            <div className="upload-area agreement-upload-area" onClick={() => agreementRef.current?.click()} style={{ borderColor: '#fde68a' }}>
               {employee.agreementPreview ? (
                 <div className="agreement-preview">
-                  <FileText size={32} className="agreement-icon" style={{ color: '#065f46' }} />
+                  <FileText size={32} className="agreement-icon" style={{ color: '#92400e' }} />
                   <span className="agreement-file-name" style={{ fontWeight: 600 }}>{employee.agreementName}</span>
                   <button 
                     className="remove-agreement-btn" 
@@ -494,7 +599,7 @@ const AddEmployee = () => {
                 </div>
               ) : (
                 <>
-                  <FileText size={32} style={{ color: '#065f46' }} />
+                  <FileText size={32} style={{ color: '#92400e' }} />
                   <span style={{ fontWeight: 500 }}>Click to upload agreement</span>
                   <span className="file-hint" style={{ fontWeight: 500 }}>PDF, JPG, PNG, DOC</span>
                 </>
@@ -539,7 +644,7 @@ const AddEmployee = () => {
 
         <p className="form-footer" style={{ fontWeight: 500 }}>
           <AlertCircle size={14} />
-          All fields are required. Branch assignment is permanent for login access.
+          All fields with * are required. Branch assignment is permanent for login access.
         </p>
       </form>
     </div>

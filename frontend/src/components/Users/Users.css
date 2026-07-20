@@ -858,3 +858,200 @@
     font-size: 1.2rem;
   }
 }
+
+
+/* src/components/UsersManagement/Users.css - Add these styles */
+
+/* Row color coding */
+.row-paid {
+  border-left: 4px solid #22c55e !important;
+  background-color: #f0fdf4 !important;
+}
+
+.row-paid:hover {
+  background-color: #dcfce7 !important;
+}
+
+.row-partial {
+  border-left: 4px solid #f59e0b !important;
+  background-color: #fffbeb !important;
+}
+
+.row-partial:hover {
+  background-color: #fef3c7 !important;
+}
+
+.row-overdue {
+  border-left: 4px solid #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+
+.row-overdue:hover {
+  background-color: #fee2e2 !important;
+}
+
+.row-active {
+  border-left: 4px solid #3b82f6 !important;
+}
+
+/* Detail Modal */
+.detail-modal .users-modal-content {
+  max-width: 900px !important;
+  max-height: 90vh !important;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.detail-section h5 {
+  font-size: 15px;
+  color: #1a1a2e;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-detail-grid.two-col {
+  grid-template-columns: 1fr 1fr;
+}
+
+.user-detail-grid.two-col .user-detail-item {
+  padding: 10px 14px;
+}
+
+/* Account Summary Grid */
+.account-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.summary-item {
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.summary-item strong {
+  display: block;
+  font-size: 18px;
+  margin-top: 4px;
+}
+
+.summary-item.success {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.summary-item.success strong {
+  color: #166534;
+}
+
+.summary-item.warning {
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
+.summary-item.warning strong {
+  color: #b45309;
+}
+
+.summary-item.info {
+  background: #e0e7ff;
+  border-color: #818cf8;
+}
+
+.summary-item.info strong {
+  color: #3730a3;
+}
+
+/* History table in modal */
+.history-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.history-table thead {
+  background: #f8fafc;
+}
+
+.history-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1a1a2e;
+}
+
+.history-paid {
+  background: #f0fdf4;
+}
+
+/* Detail badges */
+.detail-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.user-detail-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f3f4f6;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .user-detail-grid.two-col {
+    grid-template-columns: 1fr;
+  }
+  
+  .account-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .detail-modal .users-modal-content {
+    max-height: 95vh;
+    margin: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .account-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

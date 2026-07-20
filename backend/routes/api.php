@@ -63,7 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/customers/{id}', [CustomerController::class, 'update']);
     Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
     Route::post('/customers/search-cnic', [CustomerController::class, 'searchByCNIC']);
-    Route::post('/customers/check-cnic', [CustomerController::class, 'checkCnic']); // ✅ NEW
+    Route::post('/customers/check-cnic', [CustomerController::class, 'checkCnic']);
 
     // Products
     Route::get('/products', [ProductController::class, 'index']);
@@ -79,11 +79,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/accounts/{id}', [AccountController::class, 'update']);
     Route::delete('/accounts/{id}', [AccountController::class, 'destroy']);
 
-    // Installments
+    // ============================================
+    // ✅ INSTALLMENTS ROUTES
+    // ============================================
     Route::get('/installments', [InstallmentController::class, 'index']);
+    Route::get('/installments/{id}', [InstallmentController::class, 'show']);
     Route::post('/installments/pay', [InstallmentController::class, 'payInstallment']);
+    Route::post('/installments/partial-pay', [InstallmentController::class, 'partialPay']); // ✅ ADD THIS LINE
     Route::get('/installments/overdue', [InstallmentController::class, 'overdue']);
     Route::get('/installments/aging-report', [InstallmentController::class, 'agingReport']);
+    Route::get('/installments/by-account/{accountId}', [InstallmentController::class, 'getByAccount']);
+    Route::get('/installments/account-details/{accountId}', [InstallmentController::class, 'getAccountDetails']);
+    Route::get('/installments/stats', [InstallmentController::class, 'getStats']);
 
     // Guarantors
     Route::get('/guarantors', [GuarantorController::class, 'index']);
@@ -119,10 +126,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/recovery/{id}', [RecoveryController::class, 'destroy']);
 
     // ============================================
-    // ✅ REPORTS - UPDATED WITH NEW ROUTES
+    // ✅ REPORTS
     // ============================================
     
-    // Existing report routes
     Route::get('/reports/dashboard', [ReportController::class, 'dashboard']);
     Route::get('/reports/branch-recovery', [ReportController::class, 'branchWiseRecovery']);
     Route::get('/reports/monthly-installments', [ReportController::class, 'monthlyInstallmentStatus']);
@@ -130,7 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/employee-performance', [ReportController::class, 'employeePerformance']);
     Route::get('/reports/account-status', [ReportController::class, 'accountStatusSummary']);
     
-    // ✅ NEW Employee Account Report Routes
+    // Employee Account Report Routes
     Route::get('/reports/employee-stats', [ReportController::class, 'getEmployeeStats']);
     Route::get('/reports/employee-detail/{id}', [ReportController::class, 'getEmployeeDetail']);
     Route::get('/reports/branch-performance', [ReportController::class, 'getBranchPerformance']);

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\Installment;
+use App\Models\EmployeeAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -15,7 +16,7 @@ class AccountController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Account::with(['customer', 'branch', 'creator']);
+        $query = Account::with(['customer', 'branch', 'creator', 'employeeAccount', 'employeeAccount.employee']);
 
         if ($request->search) {
             $query->where('case_no', 'LIKE', "%{$request->search}%")
@@ -52,6 +53,8 @@ class AccountController extends Controller
             'customer', 
             'branch', 
             'creator',
+            'employeeAccount',
+            'employeeAccount.employee',
             'installments' => function($q) {
                 $q->orderBy('month', 'desc');
             },
@@ -65,15 +68,13 @@ class AccountController extends Controller
         return $this->sendResponse($account, 'Account details retrieved');
     }
 
-    // ============================================
-    // ✅ STORE - WITH IMAGE UPLOAD
-    // ============================================
+    // ✅ FIXED: Store - Case number generated sequentially
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:customers,id',
             'product_name' => 'nullable|string|max:255',
-            'case_no' => 'required|string|unique:accounts,case_no',
+            // ❌ REMOVED: 'case_no' => 'required|string|unique:accounts,case_no',
             'total_amount' => 'required|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
             'balance' => 'nullable|numeric|min:0',
@@ -87,7 +88,8 @@ class AccountController extends Controller
             'payment_type' => 'nullable|in:installment,cash',
             'status' => 'nullable|in:active,hold,paid,closed',
             'branch_id' => 'required|exists:branches,id',
-            'created_by' => 'required|exists:users,id'
+            'created_by' => 'required|exists:users,id',
+            'employee_account_id' => 'nullable|exists:employee_accounts,id'
         ]);
 
         if ($validator->fails()) {
@@ -100,7 +102,7 @@ class AccountController extends Controller
         DB::beginTransaction();
 
         try {
-            // ✅ Handle Chalan Front Upload
+            // Handle Chalan Front Upload
             $chalanFrontPath = null;
             if ($request->hasFile('chalan_front')) {
                 $file = $request->file('chalan_front');
@@ -110,7 +112,7 @@ class AccountController extends Controller
                 $chalanFrontPath = $request->chalan_front;
             }
 
-            // ✅ Handle Chalan Back Upload
+            // Handle Chalan Back Upload
             $chalanBackPath = null;
             if ($request->hasFile('chalan_back')) {
                 $file = $request->file('chalan_back');
@@ -124,13 +126,52 @@ class AccountController extends Controller
             $balance = $request->total_amount - $paidAmount;
             $installmentsPaid = $request->installments_paid ?? 0;
 
-            // ✅ Create Account
+            // ✅ Get or create employee_account_id
+            $employeeAccountId = $request->employee_account_id;
+            
+            if (!$employeeAccountId) {
+                $employeeAccount = EmployeeAccount::where('customer_id', $request->customer_id)
+                    ->where('branch_id', $request->branch_id)
+                    ->first();
+                
+                if ($employeeAccount) {
+                    $employeeAccountId = $employeeAccount->id;
+                } else {
+                    $newEmployeeAccount = EmployeeAccount::create([
+                        'employee_id' => $request->employee_id ?? $request->created_by,
+                        'customer_id' => $request->customer_id,
+                        'branch_id' => $request->branch_id,
+                        'account_opened_date' => now(),
+                        'month' => now()->format('Y-m'),
+                        'year' => now()->format('Y'),
+                        'status' => 'active',
+                        'created_by' => $request->created_by,
+                    ]);
+                    $employeeAccountId = $newEmployeeAccount->id;
+                }
+            }
+
+            // ✅ GENERATE SEQUENTIAL CASE NUMBER
+            $lastAccount = Account::orderBy('id', 'desc')->first();
+            $lastNumber = 0;
+            
+            if ($lastAccount && $lastAccount->case_no) {
+                $parts = explode('-', $lastAccount->case_no);
+                if (isset($parts[1])) {
+                    $lastNumber = intval($parts[1]);
+                }
+            }
+            
+            $newNumber = str_pad($lastNumber + 1, 6, '0', STR_PAD_LEFT);
+            $caseNo = 'SR-' . $newNumber;
+
+            // ✅ Create Account with generated case number
             $account = Account::create([
                 'customer_id' => $request->customer_id,
                 'product_name' => $request->product_name,
                 'chalan_front' => $chalanFrontPath,
                 'chalan_back' => $chalanBackPath,
-                'case_no' => $request->case_no,
+                'case_no' => $caseNo,  // ✅ Generated sequentially
                 'total_amount' => $request->total_amount,
                 'paid_amount' => $paidAmount,
                 'balance' => $balance,
@@ -145,9 +186,10 @@ class AccountController extends Controller
                 'status' => $request->status ?? 'active',
                 'branch_id' => $request->branch_id,
                 'created_by' => $request->created_by,
+                'employee_account_id' => $employeeAccountId,
             ]);
 
-            // ✅ GENERATE INSTALLMENTS
+            // Generate Installments
             $monthly = $request->monthly_installment;
             $totalMonths = $request->total_installments;
             $startDate = date('Y-m', strtotime($request->due_date));
@@ -169,7 +211,12 @@ class AccountController extends Controller
             }
 
             DB::commit();
-            return $this->sendResponse($account->load(['customer', 'branch', 'creator', 'installments']), 'Account created successfully', 201);
+            
+            return $this->sendResponse(
+                $account->load(['customer', 'branch', 'creator', 'employeeAccount', 'employeeAccount.employee', 'installments']), 
+                'Account created successfully', 
+                201
+            );
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -190,6 +237,7 @@ class AccountController extends Controller
             'installments_paid' => 'nullable|integer|min:0',
             'balance' => 'nullable|numeric|min:0',
             'due_date' => 'nullable|date',
+            'employee_account_id' => 'nullable|exists:employee_accounts,id',
         ]);
 
         if ($validator->fails()) {
@@ -210,7 +258,10 @@ class AccountController extends Controller
             $account->update(['status' => 'paid']);
         }
 
-        return $this->sendResponse($account->load(['customer', 'branch', 'creator']), 'Account updated successfully');
+        return $this->sendResponse(
+            $account->load(['customer', 'branch', 'creator', 'employeeAccount', 'employeeAccount.employee']), 
+            'Account updated successfully'
+        );
     }
 
     public function destroy($id)
@@ -235,7 +286,7 @@ class AccountController extends Controller
             return $this->sendError('Customer not found', 404);
         }
 
-        $accounts = Account::with(['branch', 'creator', 'installments'])
+        $accounts = Account::with(['branch', 'creator', 'employeeAccount', 'employeeAccount.employee', 'installments'])
             ->where('customer_id', $customerId)
             ->orderBy('id', 'desc')
             ->get();
@@ -264,5 +315,22 @@ class AccountController extends Controller
         ];
 
         return $this->sendResponse($stats, 'Account statistics retrieved');
+    }
+
+    public function sendResponse($data, $message = 'Success', $statusCode = 200)
+    {
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data
+        ], $statusCode);
+    }
+
+    public function sendError($message, $statusCode = 400)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $message
+        ], $statusCode);
     }
 }

@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/Api/UserController.php
 
 namespace App\Http\Controllers\Api;
 
@@ -7,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
@@ -27,8 +29,10 @@ class UserController extends Controller
         }
 
         if ($request->search) {
-            $query->where('name', 'LIKE', "%{$request->search}%")
-                  ->orWhere('email', 'LIKE', "%{$request->search}%");
+            $search = $request->search;
+            $query->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%");
         }
 
         $users = $query->orderBy('id', 'desc')->paginate(20);
@@ -41,7 +45,7 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::with(['branch', 'customers', 'accounts'])->find($id);
+        $user = User::with(['branch', 'customers', 'accounts', 'employeeAccounts'])->find($id);
         if (!$user) {
             return response()->json([
                 'success' => false,
@@ -55,7 +59,7 @@ class UserController extends Controller
     }
 
     // ============================================
-    // ✅ PUBLIC - CHECK USER BY EMAIL (NO TOKEN REQUIRED)
+    // ✅ PUBLIC - CHECK USER BY EMAIL
     // ============================================
     public function checkUser(Request $request)
     {
@@ -93,7 +97,7 @@ class UserController extends Controller
     }
 
     // ============================================
-    // ✅ PUBLIC - UPDATE PASSWORD (NO TOKEN REQUIRED)
+    // ✅ PUBLIC - UPDATE PASSWORD
     // ============================================
     public function updatePasswordPublic(Request $request)
     {
@@ -127,9 +131,12 @@ class UserController extends Controller
         }
     }
 
+    // ============================================
+    // ✅ STORE - WITH VOICE CONSENT
+    // ============================================
     public function store(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
@@ -140,7 +147,15 @@ class UserController extends Controller
             'cnic_front' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'cnic_back' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'agreement_form' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120',
+            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',  // ✅ ADD THIS
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         $data = $request->all();
         $data['password'] = Hash::make($request->password);
@@ -148,25 +163,33 @@ class UserController extends Controller
         // Upload CNIC Front
         if ($request->hasFile('cnic_front')) {
             $file = $request->file('cnic_front');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('public/employees/cnic/front', $filename);
-            $data['cnic_front'] = 'storage/employees/cnic/front/' . $filename;
+            $filename = time() . '_front_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/cnic/front', $filename, 'public');
+            $data['cnic_front'] = $path;
         }
 
         // Upload CNIC Back
         if ($request->hasFile('cnic_back')) {
             $file = $request->file('cnic_back');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('public/employees/cnic/back', $filename);
-            $data['cnic_back'] = 'storage/employees/cnic/back/' . $filename;
+            $filename = time() . '_back_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/cnic/back', $filename, 'public');
+            $data['cnic_back'] = $path;
         }
 
         // Upload Agreement
         if ($request->hasFile('agreement_form')) {
             $file = $request->file('agreement_form');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('public/employees/agreements', $filename);
-            $data['agreement_form'] = 'storage/employees/agreements/' . $filename;
+            $filename = time() . '_agreement_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/agreement', $filename, 'public');
+            $data['agreement_form'] = $path;
+        }
+
+        // ✅ Upload Voice Consent
+        if ($request->hasFile('voice_consent')) {
+            $file = $request->file('voice_consent');
+            $filename = time() . '_voice_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/voice', $filename, 'public');
+            $data['voice_consent'] = $path;
         }
 
         $user = User::create($data);
@@ -178,6 +201,9 @@ class UserController extends Controller
         ], 201);
     }
 
+    // ============================================
+    // ✅ UPDATE - WITH VOICE CONSENT
+    // ============================================
     public function update(Request $request, $id)
     {
         $user = User::find($id);
@@ -188,7 +214,7 @@ class UserController extends Controller
             ], 404);
         }
 
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:100',
             'phone' => 'nullable|string|max:20',
             'role' => 'nullable|in:admin,manager,employee',
@@ -199,53 +225,67 @@ class UserController extends Controller
             'cnic_front' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'cnic_back' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'agreement_form' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120',
+            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',  // ✅ ADD THIS
         ]);
 
-        if ($request->has('password') && $request->password) {
-            $request->merge(['password' => Hash::make($request->password)]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        // Upload new images if provided
+        $data = $request->except(['password', 'cnic_front', 'cnic_back', 'agreement_form', 'voice_consent']);
+
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+
+        // Upload CNIC Front
         if ($request->hasFile('cnic_front')) {
-            if ($user->cnic_front) {
-                $oldPath = str_replace('storage/', 'public/', $user->cnic_front);
-                if (Storage::exists($oldPath)) {
-                    Storage::delete($oldPath);
-                }
+            if ($user->cnic_front && Storage::disk('public')->exists($user->cnic_front)) {
+                Storage::disk('public')->delete($user->cnic_front);
             }
             $file = $request->file('cnic_front');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('public/employees/cnic/front', $filename);
-            $request->merge(['cnic_front' => 'storage/employees/cnic/front/' . $filename]);
+            $filename = time() . '_front_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/cnic/front', $filename, 'public');
+            $data['cnic_front'] = $path;
         }
 
+        // Upload CNIC Back
         if ($request->hasFile('cnic_back')) {
-            if ($user->cnic_back) {
-                $oldPath = str_replace('storage/', 'public/', $user->cnic_back);
-                if (Storage::exists($oldPath)) {
-                    Storage::delete($oldPath);
-                }
+            if ($user->cnic_back && Storage::disk('public')->exists($user->cnic_back)) {
+                Storage::disk('public')->delete($user->cnic_back);
             }
             $file = $request->file('cnic_back');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('public/employees/cnic/back', $filename);
-            $request->merge(['cnic_back' => 'storage/employees/cnic/back/' . $filename]);
+            $filename = time() . '_back_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/cnic/back', $filename, 'public');
+            $data['cnic_back'] = $path;
         }
 
+        // Upload Agreement
         if ($request->hasFile('agreement_form')) {
-            if ($user->agreement_form) {
-                $oldPath = str_replace('storage/', 'public/', $user->agreement_form);
-                if (Storage::exists($oldPath)) {
-                    Storage::delete($oldPath);
-                }
+            if ($user->agreement_form && Storage::disk('public')->exists($user->agreement_form)) {
+                Storage::disk('public')->delete($user->agreement_form);
             }
             $file = $request->file('agreement_form');
-            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->storeAs('public/employees/agreements', $filename);
-            $request->merge(['agreement_form' => 'storage/employees/agreements/' . $filename]);
+            $filename = time() . '_agreement_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/agreement', $filename, 'public');
+            $data['agreement_form'] = $path;
         }
 
-        $user->update($request->all());
+        // ✅ Upload Voice Consent
+        if ($request->hasFile('voice_consent')) {
+            if ($user->voice_consent && Storage::disk('public')->exists($user->voice_consent)) {
+                Storage::disk('public')->delete($user->voice_consent);
+            }
+            $file = $request->file('voice_consent');
+            $filename = time() . '_voice_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/voice', $filename, 'public');
+            $data['voice_consent'] = $path;
+        }
+
+        $user->update($data);
 
         return response()->json([
             'success' => true,
@@ -254,6 +294,9 @@ class UserController extends Controller
         ]);
     }
 
+    // ============================================
+    // ✅ DESTROY - WITH VOICE CONSENT
+    // ============================================
     public function destroy($id)
     {
         $user = User::find($id);
@@ -264,23 +307,17 @@ class UserController extends Controller
             ], 404);
         }
 
-        // Delete images from storage
-        if ($user->cnic_front) {
-            $path = str_replace('storage/', 'public/', $user->cnic_front);
-            if (Storage::exists($path)) {
-                Storage::delete($path);
-            }
-        }
-        if ($user->cnic_back) {
-            $path = str_replace('storage/', 'public/', $user->cnic_back);
-            if (Storage::exists($path)) {
-                Storage::delete($path);
-            }
-        }
-        if ($user->agreement_form) {
-            $path = str_replace('storage/', 'public/', $user->agreement_form);
-            if (Storage::exists($path)) {
-                Storage::delete($path);
+        // Delete files from storage
+        $files = [
+            $user->cnic_front,
+            $user->cnic_back,
+            $user->agreement_form,
+            $user->voice_consent  // ✅ ADD THIS
+        ];
+
+        foreach ($files as $file) {
+            if ($file && Storage::disk('public')->exists($file)) {
+                Storage::disk('public')->delete($file);
             }
         }
 
@@ -290,5 +327,25 @@ class UserController extends Controller
             'success' => true,
             'message' => 'User deleted successfully'
         ]);
+    }
+
+    // ============================================
+    // ✅ HELPER METHODS
+    // ============================================
+    protected function sendResponse($data, $message = 'Success', $statusCode = 200)
+    {
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data
+        ], $statusCode);
+    }
+
+    protected function sendError($message, $statusCode = 400)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $message
+        ], $statusCode);
     }
 }

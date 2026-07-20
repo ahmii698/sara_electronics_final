@@ -20,7 +20,9 @@ class Customer extends Model
         'product_name',
         'branch_id',
         'cnic_front', 'cnic_back', 'voice_consent',
-        'status', 'created_by'  // ✅ is_verified removed
+        'additional_image_1',
+        'additional_image_2',
+        'status', 'created_by'
     ];
 
     // Relations
@@ -51,10 +53,10 @@ class Customer extends Model
 
     public function employeeAccount()
     {
-        return $this->hasOne(EmployeeAccount::class);
+        return $this->hasOne(EmployeeAccount::class, 'customer_id');
     }
 
-    // ✅ Helper methods for CNIC checks
+    // ✅ Helper methods
     public static function existsByCnic($cnic)
     {
         return self::where('cnic', $cnic)->exists();
@@ -73,13 +75,12 @@ class Customer extends Model
         ];
     }
 
-    // ✅ Accessor for product name
+    // ✅ Accessors
     public function getProductNameAttribute($value)
     {
         return $value ?? 'N/A';
     }
 
-    // ✅ Get full URL for CNIC Front
     public function getCnicFrontUrlAttribute()
     {
         if ($this->cnic_front && Storage::disk('public')->exists($this->cnic_front)) {
@@ -88,7 +89,6 @@ class Customer extends Model
         return null;
     }
 
-    // ✅ Get full URL for CNIC Back
     public function getCnicBackUrlAttribute()
     {
         if ($this->cnic_back && Storage::disk('public')->exists($this->cnic_back)) {
@@ -97,7 +97,6 @@ class Customer extends Model
         return null;
     }
 
-    // ✅ Get full URL for Voice Consent
     public function getVoiceConsentUrlAttribute()
     {
         if ($this->voice_consent && Storage::disk('public')->exists($this->voice_consent)) {
@@ -106,7 +105,23 @@ class Customer extends Model
         return null;
     }
 
-    // ✅ Scope for product name search
+    public function getAdditionalImage1UrlAttribute()
+    {
+        if ($this->additional_image_1 && Storage::disk('public')->exists($this->additional_image_1)) {
+            return asset('storage/' . $this->additional_image_1);
+        }
+        return null;
+    }
+
+    public function getAdditionalImage2UrlAttribute()
+    {
+        if ($this->additional_image_2 && Storage::disk('public')->exists($this->additional_image_2)) {
+            return asset('storage/' . $this->additional_image_2);
+        }
+        return null;
+    }
+
+    // ✅ Scopes
     public function scopeByProductName($query, $productName)
     {
         return $query->where('product_name', 'LIKE', "%{$productName}%");

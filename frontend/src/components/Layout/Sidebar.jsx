@@ -1,4 +1,4 @@
-// ===== SIDEBAR COMPONENT - FIXED =====
+// src/components/Layout/Sidebar.jsx
 
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -6,7 +6,8 @@ import {
   Home, Package, DollarSign, Users as UsersIcon, FileText, 
   LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, 
   BarChart3, Clock, LayoutDashboard, AlertTriangle, 
-  TrendingUp, PlusCircle, Menu, X 
+  TrendingUp, PlusCircle, Menu, X, Calendar, 
+  UserCheck, Award, Settings, Shield, Building
 } from 'lucide-react';
 import './Sidebar.css';
 import logo from '../../assets/logo.jpeg';
@@ -60,22 +61,22 @@ const Sidebar = () => {
   const isManager = userRole === 'manager';
   const isEmployee = userRole === 'employee';
 
-  // Navigation items
+  // Dashboard - Admin only
   const navItems = [];
-
-  if (isEmployee) {
-    navItems.push({
-      path: '/employee-performance',
-      icon: TrendingUp,
-      label: 'My Performance'
-    });
-  }
-
   if (isAdmin) {
     navItems.push({
       path: '/',
       icon: Home,
       label: 'Dashboard'
+    });
+  }
+
+  // Employee Performance - All can see
+  if (isEmployee || isAdmin || isManager) {
+    navItems.push({
+      path: '/employee-performance',
+      icon: TrendingUp,
+      label: 'My Performance'
     });
   }
 
@@ -85,19 +86,21 @@ const Sidebar = () => {
     { path: '/finance/fixed', label: 'Fixed Expenses' }
   ] : [];
 
-  // Other items (admin & manager)
+  // ✅ Other items (Admin & Manager)
   const otherItems = [];
   if (isAdmin || isManager) {
     otherItems.push(
       { path: '/extra-expenses', icon: PlusCircle, label: 'Extra Expenses' },
       { path: '/employee-report', icon: BarChart3, label: 'Employee Report' },
-      { path: '/employee-performance', icon: TrendingUp, label: 'Employee Performance' },
       { path: '/overdue-installments', icon: Clock, label: 'Overdue Installments' },
       { path: '/aging-report', icon: AlertTriangle, label: 'Aging Report' },
       { path: '/add-account', icon: UserPlus, label: 'Add Account' },
-      { path: '/recovery', icon: FileText, label: 'Recovery' },
-      { path: '/users', icon: UsersIcon, label: 'Users' },  // <-- UsersIcon use kiya
-      { path: '/employees/add', icon: UsersIcon, label: 'Employees' }  // <-- UsersIcon use kiya
+      // ✅ Installments ka naam badal kar "Recovery" kiya
+      { path: '/installments', icon: FileText, label: 'Recovery' },
+      // ❌ Purana Recovery page hide kar diya
+      // { path: '/recovery', icon: FileText, label: 'Recovery' },
+      { path: '/users', icon: UsersIcon, label: 'Users' },
+      { path: '/employees/add', icon: UsersIcon, label: 'Employees' }
     );
   }
 

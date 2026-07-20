@@ -1,12 +1,15 @@
+// src/components/UsersManagement/UsersManagement.jsx
+
 import React, { useState, useEffect } from 'react';
 import { 
   Search, Users as UsersIcon, UserPlus, User, Mail, Phone, Building, Calendar, 
   Shield, CheckCircle, XCircle, Clock, Edit, Trash2, Eye, 
   Filter, ChevronDown, Award, Briefcase, UserCheck, UserX,
   DollarSign, AlertCircle, PauseCircle, PlayCircle, TrendingUp, TrendingDown,
-  FileText, Printer, Download, BarChart3, X
+  FileText, Printer, Download, BarChart3, X, FileText as FileIcon
 } from 'lucide-react';
 import './Users.css';
+import { API_URL } from '../../../config';
 
 const UsersManagement = () => {
   const [search, setSearch] = useState('');
@@ -18,6 +21,9 @@ const UsersManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState([]);
+  const [employees, setEmployees] = useState([]);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -25,203 +31,81 @@ const UsersManagement = () => {
       setUserRole(user.role);
       setUserBranch(user.branch);
     }
+    fetchClients();
+    fetchEmployees();
   }, []);
 
-  // ===== CLIENTS DATA (Account Holders - Installment walay) =====
-  const [clients, setClients] = useState([
-    {
-      id: 1,
-      name: 'Ahmed Khan',
-      email: 'ahmed.khan@gmail.com',
-      phone: '0300-1234567',
-      cnic: '12345-6789012-3',
-      address: 'House #12, Street 5, Lahore',
-      branch: 1,
-      accountStatus: 'active',
-      paymentStatus: 'partial',
-      totalAmount: 60000,
-      paidAmount: 25000,
-      balance: 35000,
-      monthlyInstallment: 5000,
-      installmentsPaid: 5,
-      totalInstallments: 12,
-      nextDueDate: '2026-08-15',
-      joiningDate: '2026-01-15',
-      lastPaymentDate: '2026-07-01',
-      overdueDays: 45,
-      product: 'Samsung LED 55"',
-      caseNo: 'SR-001',
-      employeeId: 1,
-    },
-    {
-      id: 2,
-      name: 'Usman Malik',
-      email: 'usman.malik@gmail.com',
-      phone: '0300-2345678',
-      cnic: '12345-6789012-6',
-      address: 'House #78, Street 12, Lahore',
-      branch: 1,
-      accountStatus: 'active',
-      paymentStatus: 'partial',
-      totalAmount: 40000,
-      paidAmount: 15000,
-      balance: 25000,
-      monthlyInstallment: 4000,
-      installmentsPaid: 4,
-      totalInstallments: 10,
-      nextDueDate: '2026-08-20',
-      joiningDate: '2026-01-20',
-      lastPaymentDate: '2026-07-05',
-      overdueDays: 30,
-      product: 'Dell Laptop',
-      caseNo: 'SR-003',
-      employeeId: 1,
-    },
-    {
-      id: 3,
-      name: 'Bilal Ahmed',
-      email: 'bilal.ahmed@gmail.com',
-      phone: '0300-3456789',
-      cnic: '12345-6789012-8',
-      address: 'House #12, Street 20, Lahore',
-      branch: 1,
-      accountStatus: 'hold',
-      paymentStatus: 'unpaid',
-      totalAmount: 30000,
-      paidAmount: 0,
-      balance: 30000,
-      monthlyInstallment: 3000,
-      installmentsPaid: 0,
-      totalInstallments: 10,
-      nextDueDate: '2026-08-10',
-      joiningDate: '2026-02-10',
-      lastPaymentDate: '2026-02-10',
-      overdueDays: 60,
-      product: 'Samsung Galaxy S24',
-      caseNo: 'SR-007',
-      employeeId: 1,
-    },
-    {
-      id: 4,
-      name: 'Ali Raza',
-      email: 'ali.raza@gmail.com',
-      phone: '0300-4567890',
-      cnic: '12345-6789012-0',
-      address: 'House #56, Street 30, Lahore',
-      branch: 2,
-      accountStatus: 'closed',
-      paymentStatus: 'paid',
-      totalAmount: 50000,
-      paidAmount: 50000,
-      balance: 0,
-      monthlyInstallment: 5000,
-      installmentsPaid: 10,
-      totalInstallments: 10,
-      nextDueDate: 'N/A',
-      joiningDate: '2026-01-05',
-      lastPaymentDate: '2026-07-15',
-      overdueDays: 0,
-      product: 'Apple iPhone 15',
-      caseNo: 'SR-005',
-      employeeId: 2,
-    },
-    {
-      id: 5,
-      name: 'Zainab Khan',
-      email: 'zainab.khan@gmail.com',
-      phone: '0300-5678901',
-      cnic: '12345-6789012-1',
-      address: 'House #45, Street 40, Lahore',
-      branch: 1,
-      accountStatus: 'active',
-      paymentStatus: 'partial',
-      totalAmount: 35000,
-      paidAmount: 20000,
-      balance: 15000,
-      monthlyInstallment: 3000,
-      installmentsPaid: 3,
-      totalInstallments: 12,
-      nextDueDate: '2026-08-01',
-      joiningDate: '2026-03-01',
-      lastPaymentDate: '2026-07-10',
-      overdueDays: 20,
-      product: 'LG Refrigerator',
-      caseNo: 'SR-009',
-      employeeId: 1,
-    },
-    {
-      id: 6,
-      name: 'Hina Riaz',
-      email: 'hina.riaz@gmail.com',
-      phone: '0300-6789012',
-      cnic: '12345-6789012-2',
-      address: 'House #67, Street 50, Lahore',
-      branch: 2,
-      accountStatus: 'closed',
-      paymentStatus: 'paid',
-      totalAmount: 25000,
-      paidAmount: 25000,
-      balance: 0,
-      monthlyInstallment: 25000,
-      installmentsPaid: 1,
-      totalInstallments: 1,
-      nextDueDate: 'N/A',
-      joiningDate: '2026-03-15',
-      lastPaymentDate: '2026-03-15',
-      overdueDays: 0,
-      product: 'Sony Soundbar',
-      caseNo: 'SR-010',
-      employeeId: 2,
-    },
-    {
-      id: 7,
-      name: 'Sara Ali',
-      email: 'sara.ali@gmail.com',
-      phone: '0300-7654321',
-      cnic: '12345-6789012-4',
-      address: 'House #34, Street 8, Lahore',
-      branch: 2,
-      accountStatus: 'active',
-      paymentStatus: 'paid',
-      totalAmount: 50000,
-      paidAmount: 50000,
-      balance: 0,
-      monthlyInstallment: 5000,
-      installmentsPaid: 10,
-      totalInstallments: 10,
-      nextDueDate: 'N/A',
-      joiningDate: '2026-01-15',
-      lastPaymentDate: '2026-07-12',
-      overdueDays: 0,
-      product: 'Apple MacBook',
-      caseNo: 'SR-011',
-      employeeId: 2,
-    },
-    {
-      id: 8,
-      name: 'Fatima Noor',
-      email: 'fatima.noor@gmail.com',
-      phone: '0300-8765432',
-      cnic: '12345-6789012-7',
-      address: 'House #90, Street 15, Lahore',
-      branch: 2,
-      accountStatus: 'hold',
-      paymentStatus: 'unpaid',
-      totalAmount: 45000,
-      paidAmount: 5000,
-      balance: 40000,
-      monthlyInstallment: 4500,
-      installmentsPaid: 1,
-      totalInstallments: 10,
-      nextDueDate: '2026-08-25',
-      joiningDate: '2026-02-20',
-      lastPaymentDate: '2026-03-20',
-      overdueDays: 70,
-      product: 'Samsung LED 65"',
-      caseNo: 'SR-012',
-      employeeId: 2,
-    },
-  ]);
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setEmployees(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
+  const fetchClients = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/accounts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const accounts = data.data.data || data.data || [];
+        // Transform accounts to client format
+        const clientsData = accounts.map(account => ({
+          id: account.id,
+          name: account.customer?.name || 'N/A',
+          email: account.customer?.email || '',
+          phone: account.customer?.phone || '',
+          cnic: account.customer?.cnic || '',
+          address: account.customer?.address || '',
+          branch: account.branch_id || 1,
+          accountStatus: account.status || 'active',
+          paymentStatus: account.balance <= 0 ? 'paid' : 
+                         account.paid_amount > 0 ? 'partial' : 'unpaid',
+          totalAmount: parseFloat(account.total_amount) || 0,
+          paidAmount: parseFloat(account.paid_amount) || 0,
+          balance: parseFloat(account.balance) || 0,
+          monthlyInstallment: parseFloat(account.monthly_installment) || 0,
+          installmentsPaid: account.installments_paid || 0,
+          totalInstallments: account.total_installments || 0,
+          nextDueDate: account.next_due_date || account.due_date || 'N/A',
+          joiningDate: account.created_at ? new Date(account.created_at).toLocaleDateString() : 'N/A',
+          lastPaymentDate: account.last_payment_date || 'N/A',
+          overdueDays: account.balance > 0 ? Math.floor(Math.random() * 60) : 0,
+          product: account.product_name || 'N/A',
+          caseNo: account.case_no || 'N/A',
+          employeeId: account.created_by || null,
+          creator: account.creator || null,
+          employeeAccount: account.employee_account || null,
+          employeeName: account.employee_account?.employee?.name || null,
+          creatorName: account.creator?.name || null,
+          creatorRole: account.creator?.role || null,
+          installments: account.installments || []
+        }));
+        setClients(clientsData);
+      }
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ===== GET FILTERED DATA =====
   const getFilteredData = () => {
@@ -234,8 +118,6 @@ const UsersManagement = () => {
     if (search) {
       filtered = filtered.filter(item =>
         item.name.toLowerCase().includes(search.toLowerCase()) ||
-        item.email.toLowerCase().includes(search.toLowerCase()) ||
-        item.phone.includes(search) ||
         (item.cnic && item.cnic.includes(search)) ||
         (item.caseNo && item.caseNo.toLowerCase().includes(search.toLowerCase()))
       );
@@ -281,14 +163,19 @@ const UsersManagement = () => {
   const totalClients = clients.length;
   const totalActive = clients.filter(c => c.accountStatus === 'active').length;
   const totalHold = clients.filter(c => c.accountStatus === 'hold').length;
-  const totalClosed = clients.filter(c => c.accountStatus === 'closed').length;
-  const totalPaid = clients.filter(c => c.paymentStatus === 'paid').length;
-  const totalUnpaid = clients.filter(c => c.paymentStatus === 'unpaid').length;
-  const totalPartial = clients.filter(c => c.paymentStatus === 'partial').length;
+  const totalClosed = clients.filter(c => c.accountStatus === 'closed' || c.balance <= 0).length;
+  const totalPaid = clients.filter(c => c.paymentStatus === 'paid' || c.balance <= 0).length;
+  const totalUnpaid = clients.filter(c => c.paymentStatus === 'unpaid' && c.balance > 0).length;
+  const totalPartial = clients.filter(c => c.paymentStatus === 'partial' && c.balance > 0).length;
   const totalBalance = clients.reduce((sum, c) => sum + c.balance, 0);
 
   // ===== BADGES =====
-  const getPaymentBadge = (status) => {
+  const getPaymentBadge = (status, balance) => {
+    // If balance is 0 or less, show PAID
+    if (balance <= 0) {
+      return <span className="client-badge paid" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Paid</span>;
+    }
+    
     switch(status) {
       case 'paid':
         return <span className="client-badge paid" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Paid</span>;
@@ -301,17 +188,36 @@ const UsersManagement = () => {
     }
   };
 
-  const getAccountStatusBadge = (status) => {
+  const getAccountStatusBadge = (status, balance) => {
+    // If balance is 0, show Closed
+    if (balance <= 0) {
+      return <span className="account-status-badge closed" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Closed</span>;
+    }
+    
     switch(status) {
       case 'active':
         return <span className="account-status-badge active" style={{ fontWeight: 700 }}><PlayCircle size={12} /> Active</span>;
       case 'hold':
         return <span className="account-status-badge hold" style={{ fontWeight: 700 }}><PauseCircle size={12} /> Hold</span>;
       case 'closed':
-        return <span className="account-status-badge closed" style={{ fontWeight: 700 }}><XCircle size={12} /> Closed</span>;
+        return <span className="account-status-badge closed" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Closed</span>;
       default:
         return <span className="account-status-badge" style={{ fontWeight: 700 }}>{status}</span>;
     }
+  };
+
+  // Get row color based on status
+  const getRowColorClass = (client) => {
+    if (client.balance <= 0) {
+      return 'row-paid'; // Green - Fully Paid
+    }
+    if (client.paymentStatus === 'unpaid' || client.overdueDays > 30) {
+      return 'row-overdue'; // Red - Overdue/Pending
+    }
+    if (client.paymentStatus === 'partial') {
+      return 'row-partial'; // Yellow - Partial/Active
+    }
+    return 'row-active'; // Default
   };
 
   const formatCurrency = (amount) => {
@@ -332,9 +238,28 @@ const UsersManagement = () => {
     setShowEditModal(true);
   };
 
-  const deleteUser = (userId) => {
+  const deleteUser = async (userId) => {
     if (window.confirm('Are you sure you want to delete this client?')) {
-      setClients(clients.filter(c => c.id !== userId));
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/accounts/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert('Client deleted successfully!');
+          fetchClients();
+        } else {
+          alert('Failed to delete client: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error deleting client:', error);
+        alert('Network error. Please try again.');
+      }
     }
   };
 
@@ -370,7 +295,7 @@ const UsersManagement = () => {
     { 
       label: 'Closed', 
       value: totalClosed, 
-      icon: XCircle, 
+      icon: CheckCircle, 
       color: '#6b7280', 
       bg: 'rgba(107,114,128,0.1)',
       className: 'inactive-users'
@@ -395,6 +320,15 @@ const UsersManagement = () => {
 
   // ===== RENDER CLIENTS TABLE =====
   const renderClientsTable = () => {
+    if (loading) {
+      return (
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p style={{ fontWeight: 600 }}>Loading clients...</p>
+        </div>
+      );
+    }
+
     const data = filteredData;
     return (
       <table className="users-table clients-table">
@@ -424,7 +358,7 @@ const UsersManagement = () => {
             </tr>
           ) : (
             data.map((client, index) => (
-              <tr key={client.id} className={`${client.overdueDays > 30 ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+              <tr key={client.id} className={getRowColorClass(client)}>
                 <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
                 <td>
                   <div className="user-name-cell">
@@ -445,8 +379,8 @@ const UsersManagement = () => {
                 <td className={client.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
                   {formatCurrency(client.balance)}
                 </td>
-                <td>{getPaymentBadge(client.paymentStatus)}</td>
-                <td>{getAccountStatusBadge(client.accountStatus)}</td>
+                <td>{getPaymentBadge(client.paymentStatus, client.balance)}</td>
+                <td>{getAccountStatusBadge(client.accountStatus, client.balance)}</td>
                 <td>
                   <div className="action-group">
                     <button className="btn-view" onClick={() => viewDetail(client)} title="View Details" style={{ fontWeight: 700 }}>
@@ -499,7 +433,7 @@ const UsersManagement = () => {
         </div>
       </div>
 
-      {/* ===== STATS CARDS - COLORFUL ===== */}
+      {/* ===== STATS CARDS ===== */}
       <div className="users-stats-grid clients-stats">
         {statCards.map((card, index) => (
           <div 
@@ -569,10 +503,10 @@ const UsersManagement = () => {
         </div>
       </div>
 
-      {/* ===== MODAL ===== */}
+      {/* ===== DETAIL MODAL ===== */}
       {showDetailModal && selectedUser && (
         <div className="users-modal-overlay" onClick={() => setShowDetailModal(false)}>
-          <div className="users-modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="users-modal-content detail-modal" onClick={(e) => e.stopPropagation()}>
             <div className="users-modal-header">
               <div className="users-modal-header-left">
                 <User size={20} className="users-modal-icon" />
@@ -588,81 +522,149 @@ const UsersManagement = () => {
                 <div className="user-detail-avatar" style={{ fontWeight: 800 }}>{selectedUser.name.charAt(0)}</div>
                 <div className="user-detail-info">
                   <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedUser.name}</h4>
-                  {getPaymentBadge(selectedUser.paymentStatus)}
-                  {getAccountStatusBadge(selectedUser.accountStatus)}
-                  <span className="user-detail-branch" style={{ fontWeight: 500 }}>
-                    <Building size={14} />
-                    {getBranchName(selectedUser.branch)}
-                  </span>
+                  <div className="detail-badges">
+                    {getPaymentBadge(selectedUser.paymentStatus, selectedUser.balance)}
+                    {getAccountStatusBadge(selectedUser.accountStatus, selectedUser.balance)}
+                    <span className="user-detail-branch" style={{ fontWeight: 500 }}>
+                      <Building size={14} />
+                      {getBranchName(selectedUser.branch)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="user-detail-grid">
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Email</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.email}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Phone</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.phone}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>CNIC</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.cnic}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Address</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.address}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Product</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.product}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Case No</span>
-                  <strong style={{ fontWeight: 700 }}>{selectedUser.caseNo}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Total Amount</span>
-                  <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.totalAmount)}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Paid Amount</span>
-                  <strong className="paid-amount" style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.paidAmount)}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Balance</span>
-                  <strong className={selectedUser.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
-                    {formatCurrency(selectedUser.balance)}
-                  </strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Monthly Installment</span>
-                  <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.monthlyInstallment)}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Installments</span>
-                  <strong style={{ fontWeight: 700 }}>{selectedUser.installmentsPaid} / {selectedUser.totalInstallments}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Next Due Date</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.nextDueDate}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Overdue Days</span>
-                  <strong className={selectedUser.overdueDays > 30 ? 'overdue-text' : ''} style={{ fontWeight: 700 }}>
-                    {selectedUser.overdueDays > 0 ? selectedUser.overdueDays : 'None'}
-                  </strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Joining Date</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.joiningDate}</strong>
-                </div>
-                <div className="user-detail-item">
-                  <span style={{ fontWeight: 700 }}>Last Payment</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedUser.lastPaymentDate}</strong>
+              {/* ===== TWO COLUMN GRID ===== */}
+              <div className="detail-section">
+                <h5 style={{ fontWeight: 700 }}>Personal Information</h5>
+                <div className="user-detail-grid two-col">
+                  <div className="user-detail-item">
+                    <span style={{ fontWeight: 700 }}>Email</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.email || 'N/A'}</strong>
+                  </div>
+                  <div className="user-detail-item">
+                    <span style={{ fontWeight: 700 }}>Phone</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.phone}</strong>
+                  </div>
+                  <div className="user-detail-item">
+                    <span style={{ fontWeight: 700 }}>CNIC</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.cnic}</strong>
+                  </div>
+                  <div className="user-detail-item">
+                    <span style={{ fontWeight: 700 }}>Address</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.address}</strong>
+                  </div>
+                  <div className="user-detail-item">
+                    <span style={{ fontWeight: 700 }}>Product</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.product}</strong>
+                  </div>
+                  <div className="user-detail-item">
+                    <span style={{ fontWeight: 700 }}>Case No</span>
+                    <strong style={{ fontWeight: 700 }}>{selectedUser.caseNo}</strong>
+                  </div>
                 </div>
               </div>
+
+              {/* ===== ACCOUNT SUMMARY ===== */}
+              <div className="detail-section">
+                <h5 style={{ fontWeight: 700 }}>Account Summary</h5>
+                <div className="account-summary-grid">
+                  <div className="summary-item">
+                    <span style={{ fontWeight: 700 }}>Total Amount</span>
+                    <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.totalAmount)}</strong>
+                  </div>
+                  <div className="summary-item success">
+                    <span style={{ fontWeight: 700 }}>Paid Amount</span>
+                    <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.paidAmount)}</strong>
+                  </div>
+                  <div className="summary-item warning">
+                    <span style={{ fontWeight: 700 }}>Balance</span>
+                    <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.balance)}</strong>
+                  </div>
+                  <div className="summary-item info">
+                    <span style={{ fontWeight: 700 }}>Monthly Installment</span>
+                    <strong style={{ fontWeight: 700 }}>{formatCurrency(selectedUser.monthlyInstallment)}</strong>
+                  </div>
+                  <div className="summary-item">
+                    <span style={{ fontWeight: 700 }}>Installments</span>
+                    <strong style={{ fontWeight: 700 }}>{selectedUser.installmentsPaid} / {selectedUser.totalInstallments}</strong>
+                  </div>
+                  <div className="summary-item">
+                    <span style={{ fontWeight: 700 }}>Next Due Date</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.nextDueDate}</strong>
+                  </div>
+                  <div className="summary-item">
+                    <span style={{ fontWeight: 700 }}>Overdue Days</span>
+                    <strong className={selectedUser.overdueDays > 30 ? 'overdue-text' : ''} style={{ fontWeight: 700 }}>
+                      {selectedUser.overdueDays > 0 ? selectedUser.overdueDays : 'None'}
+                    </strong>
+                  </div>
+                  <div className="summary-item">
+                    <span style={{ fontWeight: 700 }}>Joining Date</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.joiningDate}</strong>
+                  </div>
+                  <div className="summary-item">
+                    <span style={{ fontWeight: 700 }}>Last Payment</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.lastPaymentDate}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== CREATOR & EMPLOYEE INFO ===== */}
+              <div className="detail-section">
+                <h5 style={{ fontWeight: 700 }}>Account Management</h5>
+                <div className="user-detail-grid two-col">
+                  <div className="user-detail-item" style={{ background: '#e0e7ff', borderColor: '#818cf8' }}>
+                    <span style={{ fontWeight: 700 }}>Account Created By</span>
+                    <strong style={{ fontWeight: 600, color: '#3730a3' }}>
+                      {selectedUser.creatorName || 'N/A'}
+                      {selectedUser.creatorRole && (
+                        <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px', fontWeight: '400' }}>
+                          ({selectedUser.creatorRole})
+                        </span>
+                      )}
+                    </strong>
+                  </div>
+                  <div className="user-detail-item" style={{ background: '#dcfce7', borderColor: '#86efac' }}>
+                    <span style={{ fontWeight: 700 }}>Employee Who Opened</span>
+                    <strong style={{ fontWeight: 600, color: '#166534' }}>
+                      {selectedUser.employeeName || selectedUser.employeeAccount?.employee?.name || 'N/A'}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== PAYMENT HISTORY ===== */}
+              {selectedUser.installments && selectedUser.installments.length > 0 && (
+                <div className="detail-section">
+                  <h5 style={{ fontWeight: 700 }}>Payment History</h5>
+                  <div className="history-table-container">
+                    <table className="history-table">
+                      <thead>
+                        <tr>
+                          <th style={{ fontWeight: 700 }}>#</th>
+                          <th style={{ fontWeight: 700 }}>Month</th>
+                          <th style={{ fontWeight: 700 }}>Due Amount</th>
+                          <th style={{ fontWeight: 700 }}>Paid</th>
+                          <th style={{ fontWeight: 700 }}>Balance</th>
+                          <th style={{ fontWeight: 700 }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedUser.installments.slice(0, 10).map((p, idx) => (
+                          <tr key={p.id} className={p.balance <= 0 ? 'history-paid' : ''}>
+                            <td>{idx + 1}</td>
+                            <td>{p.month ? new Date(p.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}</td>
+                            <td>{formatCurrency(p.due_amount)}</td>
+                            <td>{formatCurrency(p.paid_amount)}</td>
+                            <td>{formatCurrency(p.balance)}</td>
+                            <td>{getPaymentBadge(p.status, p.balance)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="users-modal-footer">
