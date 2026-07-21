@@ -148,8 +148,9 @@ class InstallmentController extends Controller
                 $account->update([
                     'paid_amount' => $totalPaid,
                     'balance' => $accountBalance,
+                    // ✅ FIX: ab jitni bhi installments mein kuch bhi paid hua hai (partial ya full), unko count karo
                     'installments_paid' => Installment::where('account_id', $account->id)
-                        ->where('status', 'paid')->count(),
+                        ->where('paid_amount', '>', 0)->count(),
                     'last_payment_date' => date('Y-m-d'),
                     'status' => $accountBalance <= 0 ? 'paid' : 'active'
                 ]);
@@ -268,8 +269,9 @@ class InstallmentController extends Controller
                 $account->update([
                     'paid_amount' => $totalPaid,
                     'balance' => $accountBalance,
+                    // ✅ FIX: ab jitni bhi installments mein kuch bhi paid hua hai (partial ya full), unko count karo
                     'installments_paid' => Installment::where('account_id', $account->id)
-                        ->where('status', 'paid')->count(),
+                        ->where('paid_amount', '>', 0)->count(),
                     'last_payment_date' => date('Y-m-d'),
                     'status' => $accountBalance <= 0 ? 'paid' : 'active'
                 ]);

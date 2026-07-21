@@ -80,6 +80,15 @@ const Sidebar = () => {
     });
   }
 
+  // ✅ Leave Application - All roles can see (Admin, Manager, Employee)
+  if (isEmployee || isAdmin || isManager) {
+    navItems.push({
+      path: '/apply-leave',
+      icon: Calendar,
+      label: 'Apply Leave'
+    });
+  }
+
   // Finance dropdown (admin only)
   const financeItems = isAdmin ? [
     { path: '/finance/salary', label: 'Employee Salary' },
@@ -92,15 +101,20 @@ const Sidebar = () => {
     otherItems.push(
       { path: '/extra-expenses', icon: PlusCircle, label: 'Extra Expenses' },
       { path: '/employee-report', icon: BarChart3, label: 'Employee Report' },
+      // ✅ OVERDUE INSTALLMENTS - UNCOMMENTED (Admin aur Manager dono ko dikhega)
       { path: '/overdue-installments', icon: Clock, label: 'Overdue Installments' },
       { path: '/aging-report', icon: AlertTriangle, label: 'Aging Report' },
       { path: '/add-account', icon: UserPlus, label: 'Add Account' },
-      // ✅ Installments ka naam badal kar "Recovery" kiya
       { path: '/installments', icon: FileText, label: 'Recovery' },
-      // ❌ Purana Recovery page hide kar diya
-      // { path: '/recovery', icon: FileText, label: 'Recovery' },
       { path: '/users', icon: UsersIcon, label: 'Users' },
       { path: '/employees/add', icon: UsersIcon, label: 'Employees' }
+    );
+  }
+
+  // ✅ System Access - Admin only (page banayenge baad mein, link abhi se reserve)
+  if (isAdmin) {
+    otherItems.push(
+      { path: '/system-access', icon: Shield, label: 'System Access' }
     );
   }
 

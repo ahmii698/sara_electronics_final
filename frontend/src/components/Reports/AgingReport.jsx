@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, DollarSign, User, Building, AlertTriangle, Clock, Eye, FileText, Download, Filter, X, Users } from 'lucide-react';
 import './AgingReport.css';
+import { API_URL } from '../../../config';
 
 const AgingReport = () => {
   const [search, setSearch] = useState('');
@@ -12,15 +13,27 @@ const AgingReport = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // ✅ Real data (no more dummy agingData)
+  const [loading, setLoading] = useState(true);
+  const [agingAccounts, setAgingAccounts] = useState([]);
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
+    let branch = null;
+    let role = null;
+
     if (user) {
-      setUserRole(user.role);
-      setUserBranch(user.branch);
-      if (user.branch) {
-        setBranchFilter(user.branch);
+      role = user.role;
+      branch = user.branch;
+      setUserRole(role);
+      setUserBranch(branch);
+      if (branch) {
+        setBranchFilter(String(branch));
       }
     }
+
+    fetchAgingAccounts(branch, role);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ===== GET CURRENT MONTH =====
@@ -31,148 +44,154 @@ const AgingReport = () => {
 
   const currentMonth = getCurrentMonth();
 
-  // ===== AGING DATA =====
-  const [agingData, setAgingData] = useState([
-    {
-      id: 1,
-      customer: 'Ahmed Khan',
-      caseNo: 'SR-001',
-      branch: 1,
-      description: 'Samsung LED 55"',
-      monthlyInstallment: 5000,
-      totalAmount: 60000,
-      paidAmount: 25000,
-      balance: 35000,
-      lastPaymentDate: '2026-03-01',
-      dueDate: '2026-01-15',
-      overdueMonths: 4,
-      installments: [
-        { month: '2026-01', due: 5000, paid: 5000, status: 'paid' },
-        { month: '2026-02', due: 5000, paid: 5000, status: 'paid' },
-        { month: '2026-03', due: 5000, paid: 5000, status: 'paid' },
-        { month: '2026-04', due: 5000, paid: 3000, status: 'partial' },
-        { month: '2026-05', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-06', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-07', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-08', due: 5000, paid: 0, status: 'unpaid' },
-      ]
-    },
-    {
-      id: 2,
-      customer: 'Usman Malik',
-      caseNo: 'SR-003',
-      branch: 1,
-      description: 'Dell Laptop',
-      monthlyInstallment: 4000,
-      totalAmount: 40000,
-      paidAmount: 15000,
-      balance: 25000,
-      lastPaymentDate: '2026-03-15',
-      dueDate: '2026-01-20',
-      overdueMonths: 4,
-      installments: [
-        { month: '2026-01', due: 4000, paid: 4000, status: 'paid' },
-        { month: '2026-02', due: 4000, paid: 4000, status: 'paid' },
-        { month: '2026-03', due: 4000, paid: 4000, status: 'paid' },
-        { month: '2026-04', due: 4000, paid: 2000, status: 'partial' },
-        { month: '2026-05', due: 4000, paid: 0, status: 'unpaid' },
-        { month: '2026-06', due: 4000, paid: 0, status: 'unpaid' },
-        { month: '2026-07', due: 4000, paid: 0, status: 'unpaid' },
-        { month: '2026-08', due: 4000, paid: 0, status: 'unpaid' },
-        { month: '2026-09', due: 4000, paid: 0, status: 'unpaid' },
-        { month: '2026-10', due: 4000, paid: 0, status: 'unpaid' },
-      ]
-    },
-    {
-      id: 3,
-      customer: 'Bilal Ahmed',
-      caseNo: 'SR-007',
-      branch: 1,
-      description: 'Samsung Galaxy S24',
-      monthlyInstallment: 3000,
-      totalAmount: 30000,
-      paidAmount: 0,
-      balance: 30000,
-      lastPaymentDate: '2026-02-10',
-      dueDate: '2026-02-10',
-      overdueMonths: 5,
-      installments: [
-        { month: '2026-02', due: 3000, paid: 0, status: 'unpaid' },
-        { month: '2026-03', due: 3000, paid: 0, status: 'unpaid' },
-        { month: '2026-04', due: 3000, paid: 0, status: 'unpaid' },
-        { month: '2026-05', due: 3000, paid: 0, status: 'unpaid' },
-        { month: '2026-06', due: 3000, paid: 0, status: 'unpaid' },
-        { month: '2026-07', due: 3000, paid: 0, status: 'unpaid' },
-        { month: '2026-08', due: 3000, paid: 0, status: 'unpaid' },
-        { month: '2026-09', due: 3000, paid: 0, status: 'unpaid' },
-      ]
-    },
-    {
-      id: 4,
-      customer: 'Fatima Noor',
-      caseNo: 'SR-004',
-      branch: 2,
-      description: 'Sony LED 65"',
-      monthlyInstallment: 6000,
-      totalAmount: 80000,
-      paidAmount: 42000,
-      balance: 38000,
-      lastPaymentDate: '2026-06-01',
-      dueDate: '2026-01-25',
-      overdueMonths: 3,
-      installments: [
-        { month: '2026-01', due: 6000, paid: 6000, status: 'paid' },
-        { month: '2026-02', due: 6000, paid: 6000, status: 'paid' },
-        { month: '2026-03', due: 6000, paid: 6000, status: 'paid' },
-        { month: '2026-04', due: 6000, paid: 6000, status: 'paid' },
-        { month: '2026-05', due: 6000, paid: 6000, status: 'paid' },
-        { month: '2026-06', due: 6000, paid: 4000, status: 'partial' },
-        { month: '2026-07', due: 6000, paid: 8000, status: 'paid' },
-        { month: '2026-08', due: 6000, paid: 0, status: 'unpaid' },
-        { month: '2026-09', due: 6000, paid: 0, status: 'unpaid' },
-        { month: '2026-10', due: 6000, paid: 0, status: 'unpaid' },
-      ]
-    },
-    {
-      id: 5,
-      customer: 'Hina Riaz',
-      caseNo: 'SR-008',
-      branch: 2,
-      description: 'LG Refrigerator',
-      monthlyInstallment: 5000,
-      totalAmount: 50000,
-      paidAmount: 1000,
-      balance: 49000,
-      lastPaymentDate: '2026-02-15',
-      dueDate: '2026-02-15',
-      overdueMonths: 5,
-      installments: [
-        { month: '2026-02', due: 5000, paid: 1000, status: 'partial' },
-        { month: '2026-03', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-04', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-05', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-06', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-07', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-08', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-09', due: 5000, paid: 0, status: 'unpaid' },
-        { month: '2026-10', due: 5000, paid: 0, status: 'unpaid' },
-      ]
-    },
-  ]);
+  // ============================================
+  // ✅ FETCH ALL INSTALLMENTS (every page) so we can look at each
+  // account's FULL payment history and decide if it is "Aging" or not.
+  // ============================================
+  const fetchAllInstallments = async (branch, role) => {
+    const token = localStorage.getItem('token');
+    let page = 1;
+    let allData = [];
+    let lastPage = 1;
 
-  // ===== FILTER DATA =====
-  const filtered = agingData.filter(item => {
-    const searchMatch = item.customer.toLowerCase().includes(search.toLowerCase()) ||
+    // Non-admins only need their own branch — filter server-side to save data
+    const branchParam = (branch && role !== 'admin') ? `&branch_id=${branch}` : '';
+
+    do {
+      const response = await fetch(`${API_URL}/installments?status=all&page=${page}${branchParam}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (!data.success) break;
+
+      const pageData = data.data?.data || [];
+      allData = allData.concat(pageData);
+      lastPage = data.data?.last_page || 1;
+      page++;
+    } while (page <= lastPage);
+
+    return allData;
+  };
+
+  // ============================================
+  // ✅ SAME shortfall-based status logic as the Installments page's
+  // "Account Status" card:
+  //   - Clear   -> every installment fully paid
+  //   - Aging   -> 3+ installments where SOME amount was paid but less than due
+  //   - Overdue -> 1-2 such short payments
+  //   - Active  -> no short payments at all
+  // Here we only care whether the account is "Aging".
+  // ============================================
+  const getShortfallCount = (list) => {
+    return list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) > 0).length;
+  };
+
+  const getAccountStatusKey = (list, account) => {
+    const totalInstallments = account?.total_installments || list.length;
+    const fullyPaidCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) <= 0).length;
+
+    if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
+      return 'clear';
+    }
+
+    const shortfallCount = getShortfallCount(list);
+    if (shortfallCount >= 3) return 'aging';
+    if (shortfallCount >= 1) return 'overdue';
+    return 'active';
+  };
+
+  // ✅ Per-installment row status — used inside the month-by-month history table
+  const getInstallmentRowStatus = (inst) => {
+    const paid = parseFloat(inst.paid_amount || 0);
+    const balance = parseFloat(inst.balance || 0);
+    if (paid > 0 && balance <= 0) return 'paid';
+    if (paid > 0 && balance > 0) return 'partial';
+    return 'unpaid';
+  };
+
+  // ============================================
+  // ✅ BUILD THE AGING LIST from all installments, grouped by account
+  // ============================================
+  const fetchAgingAccounts = async (branch, role) => {
+    setLoading(true);
+    try {
+      const allInstallments = await fetchAllInstallments(branch, role);
+
+      const grouped = new Map();
+      allInstallments.forEach(inst => {
+        const accId = inst.account_id || inst.account?.id;
+        if (!accId) return;
+        if (!grouped.has(accId)) grouped.set(accId, []);
+        grouped.get(accId).push(inst);
+      });
+
+      const agingList = [];
+
+      grouped.forEach((list, accId) => {
+        const sample = list[0];
+        const account = sample.account || {};
+
+        // ✅ Only accounts whose status is actually "Aging"
+        const statusKey = getAccountStatusKey(list, account);
+        if (statusKey !== 'aging') return;
+
+        const sortedInstallments = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+        const shortfallCount = getShortfallCount(list);
+
+        const paidEntries = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && p.payment_date);
+        const lastPaymentDate = paidEntries.length > 0
+          ? paidEntries.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))[0].payment_date
+          : null;
+
+        const customer = account.customer || {};
+
+        agingList.push({
+          accountId: accId,
+          caseNo: account.case_no || 'N/A',
+          customerName: customer.name || 'N/A',
+          customerCnic: customer.cnic || 'N/A',
+          customerPhone: customer.phone || 'N/A',
+          customerAddress: customer.address || 'N/A',
+          branch: account.branch_id,
+          description: account.product_name || customer.product_name || 'N/A',
+          monthlyInstallment: parseFloat(account.monthly_installment || 0),
+          totalAmount: parseFloat(account.total_amount || 0),
+          paidAmount: parseFloat(account.paid_amount || 0),
+          balance: parseFloat(account.balance || 0),
+          lastPaymentDate,
+          shortfallCount,
+          installments: sortedInstallments
+        });
+      });
+
+      // Worst accounts (most short payments) first
+      agingList.sort((a, b) => b.shortfallCount - a.shortfallCount);
+
+      setAgingAccounts(agingList);
+    } catch (error) {
+      console.error('Error fetching aging accounts:', error);
+      setAgingAccounts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== FILTER DATA (search + branch, same UX as before) =====
+  const filtered = agingAccounts.filter(item => {
+    const searchMatch = item.customerName.toLowerCase().includes(search.toLowerCase()) ||
       item.caseNo.toLowerCase().includes(search.toLowerCase()) ||
       item.description.toLowerCase().includes(search.toLowerCase());
-    
+
     let branchMatch = true;
     if (userBranch) {
-      branchMatch = item.branch === parseInt(userBranch);
+      branchMatch = parseInt(item.branch) === parseInt(userBranch);
     } else if (branchFilter !== 'all') {
-      branchMatch = item.branch === parseInt(branchFilter);
+      branchMatch = parseInt(item.branch) === parseInt(branchFilter);
     }
-    
+
     return searchMatch && branchMatch;
   });
 
@@ -184,19 +203,13 @@ const AgingReport = () => {
   // ===== TOTALS =====
   const totalRecords = filtered.length;
   const totalBalance = filtered.reduce((sum, item) => sum + item.balance, 0);
-  const avgOverdueMonths = totalRecords > 0 ? Math.round(filtered.reduce((sum, item) => sum + item.overdueMonths, 0) / totalRecords) : 0;
-
-  // ===== OVERDUE BADGE =====
-  const getOverdueBadge = (months) => {
-    if (months >= 6) return { color: '#dc2626', label: 'Critical', bg: 'rgba(220,38,38,0.15)' };
-    if (months >= 4) return { color: '#f59e0b', label: 'High', bg: 'rgba(245,158,11,0.15)' };
-    if (months >= 3) return { color: '#fcd34d', label: 'Medium', bg: 'rgba(252,211,77,0.15)' };
-    return { color: '#22c55e', label: 'Low', bg: 'rgba(34,197,94,0.15)' };
-  };
+  const avgShortfalls = totalRecords > 0
+    ? Math.round(filtered.reduce((sum, item) => sum + item.shortfallCount, 0) / totalRecords)
+    : 0;
 
   // ===== VIEW DETAIL =====
-  const openDetailModal = (customer) => {
-    setSelectedCustomer(customer);
+  const openDetailModal = (item) => {
+    setSelectedCustomer(item);
     setShowDetailModal(true);
   };
 
@@ -210,6 +223,15 @@ const AgingReport = () => {
     alert('Aging Report exported successfully!');
   };
 
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-PK', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
   const branchLabel = userBranch ? `Branch ${userBranch}` : (branchFilter !== 'all' ? `Branch ${branchFilter}` : 'All Branches');
 
   // ===== CheckCircle icon component =====
@@ -220,10 +242,18 @@ const AgingReport = () => {
     </svg>
   );
 
-  // Colorful stat cards
+  // ✅ Cards now reflect ONLY aging accounts
   const statCards = [
     {
-      label: 'Total Balance',
+      label: 'Aging Accounts',
+      value: totalRecords,
+      icon: AlertTriangle,
+      color: '#f59e0b',
+      bg: 'rgba(245,158,11,0.15)',
+      className: 'balance-card'
+    },
+    {
+      label: 'Total Balance (Aging)',
       value: `PKR ${totalBalance.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
@@ -231,8 +261,8 @@ const AgingReport = () => {
       className: 'balance-card'
     },
     {
-      label: 'Average Overdue',
-      value: `${avgOverdueMonths} months`,
+      label: 'Avg. Short Payments',
+      value: avgShortfalls,
       icon: Clock,
       color: '#2563eb',
       bg: 'rgba(37,99,235,0.12)',
@@ -255,7 +285,7 @@ const AgingReport = () => {
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
-          <p className="subtitle">Customers with overdue payments (3+ months)</p>
+          <p className="subtitle">Customers who fell short on payment 3 or more times</p>
         </div>
         <button className="btn-export" onClick={exportReport}>
           <Download size={18} />
@@ -263,7 +293,7 @@ const AgingReport = () => {
         </button>
       </div>
 
-      {/* ===== STATS - ONLY 2 CARDS ===== */}
+      {/* ===== STATS - AGING ONLY ===== */}
       <div className="stats-grid">
         {statCards.map((card, index) => (
           <div 
@@ -332,10 +362,10 @@ const AgingReport = () => {
       <div className="table-container">
         <div className="table-header">
           <div className="table-header-left">
-            <h3 style={{ fontWeight: 700 }}>Overdue Customers</h3>
+            <h3 style={{ fontWeight: 700 }}>Aging Customers</h3>
             <span className="record-count" style={{ fontWeight: 600 }}>{totalRecords} entries</span>
           </div>
-          <span className="aging-info" style={{ fontWeight: 600 }}>Showing customers with 3+ months overdue</span>
+          <span className="aging-info" style={{ fontWeight: 600 }}>Showing accounts with 3+ short payments</span>
         </div>
 
         <div className="table-scroll">
@@ -347,76 +377,81 @@ const AgingReport = () => {
                 <th style={{ fontWeight: 800 }}>Description</th>
                 <th style={{ fontWeight: 800 }}>Balance</th>
                 <th style={{ fontWeight: 800 }}>Monthly</th>
-                <th style={{ fontWeight: 800 }}>Overdue</th>
+                <th style={{ fontWeight: 800 }}>Short Payments</th>
                 <th style={{ fontWeight: 800 }}>Last Payment</th>
                 <th style={{ fontWeight: 800 }}>Status</th>
                 <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentItems.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="no-data">
+                    <div className="no-data-content">
+                      <p style={{ fontWeight: 600 }}>Loading aging accounts...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentItems.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="no-data">
                     <div className="no-data-content">
                       <CheckCircleIcon />
-                      <p style={{ fontWeight: 600 }}>No overdue customers found for {branchLabel}</p>
+                      <p style={{ fontWeight: 600 }}>No aging accounts found for {branchLabel}</p>
                       <span className="no-data-sub" style={{ fontWeight: 500 }}>All payments are up to date!</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                currentItems.map((item, index) => {
-                  const badge = getOverdueBadge(item.overdueMonths);
-                  return (
-                    <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                      <td className="case-number" style={{ fontWeight: 700 }}>{item.caseNo}</td>
-                      <td>
-                        <div className="customer-info" style={{ fontWeight: 600 }}>
-                          <div className="customer-avatar" style={{ 
-                            background: '#ede9fe', 
-                            color: '#1E1B4B',
-                            fontWeight: 700,
-                            fontSize: '0.7rem'
-                          }}>
-                            {item.customer.charAt(0)}
-                          </div>
-                          {item.customer}
-                        </div>
-                      </td>
-                      <td className="description-cell" style={{ fontWeight: 500 }}>{item.description}</td>
-                      <td className="balance-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {item.balance.toLocaleString()}</td>
-                      <td style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
-                      <td>
-                        <span className="overdue-months-badge" style={{ 
-                          background: badge.color, 
-                          color: 'white',
+                currentItems.map((item, index) => (
+                  <tr key={item.accountId} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                    <td className="case-number" style={{ fontWeight: 700 }}>{item.caseNo}</td>
+                    <td>
+                      <div className="customer-info" style={{ fontWeight: 600 }}>
+                        <div className="customer-avatar" style={{ 
+                          background: '#ede9fe', 
+                          color: '#1E1B4B',
                           fontWeight: 700,
-                          padding: '0.2rem 0.7rem',
-                          borderRadius: '9999px',
                           fontSize: '0.7rem'
                         }}>
-                          {item.overdueMonths} months
-                        </span>
-                      </td>
-                      <td className="last-payment" style={{ fontWeight: 500 }}>{item.lastPaymentDate}</td>
-                      <td>
-                        <span className={`status-badge ${item.overdueMonths >= 6 ? 'critical' : item.overdueMonths >= 4 ? 'high' : 'medium'}`} style={{ fontWeight: 700 }}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td>
-                        <button 
-                          className="btn-view" 
-                          onClick={() => openDetailModal(item)}
-                          title="View Details"
-                          style={{ fontWeight: 700 }}
-                        >
-                          <Eye size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
+                          {item.customerName.charAt(0)}
+                        </div>
+                        {item.customerName}
+                      </div>
+                    </td>
+                    <td className="description-cell" style={{ fontWeight: 500 }}>{item.description}</td>
+                    <td className="balance-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {item.balance.toLocaleString()}</td>
+                    <td style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
+                    <td>
+                      <span className="overdue-months-badge" style={{ 
+                        background: '#f59e0b', 
+                        color: 'white',
+                        fontWeight: 700,
+                        padding: '0.2rem 0.7rem',
+                        borderRadius: '9999px',
+                        fontSize: '0.7rem'
+                      }}>
+                        {item.shortfallCount} times
+                      </span>
+                    </td>
+                    <td className="last-payment" style={{ fontWeight: 500 }}>{formatDate(item.lastPaymentDate)}</td>
+                    <td>
+                      <span className="status-badge high" style={{ fontWeight: 700 }}>
+                        Aging
+                      </span>
+                    </td>
+                    <td>
+                      <button 
+                        className="btn-view" 
+                        onClick={() => openDetailModal(item)}
+                        title="View Details"
+                        style={{ fontWeight: 700 }}
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -464,20 +499,20 @@ const AgingReport = () => {
             <div className="aging-modal-body">
               <div className="customer-detail-header">
                 <div className="customer-detail-avatar" style={{ 
-                  background: selectedCustomer.overdueMonths >= 6 ? '#991b1b' : '#1E1B4B',
+                  background: '#991b1b',
                   fontSize: '1.1rem',
                   fontWeight: 800
                 }}>
-                  {selectedCustomer.customer.charAt(0)}
+                  {selectedCustomer.customerName.charAt(0)}
                 </div>
                 <div className="customer-detail-info">
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedCustomer.customer}</h4>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedCustomer.customerName}</h4>
                   <span className="customer-detail-case" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Case: {selectedCustomer.caseNo}</span>
                   <span className="customer-detail-branch" style={{ fontSize: '0.8rem', fontWeight: 500 }}>Branch {selectedCustomer.branch}</span>
                 </div>
                 <div className="customer-detail-status">
-                  <span className={`status-badge ${selectedCustomer.overdueMonths >= 6 ? 'critical' : selectedCustomer.overdueMonths >= 4 ? 'high' : 'medium'}`} style={{ fontWeight: 700 }}>
-                    {getOverdueBadge(selectedCustomer.overdueMonths).label}
+                  <span className="status-badge high" style={{ fontWeight: 700 }}>
+                    Aging
                   </span>
                 </div>
               </div>
@@ -504,8 +539,8 @@ const AgingReport = () => {
                   <strong style={{ fontWeight: 700 }}>PKR {selectedCustomer.monthlyInstallment.toLocaleString()}</strong>
                 </div>
                 <div className="detail-summary-item">
-                  <span style={{ fontWeight: 700 }}>Overdue Months</span>
-                  <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>{selectedCustomer.overdueMonths} months</strong>
+                  <span style={{ fontWeight: 700 }}>Short Payments</span>
+                  <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>{selectedCustomer.shortfallCount} times</strong>
                 </div>
               </div>
 
@@ -526,18 +561,20 @@ const AgingReport = () => {
                     </thead>
                     <tbody>
                       {selectedCustomer.installments.map((inst, index) => {
-                        const isOverdue = inst.month < currentMonth && inst.paid < inst.due;
+                        const rowStatus = getInstallmentRowStatus(inst);
+                        const isOverdue = inst.month < currentMonth && parseFloat(inst.paid_amount || 0) < parseFloat(inst.due_amount || 0);
                         return (
-                          <tr key={index} className={`${isOverdue ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                            <td className="month-cell" style={{ fontWeight: 600 }}>{inst.month}</td>
-                            <td style={{ fontWeight: 600 }}>PKR {inst.due.toLocaleString()}</td>
-                            <td className={inst.paid >= inst.due ? 'paid-amount' : 'balance-amount'} style={{ fontWeight: 700 }}>
-                              PKR {inst.paid.toLocaleString()}
+                          <tr key={inst.id || index} className={`${isOverdue ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                            <td className="month-cell" style={{ fontWeight: 600 }}>
+                              {inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}
+                            </td>
+                            <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
+                            <td className={rowStatus === 'paid' ? 'paid-amount' : 'balance-amount'} style={{ fontWeight: 700 }}>
+                              PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}
                             </td>
                             <td>
-                              <span className={`status-badge ${inst.status}`} style={{ fontWeight: 700 }}>
-                                {inst.status === 'paid' ? 'Paid' : 
-                                 inst.status === 'partial' ? 'Partial' : 'Unpaid'}
+                              <span className={`status-badge ${rowStatus}`} style={{ fontWeight: 700 }}>
+                                {rowStatus === 'paid' ? 'Paid' : rowStatus === 'partial' ? 'Partial' : 'Unpaid'}
                               </span>
                             </td>
                           </tr>

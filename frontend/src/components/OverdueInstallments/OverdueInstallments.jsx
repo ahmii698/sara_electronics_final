@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, Edit, Save, X, DollarSign, Calendar, User, Building, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Search, Eye, Edit, Save, X, DollarSign, Calendar, User, Building, AlertTriangle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import './OverdueInstallments.css';
+import { API_URL } from '../../../config';
 
 const OverdueInstallments = () => {
   const [search, setSearch] = useState('');
@@ -10,188 +11,201 @@ const OverdueInstallments = () => {
   const [userRole, setUserRole] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
   const [editingData, setEditingData] = useState({
+    installmentId: null,
     paidAmount: '',
     remarks: '',
+    maxPayable: 0,
   });
+  const [saving, setSaving] = useState(false);
+
+  // ✅ Real data (no more dummy overdueData)
+  const [loading, setLoading] = useState(true);
+  const [overdueAccounts, setOverdueAccounts] = useState([]);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
+    let branch = null;
+    let role = null;
+
     if (user) {
-      setUserRole(user.role);
-      setUserBranch(user.branch);
-      if (user.branch) {
-        setBranchFilter(user.branch);
+      role = user.role;
+      branch = user.branch;
+      setUserRole(role);
+      setUserBranch(branch);
+      if (branch) {
+        setBranchFilter(String(branch));
       }
     }
+
+    fetchOverdueAccounts(branch, role);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [overdueData, setOverdueData] = useState([
-    {
-      id: 1,
-      caseNo: 'SR-001',
-      customer: 'Ahmed Khan',
-      branch: 1,
-      dueDate: '2026-01-15',
-      monthlyInstallment: 5000,
-      paidAmount: 3000,
-      balance: 2000,
-      totalOverdue: 2000,
-      remarks: 'Payment delayed due to financial issues',
-      status: 'partial',
-      installments: [
-        { month: 'Jan 2026', due: 5000, paid: 3000, status: 'partial', overdue: 2000 },
-        { month: 'Feb 2026', due: 5000, paid: 0, status: 'unpaid', overdue: 5000 },
-        { month: 'Mar 2026', due: 5000, paid: 0, status: 'unpaid', overdue: 5000 },
-      ]
-    },
-    {
-      id: 2,
-      caseNo: 'SR-003',
-      customer: 'Usman Malik',
-      branch: 1,
-      dueDate: '2026-01-20',
-      monthlyInstallment: 4000,
-      paidAmount: 2000,
-      balance: 2000,
-      totalOverdue: 6000,
-      remarks: 'Customer is out of city',
-      status: 'overdue',
-      installments: [
-        { month: 'Jan 2026', due: 4000, paid: 2000, status: 'partial', overdue: 2000 },
-        { month: 'Feb 2026', due: 4000, paid: 0, status: 'unpaid', overdue: 4000 },
-        { month: 'Mar 2026', due: 4000, paid: 0, status: 'unpaid', overdue: 4000 },
-      ]
-    },
-    {
-      id: 3,
-      caseNo: 'SR-004',
-      customer: 'Fatima Noor',
-      branch: 2,
-      dueDate: '2026-01-25',
-      monthlyInstallment: 6000,
-      paidAmount: 4000,
-      balance: 2000,
-      totalOverdue: 8000,
-      remarks: 'Will pay next month',
-      status: 'partial',
-      installments: [
-        { month: 'Jan 2026', due: 6000, paid: 4000, status: 'partial', overdue: 2000 },
-        { month: 'Feb 2026', due: 6000, paid: 0, status: 'unpaid', overdue: 6000 },
-        { month: 'Mar 2026', due: 6000, paid: 0, status: 'unpaid', overdue: 6000 },
-      ]
-    },
-    {
-      id: 4,
-      caseNo: 'SR-006',
-      customer: 'Zainab Khan',
-      branch: 2,
-      dueDate: '2026-02-01',
-      monthlyInstallment: 7000,
-      paidAmount: 5000,
-      balance: 2000,
-      totalOverdue: 2000,
-      remarks: 'Paid partially',
-      status: 'partial',
-      installments: [
-        { month: 'Feb 2026', due: 7000, paid: 5000, status: 'partial', overdue: 2000 },
-      ]
-    },
-    {
-      id: 5,
-      caseNo: 'SR-007',
-      customer: 'Bilal Ahmed',
-      branch: 1,
-      dueDate: '2026-02-10',
-      monthlyInstallment: 3000,
-      paidAmount: 0,
-      balance: 3000,
-      totalOverdue: 9000,
-      remarks: 'No payment received',
-      status: 'overdue',
-      installments: [
-        { month: 'Feb 2026', due: 3000, paid: 0, status: 'unpaid', overdue: 3000 },
-        { month: 'Mar 2026', due: 3000, paid: 0, status: 'unpaid', overdue: 3000 },
-        { month: 'Apr 2026', due: 3000, paid: 0, status: 'unpaid', overdue: 3000 },
-      ]
-    },
-    {
-      id: 6,
-      caseNo: 'SR-008',
-      customer: 'Hina Riaz',
-      branch: 2,
-      dueDate: '2026-02-15',
-      monthlyInstallment: 5000,
-      paidAmount: 1000,
-      balance: 4000,
-      totalOverdue: 4000,
-      remarks: 'Paid only 1000',
-      status: 'partial',
-      installments: [
-        { month: 'Feb 2026', due: 5000, paid: 1000, status: 'partial', overdue: 4000 },
-      ]
-    },
-  ]);
+  const getCurrentMonth = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+  const currentMonth = getCurrentMonth();
+
+  // ============================================
+  // ✅ FETCH ALL INSTALLMENTS (every page) — need full history per account
+  // ============================================
+  const fetchAllInstallments = async (branch, role) => {
+    const token = localStorage.getItem('token');
+    let page = 1;
+    let allData = [];
+    let lastPage = 1;
+
+    const branchParam = (branch && role !== 'admin') ? `&branch_id=${branch}` : '';
+
+    do {
+      const response = await fetch(`${API_URL}/installments?status=all&page=${page}${branchParam}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (!data.success) break;
+
+      const pageData = data.data?.data || [];
+      allData = allData.concat(pageData);
+      lastPage = data.data?.last_page || 1;
+      page++;
+    } while (page <= lastPage);
+
+    return allData;
+  };
+
+  // ============================================
+  // ✅ SAME shortfall-based status logic used across the app:
+  //   - Clear   -> every installment fully paid
+  //   - Aging   -> 3+ installments with a short (partial) payment
+  //   - Overdue -> 1-2 installments with a short (partial) payment   ← THIS PAGE
+  //   - Active  -> no short payments at all
+  // ============================================
+  const getShortfallCount = (list) => {
+    return list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) > 0).length;
+  };
+
+  const getAccountStatusKey = (list, account) => {
+    const totalInstallments = account?.total_installments || list.length;
+    const fullyPaidCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) <= 0).length;
+
+    if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
+      return 'clear';
+    }
+
+    const shortfallCount = getShortfallCount(list);
+    if (shortfallCount >= 3) return 'aging';
+    if (shortfallCount >= 1) return 'overdue';
+    return 'active';
+  };
+
+  // ✅ Per-installment row status — used inside the month-by-month history table
+  const getInstallmentRowStatus = (inst) => {
+    const paid = parseFloat(inst.paid_amount || 0);
+    const balance = parseFloat(inst.balance || 0);
+    if (paid > 0 && balance <= 0) return 'paid';
+    if (paid > 0 && balance > 0) return 'partial';
+    return 'unpaid';
+  };
+
+  // ============================================
+  // ✅ BUILD THE OVERDUE LIST from all installments, grouped by account
+  // ============================================
+  const fetchOverdueAccounts = async (branch, role) => {
+    setLoading(true);
+    try {
+      const allInstallments = await fetchAllInstallments(branch, role);
+
+      const grouped = new Map();
+      allInstallments.forEach(inst => {
+        const accId = inst.account_id || inst.account?.id;
+        if (!accId) return;
+        if (!grouped.has(accId)) grouped.set(accId, []);
+        grouped.get(accId).push(inst);
+      });
+
+      const overdueList = [];
+
+      grouped.forEach((list, accId) => {
+        const sample = list[0];
+        const account = sample.account || {};
+
+        // ✅ Only accounts whose status is actually "Overdue" (1-2 short payments)
+        const statusKey = getAccountStatusKey(list, account);
+        if (statusKey !== 'overdue') return;
+
+        const sortedInstallments = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+        const shortfallCount = getShortfallCount(list);
+
+        // ✅ Total overdue = sum of unpaid/short balances that are already due (month <= current month)
+        const totalOverdue = sortedInstallments
+          .filter(i => i.month && i.month <= currentMonth && parseFloat(i.balance || 0) > 0)
+          .reduce((sum, i) => sum + parseFloat(i.balance || 0), 0);
+
+        // ✅ Next payable installment = earliest one that still has a balance
+        const nextPayable = sortedInstallments.find(i => parseFloat(i.balance || 0) > 0) || null;
+
+        const customer = account.customer || {};
+
+        overdueList.push({
+          accountId: accId,
+          caseNo: account.case_no || 'N/A',
+          customerName: customer.name || 'N/A',
+          customerCnic: customer.cnic || 'N/A',
+          branch: account.branch_id,
+          nextDueMonth: nextPayable?.month || null,
+          monthlyInstallment: parseFloat(account.monthly_installment || 0),
+          paidAmount: parseFloat(account.paid_amount || 0),
+          balance: parseFloat(account.balance || 0),
+          totalOverdue,
+          shortfallCount,
+          nextPayableInstallment: nextPayable,
+          installments: sortedInstallments
+        });
+      });
+
+      // Worst (highest overdue amount) first
+      overdueList.sort((a, b) => b.totalOverdue - a.totalOverdue);
+
+      setOverdueAccounts(overdueList);
+    } catch (error) {
+      console.error('Error fetching overdue accounts:', error);
+      setOverdueAccounts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const canEdit = userRole === 'admin' || userRole === 'manager';
-  const isEmployee = userRole === 'employee';
 
-  const filtered = overdueData.filter(item => {
-    const searchMatch = item.customer.toLowerCase().includes(search.toLowerCase()) ||
+  // ===== FILTER (search + branch) =====
+  const filtered = overdueAccounts.filter(item => {
+    const searchMatch = item.customerName.toLowerCase().includes(search.toLowerCase()) ||
       item.caseNo.toLowerCase().includes(search.toLowerCase());
-    
+
     let branchMatch = true;
     if (userBranch) {
-      branchMatch = item.branch === parseInt(userBranch);
+      branchMatch = parseInt(item.branch) === parseInt(userBranch);
     } else if (branchFilter !== 'all') {
-      branchMatch = item.branch === parseInt(branchFilter);
+      branchMatch = parseInt(item.branch) === parseInt(branchFilter);
     }
-    
+
     return searchMatch && branchMatch;
   });
 
-  const openEditModal = (record) => {
-    setSelectedRecord(record);
-    setEditingData({
-      paidAmount: record.paidAmount.toString(),
-      remarks: record.remarks || '',
-    });
-    setShowEditModal(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (!editingData.paidAmount || parseInt(editingData.paidAmount) < 0) {
-      alert('Please enter a valid amount');
-      return;
-    }
-
-    const newPaid = parseInt(editingData.paidAmount);
-    const remaining = selectedRecord.monthlyInstallment - newPaid;
-
-    setOverdueData(overdueData.map(item => {
-      if (item.id === selectedRecord.id) {
-        return {
-          ...item,
-          paidAmount: newPaid,
-          balance: remaining > 0 ? remaining : 0,
-          status: remaining <= 0 ? 'paid' : (newPaid > 0 ? 'partial' : 'unpaid'),
-          remarks: editingData.remarks || item.remarks,
-          totalOverdue: remaining > 0 ? item.totalOverdue : 0,
-        };
-      }
-      return item;
-    }));
-
-    setShowEditModal(false);
-    setSelectedRecord(null);
-    alert('Record updated successfully!');
-  };
-
   const totalBalance = filtered.reduce((sum, item) => sum + item.balance, 0);
-  const totalOverdue = filtered.reduce((sum, item) => sum + item.totalOverdue, 0);
+  const totalOverdueSum = filtered.reduce((sum, item) => sum + item.totalOverdue, 0);
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : (branchFilter !== 'all' ? `Branch ${branchFilter}` : 'All Branches');
 
-  // Colorful stat cards
+  const formatMonth = (month) => {
+    if (!month) return '-';
+    return new Date(month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
+  };
+
   const statCards = [
     {
       label: 'Total Balance',
@@ -203,13 +217,82 @@ const OverdueInstallments = () => {
     },
     {
       label: 'Total Overdue',
-      value: `PKR ${totalOverdue.toLocaleString()}`,
+      value: `PKR ${totalOverdueSum.toLocaleString()}`,
       icon: Clock,
       color: '#dc2626',
       bg: 'rgba(220, 38, 38, 0.12)',
       className: 'overdue-card'
     },
   ];
+
+  const openEditModal = (record) => {
+    setSelectedRecord(record);
+    const nextInst = record.nextPayableInstallment;
+    setEditingData({
+      installmentId: nextInst?.id || null,
+      paidAmount: '',
+      remarks: '',
+      maxPayable: nextInst ? parseFloat(nextInst.balance || 0) : 0,
+    });
+    setShowEditModal(true);
+  };
+
+  // ============================================
+  // ✅ REAL SAVE — records payment against the next unpaid/partial installment
+  // ============================================
+  const handleSaveEdit = async () => {
+    if (!canEdit) return;
+
+    if (!editingData.installmentId) {
+      alert('No payable installment found for this account.');
+      return;
+    }
+
+    const amount = parseFloat(editingData.paidAmount);
+    if (!amount || amount <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (amount > editingData.maxPayable) {
+      alert(`Amount cannot exceed the remaining balance of PKR ${editingData.maxPayable.toLocaleString()}`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/installments/partial-pay`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          installment_id: editingData.installmentId,
+          paid_amount: amount
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('✅ Payment recorded successfully!');
+        setShowEditModal(false);
+        setSelectedRecord(null);
+        // Refresh the list — account may move out of Overdue (e.g. into Clear/Active)
+        const user = JSON.parse(localStorage.getItem('user'));
+        fetchOverdueAccounts(user?.branch || null, user?.role || null);
+      } else {
+        alert('❌ Failed to record payment: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      alert('Network error. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="overdue-container">
@@ -222,7 +305,7 @@ const OverdueInstallments = () => {
               <Clock size={12} /> Live
             </span>
           </div>
-          <p className="subtitle">Accounts with pending or partial payments</p>
+          <p className="subtitle">Accounts with 1-2 short (partial) payments</p>
         </div>
       </div>
 
@@ -296,7 +379,7 @@ const OverdueInstallments = () => {
               <tr>
                 <th style={{ fontWeight: 800 }}>Case #</th>
                 <th style={{ fontWeight: 800 }}>Customer</th>
-                <th style={{ fontWeight: 800 }}>Due Date</th>
+                <th style={{ fontWeight: 800 }}>Next Due Month</th>
                 <th style={{ fontWeight: 800 }}>Monthly (PKR)</th>
                 <th style={{ fontWeight: 800 }}>Balance (PKR)</th>
                 <th style={{ fontWeight: 800 }}>Total Overdue</th>
@@ -305,27 +388,29 @@ const OverdueInstallments = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan="8" className="no-data">Loading overdue accounts...</td></tr>
+              ) : filtered.length === 0 ? (
                 <tr><td colSpan="8" className="no-data">No overdue records found for {branchLabel}</td></tr>
               ) : (
                 filtered.map((item, index) => (
-                  <tr key={item.id} className={`${item.status === 'overdue' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                  <tr key={item.accountId} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                     <td className="case-number">{item.caseNo}</td>
                     <td>
                       <div className="customer-info">
                         <div className="customer-avatar" style={{ 
-                          background: item.status === 'overdue' ? '#fee2e2' : '#fef3c7',
-                          color: item.status === 'overdue' ? '#991b1b' : '#92400e'
+                          background: '#fee2e2',
+                          color: '#991b1b'
                         }}>
-                          {item.customer.charAt(0)}
+                          {item.customerName.charAt(0)}
                         </div>
-                        {item.customer}
+                        {item.customerName}
                       </div>
                     </td>
                     <td>
                       <div className="date-info">
                         <Calendar size={12} />
-                        {item.dueDate}
+                        {formatMonth(item.nextDueMonth)}
                       </div>
                     </td>
                     <td className="amount" style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
@@ -336,9 +421,8 @@ const OverdueInstallments = () => {
                       PKR {item.totalOverdue.toLocaleString()}
                     </td>
                     <td>
-                      <span className={`status-badge ${item.status}`} style={{ fontWeight: 700 }}>
-                        {item.status === 'paid' ? 'Paid' : 
-                         item.status === 'partial' ? 'Partial' : 'Overdue'}
+                      <span className="status-badge overdue" style={{ fontWeight: 700 }}>
+                        Overdue
                       </span>
                     </td>
                     <td>
@@ -361,16 +445,16 @@ const OverdueInstallments = () => {
         </div>
       </div>
 
-      {/* ===== PAGINATION ===== */}
+      {/* ===== PAGINATION (kept simple, same as before) ===== */}
       {filtered.length > 0 && (
         <div className="pagination">
-          <button style={{ fontWeight: 600 }}>Previous</button>
+          <button style={{ fontWeight: 600 }} disabled>Previous</button>
           <span style={{ fontWeight: 600 }}>Page 1 of 1</span>
-          <button style={{ fontWeight: 600 }}>Next</button>
+          <button style={{ fontWeight: 600 }} disabled>Next</button>
         </div>
       )}
 
-      {/* ===== EDIT MODAL ===== */}
+      {/* ===== EDIT / VIEW MODAL ===== */}
       {showEditModal && selectedRecord && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -386,11 +470,11 @@ const OverdueInstallments = () => {
 
             <div className="modal-body">
               <div className="employee-detail-header">
-                <div className="emp-detail-avatar" style={{ background: selectedRecord.status === 'overdue' ? '#991b1b' : '#1E1B4B', fontSize: '1.1rem', fontWeight: 800 }}>
-                  {selectedRecord.customer.charAt(0)}
+                <div className="emp-detail-avatar" style={{ background: '#991b1b', fontSize: '1.1rem', fontWeight: 800 }}>
+                  {selectedRecord.customerName.charAt(0)}
                 </div>
                 <div className="emp-detail-info">
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedRecord.customer}</h4>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedRecord.customerName}</h4>
                   <span className="emp-detail-branch" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Case: {selectedRecord.caseNo}</span>
                 </div>
               </div>
@@ -402,11 +486,11 @@ const OverdueInstallments = () => {
                 </div>
                 <div className="detail-item">
                   <span style={{ fontWeight: 700 }}>Customer</span>
-                  <strong style={{ fontWeight: 700 }}>{selectedRecord.customer}</strong>
+                  <strong style={{ fontWeight: 700 }}>{selectedRecord.customerName}</strong>
                 </div>
                 <div className="detail-item">
-                  <span style={{ fontWeight: 700 }}>Due Date</span>
-                  <strong style={{ fontWeight: 600 }}>{selectedRecord.dueDate}</strong>
+                  <span style={{ fontWeight: 700 }}>Next Due Month</span>
+                  <strong style={{ fontWeight: 600 }}>{formatMonth(selectedRecord.nextDueMonth)}</strong>
                 </div>
                 <div className="detail-item">
                   <span style={{ fontWeight: 700 }}>Monthly Installment</span>
@@ -437,20 +521,22 @@ const OverdueInstallments = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedRecord.installments.map((inst, index) => (
-                        <tr key={index} className={`${inst.status === 'unpaid' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                          <td className="month-cell" style={{ fontWeight: 600 }}>{inst.month}</td>
-                          <td style={{ fontWeight: 600 }}>PKR {inst.due.toLocaleString()}</td>
-                          <td className="paid-amount" style={{ fontWeight: 700 }}>PKR {inst.paid.toLocaleString()}</td>
-                          <td className="overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {inst.overdue.toLocaleString()}</td>
-                          <td>
-                            <span className={`status-badge ${inst.status}`} style={{ fontWeight: 700 }}>
-                              {inst.status === 'paid' ? 'Paid' : 
-                               inst.status === 'partial' ? 'Partial' : 'Unpaid'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {selectedRecord.installments.map((inst, index) => {
+                        const rowStatus = getInstallmentRowStatus(inst);
+                        return (
+                          <tr key={inst.id || index} className={`${rowStatus === 'unpaid' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                            <td className="month-cell" style={{ fontWeight: 600 }}>{formatMonth(inst.month)}</td>
+                            <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
+                            <td className="paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
+                            <td className="overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {parseFloat(inst.balance || 0).toLocaleString()}</td>
+                            <td>
+                              <span className={`status-badge ${rowStatus}`} style={{ fontWeight: 700 }}>
+                                {rowStatus === 'paid' ? 'Paid' : rowStatus === 'partial' ? 'Partial' : 'Unpaid'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -460,17 +546,25 @@ const OverdueInstallments = () => {
                 {canEdit ? (
                   <>
                     <div className="form-group">
-                      <label style={{ fontWeight: 700 }}>Paid Amount (PKR)</label>
+                      <label style={{ fontWeight: 700 }}>
+                        Pay Installment — {formatMonth(selectedRecord.nextPayableInstallment?.month)}
+                      </label>
                       <input
                         type="number"
                         className="form-input"
                         value={editingData.paidAmount}
                         onChange={(e) => setEditingData({ ...editingData, paidAmount: e.target.value })}
                         min="0"
-                        placeholder="Enter paid amount..."
+                        max={editingData.maxPayable}
+                        placeholder="Enter amount to pay..."
                         style={{ fontWeight: 600 }}
+                        disabled={!selectedRecord.nextPayableInstallment}
                       />
-                      <small className="field-hint" style={{ fontWeight: 600 }}>Enter total paid amount for this customer</small>
+                      <small className="field-hint" style={{ fontWeight: 600 }}>
+                        {selectedRecord.nextPayableInstallment
+                          ? `Max payable: PKR ${editingData.maxPayable.toLocaleString()}`
+                          : 'No payable installment found for this account'}
+                      </small>
                     </div>
 
                     <div className="form-group">
@@ -479,7 +573,7 @@ const OverdueInstallments = () => {
                         className="form-input form-textarea"
                         value={editingData.remarks}
                         onChange={(e) => setEditingData({ ...editingData, remarks: e.target.value })}
-                        placeholder="Add remarks or notes..."
+                        placeholder="Add remarks or notes... (not saved yet — backend support needed)"
                         rows="3"
                         style={{ fontWeight: 500 }}
                       />
@@ -497,12 +591,6 @@ const OverdueInstallments = () => {
                         PKR {selectedRecord.balance.toLocaleString()}
                       </strong>
                     </div>
-                    {selectedRecord.remarks && (
-                      <div className="view-item full-width">
-                        <span style={{ fontWeight: 700 }}>Remarks</span>
-                        <strong className="remarks-text" style={{ fontWeight: 600 }}>{selectedRecord.remarks}</strong>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -513,9 +601,18 @@ const OverdueInstallments = () => {
                 {canEdit ? 'Cancel' : 'Close'}
               </button>
               {canEdit && (
-                <button className="btn-save" onClick={handleSaveEdit} style={{ fontWeight: 700 }}>
-                  <Save size={16} />
-                  Save Changes
+                <button className="btn-save" onClick={handleSaveEdit} style={{ fontWeight: 700 }} disabled={saving || !selectedRecord.nextPayableInstallment}>
+                  {saving ? (
+                    <>
+                      <RefreshCw size={16} className="spinning" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Save Changes
+                    </>
+                  )}
                 </button>
               )}
             </div>

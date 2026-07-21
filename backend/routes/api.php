@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\RecoveryController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\OtpController;
+use App\Http\Controllers\Api\LeaveController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,6 +35,18 @@ Route::post('/users/update-password-public', [UserController::class, 'updatePass
 // OTP Routes (Public)
 Route::post('/otp/send', [OtpController::class, 'sendOtp']);
 Route::post('/otp/verify', [OtpController::class, 'verifyOtp']);
+
+// ✅ TEST ROUTE - NO AUTH REQUIRED (PEHLE ISKO CHECK KARO)
+Route::get('/test', function() {
+    return response()->json([
+        'success' => true,
+        'message' => 'API is working!',
+        'timestamp' => now()->toDateTimeString()
+    ]);
+});
+
+// ✅ EMPLOYEE REPORT PUBLIC - NO AUTH REQUIRED (TEST KE LIYE)
+Route::get('/employee-report-public', [ReportController::class, 'getEmployeeReport']);
 
 // ============================================
 // ✅ PROTECTED ROUTES (TOKEN REQUIRED)
@@ -85,7 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/installments', [InstallmentController::class, 'index']);
     Route::get('/installments/{id}', [InstallmentController::class, 'show']);
     Route::post('/installments/pay', [InstallmentController::class, 'payInstallment']);
-    Route::post('/installments/partial-pay', [InstallmentController::class, 'partialPay']); // ✅ ADD THIS LINE
+    Route::post('/installments/partial-pay', [InstallmentController::class, 'partialPay']);
     Route::get('/installments/overdue', [InstallmentController::class, 'overdue']);
     Route::get('/installments/aging-report', [InstallmentController::class, 'agingReport']);
     Route::get('/installments/by-account/{accountId}', [InstallmentController::class, 'getByAccount']);
@@ -110,7 +123,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/expenses/extra', [ExpenseController::class, 'storeExtra']);
     Route::delete('/expenses/extra/{id}', [ExpenseController::class, 'deleteExtra']);
 
-    // Salary
+    // ============================================
+    // ✅ SALARY ROUTES - UPDATED
+    // ============================================
     Route::get('/salary', [SalaryController::class, 'index']);
     Route::post('/salary', [SalaryController::class, 'store']);
     Route::put('/salary/{id}', [SalaryController::class, 'update']);
@@ -119,6 +134,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/salary/advances', [SalaryController::class, 'advances']);
     Route::post('/salary/advances', [SalaryController::class, 'storeAdvance']);
     Route::post('/salary/advances/{id}/deduct', [SalaryController::class, 'deductAdvance']);
+    Route::delete('/salary/advances/{id}', [SalaryController::class, 'deleteAdvance']);
+
+    // ✅ Employee Leaves Routes (existing — SalaryController, unchanged)
+    Route::get('/employee-leaves', [SalaryController::class, 'getLeaves']);
+    Route::post('/employee-leaves', [SalaryController::class, 'storeLeave']);
+    Route::put('/employee-leaves/{id}', [SalaryController::class, 'updateLeave']);
+    Route::delete('/employee-leaves/{id}', [SalaryController::class, 'deleteLeave']);
+
+    // ✅ Monthly Salary Summary
+    Route::get('/salary/monthly-summary', [SalaryController::class, 'getMonthlySummary']);
 
     // Recovery
     Route::get('/recovery', [RecoveryController::class, 'index']);
@@ -128,17 +153,30 @@ Route::middleware('auth:sanctum')->group(function () {
     // ============================================
     // ✅ REPORTS
     // ============================================
-    
+
     Route::get('/reports/dashboard', [ReportController::class, 'dashboard']);
     Route::get('/reports/branch-recovery', [ReportController::class, 'branchWiseRecovery']);
     Route::get('/reports/monthly-installments', [ReportController::class, 'monthlyInstallmentStatus']);
     Route::get('/reports/top-performers', [ReportController::class, 'topPerformers']);
     Route::get('/reports/employee-performance', [ReportController::class, 'employeePerformance']);
     Route::get('/reports/account-status', [ReportController::class, 'accountStatusSummary']);
-    
+
     // Employee Account Report Routes
     Route::get('/reports/employee-stats', [ReportController::class, 'getEmployeeStats']);
     Route::get('/reports/employee-detail/{id}', [ReportController::class, 'getEmployeeDetail']);
     Route::get('/reports/branch-performance', [ReportController::class, 'getBranchPerformance']);
     Route::get('/reports/monthly-report', [ReportController::class, 'getMonthlyReport']);
+
+    // ============================================
+    // ✅ NEW: Employee Report for React Component (AUTH REQUIRED)
+    // ============================================
+    Route::get('/employee-report', [ReportController::class, 'getEmployeeReport']);
+
+    // ============================================
+    // ✅ NEW: Leave Application (dropdown form -> employee_leaves table)
+    // ============================================
+    Route::get('/leaves', [LeaveController::class, 'index']);
+    Route::post('/leaves', [LeaveController::class, 'store']);
+    Route::patch('/leaves/{id}/status', [LeaveController::class, 'updateStatus']);
+    Route::delete('/leaves/{id}', [LeaveController::class, 'destroy']);
 });

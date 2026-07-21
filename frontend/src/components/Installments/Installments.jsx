@@ -211,6 +211,7 @@ const Installments = () => {
     });
   };
 
+  // ✅ Per-installment status badge — used in the payment-history TABLE (unchanged logic)
   const getStatusBadge = (status, balance, due_amount, paid_amount) => {
     if (balance <= 0) {
       return <span className="badge badge-paid"><CheckCircle size={14} /> Paid</span>;
@@ -225,6 +226,38 @@ const Installments = () => {
     }
     
     return <span className="badge badge-unpaid"><Clock size={14} /> Unpaid</span>;
+  };
+
+  // ✅ Account-level status — used ONLY for the "Account Status" field in the
+  // Customer Information card (modal header area). Rules:
+  // - "Clear"   -> every installment is fully paid off
+  // - "Active"  -> whatever has been paid so far was paid IN FULL (zero shortfalls)
+  // - "Overdue" -> customer has given a short (partial) payment 1-2 times
+  // - "Aging"   -> customer has given a short (partial) payment 3+ times
+  const getAccountCardStatus = (payments, account) => {
+    const list = Array.isArray(payments) ? payments : [];
+    const totalInstallments = account?.total_installments || list.length;
+
+    const fullyPaidCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) <= 0).length;
+
+    // ✅ Clear: all installments fully paid off
+    if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
+      return <span className="badge badge-paid"><CheckCircle size={14} /> Clear</span>;
+    }
+
+    // ✅ Shortfall = an installment where SOME amount was paid but less than what was due
+    const shortfallCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) > 0).length;
+
+    if (shortfallCount >= 3) {
+      return <span className="badge badge-aging"><AlertTriangle size={14} /> Aging</span>;
+    }
+
+    if (shortfallCount >= 1) {
+      return <span className="badge badge-overdue"><AlertCircle size={14} /> Overdue</span>;
+    }
+
+    // ✅ No shortfalls at all — whatever was paid was paid in full (or nothing paid yet)
+    return <span className="badge badge-unpaid"><Clock size={14} /> Active</span>;
   };
 
   const formatDate = (date) => {
@@ -539,7 +572,7 @@ const Installments = () => {
                   </div>
                   <div className="info-item">
                     <span className="info-label">Account Status</span>
-                    <span className="info-value">{getStatusBadge(account.status, account.balance, account.total_amount, account.paid_amount)}</span>
+                    <span className="info-value">{getAccountCardStatus(paymentHistory, account)}</span>
                   </div>
                   <div className="info-item">
                     <span className="info-label">Account Opening Date</span>

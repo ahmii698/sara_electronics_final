@@ -2047,3 +2047,229 @@
     font-size: 0.55rem;
   }
 }
+
+
+/* Add to EmployeeReport.css */
+
+/* ===== 4 BAR CHART ===== */
+.chart-bar-container-4 {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  padding: 16px 8px 0 8px;
+  min-height: 220px;
+  width: 100%;
+  gap: 4px;
+}
+
+.chart-bar-group-4 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 4px;
+}
+
+.chart-bars-4 {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 180px;
+}
+
+.chart-bar-wrapper-4 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 28px;
+}
+
+.chart-bar-4 {
+  width: 24px;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 4px;
+  transition: height 0.5s ease;
+  position: relative;
+}
+
+.bar-accounts {
+  background: linear-gradient(to top, #C9A84C, #e8d5a0);
+}
+.bar-recovery {
+  background: linear-gradient(to top, #1A2A4A, #3a5a8a);
+}
+.bar-leaves {
+  background: linear-gradient(to top, #dc2626, #f87171);
+}
+
+.bar-value-4 {
+  font-size: 9px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 2px;
+}
+
+.bar-label-4 {
+  font-size: 8px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.chart-bar-labels-4 {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.chart-label-4 {
+  font-size: 9px;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: center;
+}
+
+.chart-legend-4 {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.chart-legend-4 span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-dot-4 {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.legend-dot-4.gold { background: #C9A84C; }
+.legend-dot-4.dark { background: #1A2A4A; }
+.legend-dot-4.red { background: #dc2626; }
+
+/* ===== STACKED CHART 4 ===== */
+.chart-stacked-container-4 {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  padding: 12px 8px 0 8px;
+  min-height: 200px;
+  width: 100%;
+  gap: 4px;
+}
+
+.stacked-bar-group-4 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 4px;
+}
+
+.stacked-bar-wrapper-4 {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  height: 180px;
+  width: 32px;
+}
+
+.stacked-bar-4 {
+  width: 28px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4px;
+  transition: height 0.5s ease;
+}
+
+.acc-bar-4 {
+  background: #C9A84C;
+}
+.rec-bar-4 {
+  background: #1A2A4A;
+}
+.leave-bar-4 {
+  background: #dc2626;
+}
+
+.stacked-value-4 {
+  font-size: 8px;
+  font-weight: 700;
+  color: white;
+}
+
+.stacked-label-4 {
+  font-size: 9px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+/* ===== DETAIL SUMMARY 6 ===== */
+.detail-summary-6 {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.detail-summary-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #e5e7eb;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .detail-summary-6 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .chart-bar-container-4 {
+    min-height: 160px;
+  }
+  
+  .chart-bars-4 {
+    height: 140px;
+  }
+  
+  .chart-bar-wrapper-4 {
+    width: 20px;
+  }
+  
+  .chart-bar-4 {
+    width: 16px;
+  }
+  
+  .stacked-bar-wrapper-4 {
+    width: 24px;
+    height: 140px;
+  }
+  
+  .stacked-bar-4 {
+    width: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .detail-summary-6 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -16,9 +16,13 @@ import AgingReport from './components/Reports/AgingReport';
 import EmployeePerformanceReport from './components/Reports/EmployeePerformanceReport';
 import UsersManagement from './components/Users/Users';
 import Installments from './components/Installments/Installments'; // ✅ ADD THIS
+import Leaveapplication from './components/leave/Leaveapplication'; // ✅ ADD THIS - Leave Application
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import './App.css';
+
+// ✅ Employee sirf inhi paths pe ja sakta hai — Apply Leave yahan add ki
+const EMPLOYEE_ALLOWED_PATHS = ['/employee-performance', '/apply-leave'];
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -28,9 +32,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" />;
   }
 
-  // Employee - SIRF Employee Performance allow
+  // Employee - sirf allowed paths (Performance + Apply Leave)
   if (user.role === 'employee') {
-    if (location.pathname === '/employee-performance') {
+    if (EMPLOYEE_ALLOWED_PATHS.includes(location.pathname)) {
       return children;
     }
     return <Navigate to="/employee-performance" />;
@@ -112,12 +116,15 @@ const App = () => {
                 <Route path="/employee-performance" element={<EmployeePerformanceReport />} />
                 <Route path="/overdue-installments" element={<OverdueInstallments />} />
                 <Route path="/aging-report" element={<AgingReport />} />
-                
+
                 {/* ===== USERS ROUTE - ADMIN/MANAGER KE LIYE ===== */}
                 <Route path="/users" element={<UsersManagement />} />
 
                 {/* ===== INSTALLMENTS ROUTE - ADMIN/MANAGER KE LIYE ===== */}
                 <Route path="/installments" element={<Installments />} />
+
+                {/* ===== LEAVE APPLICATION ROUTE - ADMIN/MANAGER/EMPLOYEE SABKE LIYE ===== */}
+                <Route path="/apply-leave" element={<Leaveapplication />} />
 
                 <Route path="/login" element={<Navigate to="/" />} />
               </Routes>

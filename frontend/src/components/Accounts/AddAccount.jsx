@@ -604,7 +604,7 @@ const AddAccount = () => {
   };
 
   // ============================================
-  // ✅ CONFIRM ACCOUNT CREATION - FIXED (NO case_no from frontend)
+  // ✅ CONFIRM ACCOUNT CREATION - FIXED WITH GUARANTOR IMAGES
   // ============================================
   const confirmAccountCreation = async () => {
     if (isSubmittingRef.current) {
@@ -658,8 +658,9 @@ const AddAccount = () => {
         customerFormData.append('voice_consent', voiceFiles[0].file);
       }
 
-      // 2. GUARANTORS
+      // 2. GUARANTORS DATA (JSON) - ✅ FIXED: keep original slot index so images match correctly
       const validGuarantors = formData.guarantors
+        .map((g, originalIndex) => ({ ...g, originalIndex }))
         .filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim());
 
       customerFormData.append('guarantors', JSON.stringify(
@@ -678,6 +679,7 @@ const AddAccount = () => {
         ? remainingAmount / totalInstallments 
         : 0;
 
+      // 4. CREATE CUSTOMER API CALL
       const response = await fetch(`${API_URL}/customers`, {
         method: 'POST',
         headers: {
@@ -714,7 +716,9 @@ const AddAccount = () => {
         console.log('✅ Customer created with ID:', customerId);
         console.log('✅ Employee Account ID:', employeeAccountId);
 
-        // CREATE GUARANTORS
+        // ============================================
+        // ✅ CREATE GUARANTORS WITH IMAGES - FIXED
+        // ============================================
         if (validGuarantors.length > 0) {
           for (let i = 0; i < validGuarantors.length; i++) {
             const guarantor = validGuarantors[i];
@@ -729,7 +733,17 @@ const AddAccount = () => {
               guarantorFormData.append('address', guarantor.address?.trim() || '');
               guarantorFormData.append('created_by', parseInt(employeeId));
               
-              const originalGuarantor = formData.guarantors[i];
+              // ✅ IMPORTANT: Append images from original formData using correct original index
+              const originalGuarantor = formData.guarantors[guarantor.originalIndex];
+              
+              // Debug log
+              console.log(`📤 Guarantor ${i+1} (slot ${guarantor.originalIndex + 1}) - ${guarantor.name}:`, {
+                hasFront: !!originalGuarantor?.cnicFront,
+                hasBack: !!originalGuarantor?.cnicBack,
+                frontFile: originalGuarantor?.cnicFront?.name,
+                backFile: originalGuarantor?.cnicBack?.name
+              });
+              
               if (originalGuarantor && originalGuarantor.cnicFront) {
                 guarantorFormData.append('cnic_front', originalGuarantor.cnicFront);
               }
@@ -737,31 +751,43 @@ const AddAccount = () => {
                 guarantorFormData.append('cnic_back', originalGuarantor.cnicBack);
               }
               
+              // Log all FormData entries
+              console.log(`📤 Guarantor ${i+1} FormData:`);
+              for (let pair of guarantorFormData.entries()) {
+                if (pair[1] instanceof File) {
+                  console.log(`  ${pair[0]}: File(${pair[1].name}, ${pair[1].size} bytes)`);
+                } else {
+                  console.log(`  ${pair[0]}: ${pair[1]}`);
+                }
+              }
+              
               const guarantorResponse = await fetch(`${API_URL}/guarantors`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
-                  'Accept': 'application/json',
                 },
                 body: guarantorFormData,
               });
               
+              const guarantorResult = await guarantorResponse.json();
+              
               if (!guarantorResponse.ok) {
-                console.warn(`⚠️ Guarantor "${guarantor.name}" not created`);
+                console.warn(`⚠️ Guarantor "${guarantor.name}" not created:`, guarantorResult);
                 continue;
               }
-              console.log('✅ Guarantor created');
+              console.log(`✅ Guarantor ${i+1} created:`, guarantorResult);
             } catch (gError) {
               console.warn('⚠️ Error creating guarantor:', gError.message);
             }
           }
         }
 
-        // ✅ CREATE ACCOUNT - WITHOUT case_no (backend will generate sequentially)
+        // ============================================
+        // ✅ CREATE ACCOUNT - WITHOUT case_no (backend generates)
+        // ============================================
         const accountFormData = new FormData();
         accountFormData.append('customer_id', customerId);
         accountFormData.append('product_name', formData.productName);
-        // ❌ REMOVED: accountFormData.append('case_no', `SR-${String(Date.now()).slice(-6)}`);
         accountFormData.append('total_amount', parseFloat(formData.invoicePrice) || 0);
         accountFormData.append('paid_amount', parseFloat(formData.advanceAmount) || 0);
         accountFormData.append('balance', remainingAmount);
@@ -788,11 +814,10 @@ const AddAccount = () => {
           accountFormData.append('chalan_back', formData.chalanBack);
         }
 
-        console.log('📤 Sending account data (without case_no):', {
+        console.log('📤 Sending account data:', {
           customer_id: customerId,
           product_name: formData.productName,
           total_amount: parseFloat(formData.invoicePrice) || 0,
-          // case_no will be generated by backend
         });
 
         const accountResponse = await fetch(`${API_URL}/accounts`, {
@@ -811,8 +836,9 @@ const AddAccount = () => {
           
           const empName = getSelectedEmployeeName() || user?.name || 'N/A';
           
-          alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${accountData.data.case_no}\nStatus: ${selectedStatus.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
+          alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${accountData.data.case_no || 'N/A'}\nStatus: ${selectedStatus.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
           
+          // Reset form
           setFormData({
             name: '',
             cnic: '',

@@ -1,6 +1,14 @@
+// src/components/EmployeeReport/EmployeeReport.jsx
+
 import React, { useState, useEffect } from 'react';
-import { Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle, AreaChart, ChevronDown } from 'lucide-react';
+import { 
+  Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, 
+  Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, 
+  BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle, 
+  AreaChart, ChevronDown, Calendar as CalendarIcon, BookOpen
+} from 'lucide-react';
 import './EmployeeReport.css';
+import { API_URL } from '../../../config';
 
 const EmployeeReport = () => {
   const [search, setSearch] = useState('');
@@ -12,6 +20,11 @@ const EmployeeReport = () => {
   const [modalChartType, setModalChartType] = useState('bar');
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState([]);
+  const [salaryData, setSalaryData] = useState([]);
+  const [leaveData, setLeaveData] = useState([]);
+  const [summary, setSummary] = useState(null);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -19,98 +32,64 @@ const EmployeeReport = () => {
       setUserRole(user.role);
       setUserBranch(user.branch);
     }
+    fetchData();
   }, []);
 
-  const [employees, setEmployees] = useState([
-    {
-      id: 1,
-      name: 'Ahmed Khan',
-      branch: 1,
-      role: 'employee',
-      joiningDate: '2025-01-15',
-      salary: 45000,
-      monthlyData: {
-        '2026-01': { accountsOpened: 12, recoveryAmount: 45000, leaves: 2, commission: 24000, fuelExpense: 1500, extraEarnings: 5000, overdueAccounts: 3 },
-        '2026-02': { accountsOpened: 15, recoveryAmount: 52000, leaves: 1, commission: 30000, fuelExpense: 1800, extraEarnings: 7000, overdueAccounts: 2 },
-        '2026-03': { accountsOpened: 10, recoveryAmount: 38000, leaves: 3, commission: 20000, fuelExpense: 1200, extraEarnings: 3000, overdueAccounts: 4 },
-        '2026-04': { accountsOpened: 18, recoveryAmount: 65000, leaves: 0, commission: 36000, fuelExpense: 2000, extraEarnings: 8000, overdueAccounts: 1 },
-        '2026-05': { accountsOpened: 14, recoveryAmount: 48000, leaves: 2, commission: 28000, fuelExpense: 1600, extraEarnings: 4500, overdueAccounts: 2 },
-        '2026-06': { accountsOpened: 20, recoveryAmount: 72000, leaves: 1, commission: 40000, fuelExpense: 2200, extraEarnings: 10000, overdueAccounts: 0 },
-      },
-      totalAccounts: 89,
-      totalRecovery: 320000,
-      totalCommission: 178000,
-      totalLeaves: 9,
-      totalFuel: 10300,
-      totalExtra: 37500,
-    },
-    {
-      id: 2,
-      name: 'Sara Ali',
-      branch: 2,
-      role: 'manager',
-      joiningDate: '2025-03-01',
-      salary: 38000,
-      monthlyData: {
-        '2026-01': { accountsOpened: 8, recoveryAmount: 32000, leaves: 1, commission: 16000, fuelExpense: 1000, extraEarnings: 2000, overdueAccounts: 1 },
-        '2026-02': { accountsOpened: 10, recoveryAmount: 40000, leaves: 2, commission: 20000, fuelExpense: 1300, extraEarnings: 3500, overdueAccounts: 2 },
-        '2026-03': { accountsOpened: 12, recoveryAmount: 45000, leaves: 0, commission: 24000, fuelExpense: 1500, extraEarnings: 4000, overdueAccounts: 0 },
-        '2026-04': { accountsOpened: 9, recoveryAmount: 35000, leaves: 3, commission: 18000, fuelExpense: 1100, extraEarnings: 2500, overdueAccounts: 3 },
-        '2026-05': { accountsOpened: 11, recoveryAmount: 42000, leaves: 1, commission: 22000, fuelExpense: 1400, extraEarnings: 3000, overdueAccounts: 1 },
-        '2026-06': { accountsOpened: 15, recoveryAmount: 55000, leaves: 0, commission: 30000, fuelExpense: 1800, extraEarnings: 5000, overdueAccounts: 0 },
-      },
-      totalAccounts: 65,
-      totalRecovery: 249000,
-      totalCommission: 130000,
-      totalLeaves: 7,
-      totalFuel: 8100,
-      totalExtra: 20000,
-    },
-    {
-      id: 3,
-      name: 'Usman Malik',
-      branch: 1,
-      role: 'employee',
-      joiningDate: '2025-06-01',
-      salary: 52000,
-      monthlyData: {
-        '2026-01': { accountsOpened: 5, recoveryAmount: 18000, leaves: 4, commission: 10000, fuelExpense: 800, extraEarnings: 1000, overdueAccounts: 5 },
-        '2026-02': { accountsOpened: 7, recoveryAmount: 25000, leaves: 2, commission: 14000, fuelExpense: 1000, extraEarnings: 2000, overdueAccounts: 3 },
-        '2026-03': { accountsOpened: 8, recoveryAmount: 28000, leaves: 3, commission: 16000, fuelExpense: 1100, extraEarnings: 2500, overdueAccounts: 4 },
-        '2026-04': { accountsOpened: 10, recoveryAmount: 35000, leaves: 1, commission: 20000, fuelExpense: 1300, extraEarnings: 3000, overdueAccounts: 2 },
-        '2026-05': { accountsOpened: 6, recoveryAmount: 20000, leaves: 5, commission: 12000, fuelExpense: 900, extraEarnings: 1500, overdueAccounts: 6 },
-        '2026-06': { accountsOpened: 9, recoveryAmount: 30000, leaves: 2, commission: 18000, fuelExpense: 1200, extraEarnings: 2500, overdueAccounts: 3 },
-      },
-      totalAccounts: 45,
-      totalRecovery: 156000,
-      totalCommission: 90000,
-      totalLeaves: 17,
-      totalFuel: 6300,
-      totalExtra: 12500,
-    },
-    {
-      id: 4,
-      name: 'Fatima Noor',
-      branch: 2,
-      role: 'employee',
-      joiningDate: '2025-08-01',
-      salary: 41000,
-      monthlyData: {
-        '2026-01': { accountsOpened: 6, recoveryAmount: 22000, leaves: 2, commission: 12000, fuelExpense: 900, extraEarnings: 1500, overdueAccounts: 2 },
-        '2026-02': { accountsOpened: 8, recoveryAmount: 28000, leaves: 1, commission: 16000, fuelExpense: 1100, extraEarnings: 2000, overdueAccounts: 1 },
-        '2026-03': { accountsOpened: 11, recoveryAmount: 42000, leaves: 0, commission: 22000, fuelExpense: 1500, extraEarnings: 3500, overdueAccounts: 0 },
-        '2026-04': { accountsOpened: 7, recoveryAmount: 25000, leaves: 3, commission: 14000, fuelExpense: 1000, extraEarnings: 2000, overdueAccounts: 3 },
-        '2026-05': { accountsOpened: 9, recoveryAmount: 32000, leaves: 2, commission: 18000, fuelExpense: 1200, extraEarnings: 2500, overdueAccounts: 2 },
-        '2026-06': { accountsOpened: 12, recoveryAmount: 48000, leaves: 0, commission: 24000, fuelExpense: 1600, extraEarnings: 4000, overdueAccounts: 0 },
-      },
-      totalAccounts: 53,
-      totalRecovery: 197000,
-      totalCommission: 106000,
-      totalLeaves: 8,
-      totalFuel: 7300,
-      totalExtra: 15500,
-    },
-  ]);
+  // ============================================
+  // ✅ UPDATED: fetchData using new API
+  // ============================================
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // ✅ Use new employee-report API
+      const response = await fetch(`${API_URL}/employee-report`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      console.log('Employee Report Data:', data);
+      
+      if (data.success) {
+        const reportData = data.data;
+        const employeesList = reportData.data || [];
+        const summaryData = reportData.summary || {};
+        
+        setSummary(summaryData);
+        
+        const processedEmployees = employeesList.map(emp => {
+          const monthlyData = emp.monthlyData || {};
+          
+          return {
+            id: emp.id,
+            name: emp.name || 'Unknown',
+            email: emp.email || '',
+            phone: emp.phone || '',
+            branch: emp.branch_id || 1,
+            role: emp.role || 'employee',
+            joiningDate: emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : 'N/A',
+            salary: parseFloat(emp.salary || 0),
+            monthlyData: monthlyData,
+            totalAccounts: emp.totalAccounts || 0,
+            totalRecovery: emp.totalRecovery || 0,
+            totalCommission: emp.totalCommission || 0,
+            totalLeaves: emp.totalLeaves || 0,
+          };
+        });
+        
+        setEmployees(processedEmployees);
+      } else {
+        console.error('API Error:', data.message);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+    setLoading(false);
+  };
 
   const getUniqueMonths = () => {
     const months = new Set();
@@ -146,6 +125,11 @@ const EmployeeReport = () => {
     if (branchFilter !== 'all' && !userBranch) {
       filtered = filtered.filter(emp => emp.branch === parseInt(branchFilter));
     }
+    if (search) {
+      filtered = filtered.filter(emp => 
+        emp.name.toLowerCase().includes(search.toLowerCase())
+      );
+    }
     return filtered;
   };
 
@@ -166,10 +150,10 @@ const EmployeeReport = () => {
     const months = Object.keys(emp.monthlyData).sort();
     const data = {
       labels: months.map(m => getMonthName(m)),
-      accounts: months.map(m => emp.monthlyData[m].accountsOpened),
-      recovery: months.map(m => emp.monthlyData[m].recoveryAmount),
-      commission: months.map(m => emp.monthlyData[m].commission),
-      overdue: months.map(m => emp.monthlyData[m].overdueAccounts || 0),
+      accounts: months.map(m => emp.monthlyData[m].accountsOpened || 0),
+      recovery: months.map(m => emp.monthlyData[m].recoveryAmount || 0),
+      commission: months.map(m => emp.monthlyData[m].commission || 0),
+      leaves: months.map(m => emp.monthlyData[m].leaves || 0),
     };
     return data;
   };
@@ -182,7 +166,7 @@ const EmployeeReport = () => {
     { id: 'stacked', label: 'Stacked', icon: BarChart },
   ];
 
-  // ===== RENDER CHART WITH 3 BARS =====
+  // ===== RENDER CHART WITH LEAVES =====
   const renderEmployeeChart = () => {
     if (!selectedEmployee) return null;
     
@@ -190,57 +174,57 @@ const EmployeeReport = () => {
     
     const maxAccounts = Math.max(...empData.accounts, 1);
     const maxRecovery = Math.max(...empData.recovery.map(v => v/1000), 1);
-    const maxOverdue = Math.max(...empData.overdue, 1);
+    const maxLeaves = Math.max(...empData.leaves, 1);
 
     const getAccountsHeight = (val) => (val / maxAccounts) * 140;
     const getRecoveryHeight = (val) => ((val/1000) / maxRecovery) * 140;
-    const getOverdueHeight = (val) => (val / maxOverdue) * 140;
+    const getLeavesHeight = (val) => (val / maxLeaves) * 140;
 
     if (modalChartType === 'bar') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-bar-container-3">
+          <div className="chart-bar-container-4">
             {empData.labels.map((label, index) => (
-              <div key={index} className="chart-bar-group-3">
-                <div className="chart-bars-3">
-                  <div className="chart-bar-wrapper-3">
+              <div key={index} className="chart-bar-group-4">
+                <div className="chart-bars-4">
+                  <div className="chart-bar-wrapper-4">
                     <div 
-                      className="chart-bar-3 bar-accounts" 
+                      className="chart-bar-4 bar-accounts" 
                       style={{ height: `${getAccountsHeight(empData.accounts[index])}px` }}
                     >
-                      <span className="bar-value-3">{empData.accounts[index]}</span>
+                      <span className="bar-value-4">{empData.accounts[index]}</span>
                     </div>
-                    <span className="bar-label-3">Acc</span>
+                    <span className="bar-label-4">Acc</span>
                   </div>
-                  <div className="chart-bar-wrapper-3">
+                  <div className="chart-bar-wrapper-4">
                     <div 
-                      className="chart-bar-3 bar-recovery" 
+                      className="chart-bar-4 bar-recovery" 
                       style={{ height: `${getRecoveryHeight(empData.recovery[index])}px` }}
                     >
-                      <span className="bar-value-3">{(empData.recovery[index]/1000).toFixed(1)}k</span>
+                      <span className="bar-value-4">{(empData.recovery[index]/1000).toFixed(1)}k</span>
                     </div>
-                    <span className="bar-label-3">Rec</span>
+                    <span className="bar-label-4">Rec</span>
                   </div>
-                  <div className="chart-bar-wrapper-3">
+                  <div className="chart-bar-wrapper-4">
                     <div 
-                      className="chart-bar-3 bar-overdue" 
-                      style={{ height: `${getOverdueHeight(empData.overdue[index])}px` }}
+                      className="chart-bar-4 bar-leaves" 
+                      style={{ height: `${getLeavesHeight(empData.leaves[index])}px` }}
                     >
-                      <span className="bar-value-3">{empData.overdue[index]}</span>
+                      <span className="bar-value-4">{empData.leaves[index]}</span>
                     </div>
-                    <span className="bar-label-3">OD</span>
+                    <span className="bar-label-4">Leave</span>
                   </div>
                 </div>
-                <div className="chart-bar-labels-3">
-                  <span className="chart-label-3">{label}</span>
+                <div className="chart-bar-labels-4">
+                  <span className="chart-label-4">{label}</span>
                 </div>
               </div>
             ))}
           </div>
-          <div className="chart-legend-3">
-            <span><span className="legend-dot-3 gold"></span> Accounts (max: {maxAccounts})</span>
-            <span><span className="legend-dot-3 dark"></span> Recovery (max: {maxRecovery.toFixed(1)}k)</span>
-            <span><span className="legend-dot-3 red"></span> Overdue (max: {maxOverdue})</span>
+          <div className="chart-legend-4">
+            <span><span className="legend-dot-4 gold"></span> Accounts (max: {maxAccounts})</span>
+            <span><span className="legend-dot-4 dark"></span> Recovery (max: {maxRecovery.toFixed(1)}k)</span>
+            <span><span className="legend-dot-4 red"></span> Leaves (max: {maxLeaves})</span>
           </div>
         </div>
       );
@@ -272,8 +256,8 @@ const EmployeeReport = () => {
                 strokeDasharray="5,5"
               />
               <polyline
-                points={empData.overdue.map((val, i) => 
-                  `${(i / (empData.overdue.length - 1)) * 600},${220 - (val / maxOverdue) * 190}`
+                points={empData.leaves.map((val, i) => 
+                  `${(i / (empData.leaves.length - 1)) * 600},${220 - (val / maxLeaves) * 190}`
                 ).join(' ')}
                 fill="none"
                 stroke="#dc2626"
@@ -284,10 +268,10 @@ const EmployeeReport = () => {
                 <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="215" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
               ))}
             </svg>
-            <div className="chart-legend-3">
-              <span><span className="legend-dot-3 gold"></span> Accounts</span>
-              <span><span className="legend-dot-3 dark"></span> Recovery (PKR'000)</span>
-              <span><span className="legend-dot-3 red"></span> Overdue</span>
+            <div className="chart-legend-4">
+              <span><span className="legend-dot-4 gold"></span> Accounts</span>
+              <span><span className="legend-dot-4 dark"></span> Recovery (PKR'000)</span>
+              <span><span className="legend-dot-4 red"></span> Leaves</span>
             </div>
           </div>
         </div>
@@ -297,11 +281,11 @@ const EmployeeReport = () => {
     if (modalChartType === 'pie') {
       const totalAccounts = empData.accounts.reduce((a, b) => a + b, 0);
       const totalRecovery = empData.recovery.reduce((a, b) => a + b, 0);
-      const totalOverdue = empData.overdue.reduce((a, b) => a + b, 0);
+      const totalLeaves = empData.leaves.reduce((a, b) => a + b, 0);
       const pieData = [
         { label: 'Total Accounts', value: totalAccounts, color: '#C9A84C' },
         { label: 'Total Recovery', value: totalRecovery / 1000, color: '#1A2A4A' },
-        { label: 'Total Overdue', value: totalOverdue, color: '#dc2626' },
+        { label: 'Total Leaves', value: totalLeaves, color: '#dc2626' },
       ];
       const total = pieData.reduce((a, b) => a + b.value, 0);
       let cumulative = 0;
@@ -339,14 +323,14 @@ const EmployeeReport = () => {
                   {(totalRecovery/1000).toFixed(1)}k Rec
                 </text>
                 <text x="110" y="146" textAnchor="middle" fontSize="10" fill="#dc2626">
-                  {totalOverdue} OD
+                  {totalLeaves} Leaves
                 </text>
               </svg>
             </div>
-            <div className="chart-legend-3">
-              <span><span className="legend-dot-3 gold"></span> Accounts ({totalAccounts})</span>
-              <span><span className="legend-dot-3 dark"></span> Recovery ({(totalRecovery/1000).toFixed(1)}k)</span>
-              <span><span className="legend-dot-3 red"></span> Overdue ({totalOverdue})</span>
+            <div className="chart-legend-4">
+              <span><span className="legend-dot-4 gold"></span> Accounts ({totalAccounts})</span>
+              <span><span className="legend-dot-4 dark"></span> Recovery ({(totalRecovery/1000).toFixed(1)}k)</span>
+              <span><span className="legend-dot-4 red"></span> Leaves ({totalLeaves})</span>
             </div>
           </div>
         </div>
@@ -375,8 +359,8 @@ const EmployeeReport = () => {
                 strokeWidth="2"
               />
               <polygon
-                points={`0,220 ${empData.overdue.map((val, i) => 
-                  `${(i / (empData.overdue.length - 1)) * 600},${220 - (val / maxOverdue) * 190}`
+                points={`0,220 ${empData.leaves.map((val, i) => 
+                  `${(i / (empData.leaves.length - 1)) * 600},${220 - (val / maxLeaves) * 190}`
                 ).join(' ')} 600,220`}
                 fill="rgba(220, 38, 38, 0.25)"
                 stroke="#dc2626"
@@ -386,10 +370,10 @@ const EmployeeReport = () => {
                 <text key={i} x={(i / (empData.labels.length - 1)) * 600} y="215" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
               ))}
             </svg>
-            <div className="chart-legend-3">
-              <span><span className="legend-dot-3 gold"></span> Accounts</span>
-              <span><span className="legend-dot-3 dark"></span> Recovery (PKR'000)</span>
-              <span><span className="legend-dot-3 red"></span> Overdue</span>
+            <div className="chart-legend-4">
+              <span><span className="legend-dot-4 gold"></span> Accounts</span>
+              <span><span className="legend-dot-4 dark"></span> Recovery (PKR'000)</span>
+              <span><span className="legend-dot-4 red"></span> Leaves</span>
             </div>
           </div>
         </div>
@@ -399,42 +383,42 @@ const EmployeeReport = () => {
     if (modalChartType === 'stacked') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-stacked-container-3">
+          <div className="chart-stacked-container-4">
             {empData.labels.map((label, index) => {
               const accH = getAccountsHeight(empData.accounts[index]);
               const recH = getRecoveryHeight(empData.recovery[index]);
-              const odH = getOverdueHeight(empData.overdue[index]);
+              const leaveH = getLeavesHeight(empData.leaves[index]);
               return (
-                <div key={index} className="stacked-bar-group-3">
-                  <div className="stacked-bar-wrapper-3">
+                <div key={index} className="stacked-bar-group-4">
+                  <div className="stacked-bar-wrapper-4">
                     <div 
-                      className="stacked-bar-3 rec-bar-3" 
+                      className="stacked-bar-4 rec-bar-4" 
                       style={{ height: `${recH}px` }}
                     >
-                      <span className="stacked-value-3">{(empData.recovery[index]/1000).toFixed(1)}k</span>
+                      <span className="stacked-value-4">{(empData.recovery[index]/1000).toFixed(1)}k</span>
                     </div>
                     <div 
-                      className="stacked-bar-3 od-bar-3" 
-                      style={{ height: `${odH}px` }}
+                      className="stacked-bar-4 leave-bar-4" 
+                      style={{ height: `${leaveH}px` }}
                     >
-                      <span className="stacked-value-3">{empData.overdue[index]}</span>
+                      <span className="stacked-value-4">{empData.leaves[index]}</span>
                     </div>
                     <div 
-                      className="stacked-bar-3 acc-bar-3" 
+                      className="stacked-bar-4 acc-bar-4" 
                       style={{ height: `${accH}px` }}
                     >
-                      <span className="stacked-value-3">{empData.accounts[index]}</span>
+                      <span className="stacked-value-4">{empData.accounts[index]}</span>
                     </div>
                   </div>
-                  <span className="stacked-label-3">{label}</span>
+                  <span className="stacked-label-4">{label}</span>
                 </div>
               );
             })}
           </div>
-          <div className="chart-legend-3">
-            <span><span className="legend-dot-3 gold"></span> Accounts</span>
-            <span><span className="legend-dot-3 dark"></span> Recovery (PKR'000)</span>
-            <span><span className="legend-dot-3 red"></span> Overdue</span>
+          <div className="chart-legend-4">
+            <span><span className="legend-dot-4 gold"></span> Accounts</span>
+            <span><span className="legend-dot-4 dark"></span> Recovery (PKR'000)</span>
+            <span><span className="legend-dot-4 red"></span> Leaves</span>
           </div>
         </div>
       );
@@ -463,6 +447,7 @@ const EmployeeReport = () => {
   const totalRecovery = displayEmployees.reduce((sum, e) => sum + e.totalRecovery, 0);
   const totalCommission = displayEmployees.reduce((sum, e) => sum + e.totalCommission, 0);
   const totalAccounts = displayEmployees.reduce((sum, e) => sum + e.totalAccounts, 0);
+  const totalLeaves = displayEmployees.reduce((sum, e) => sum + e.totalLeaves, 0);
   const totalEmployees = displayEmployees.length;
 
   const getCurrentMonthAccounts = (emp) => {
@@ -473,27 +458,17 @@ const EmployeeReport = () => {
     return emp.monthlyData[key]?.accountsOpened || 0;
   };
 
-  const getDueAccounts = (emp) => {
-    let dueCount = 0;
-    Object.values(emp.monthlyData).forEach(data => {
-      if (data.recoveryAmount > 0) dueCount++;
-    });
-    return dueCount;
-  };
-
   const getEmployeeStats = (emp) => {
     const currentAccounts = getCurrentMonthAccounts(emp);
-    const dueAccounts = getDueAccounts(emp);
     const monthlyRecovery = emp.monthlyData[`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`]?.recoveryAmount || 0;
 
     return [
       { label: 'Total Accounts', value: emp.totalAccounts, color: '#1E1B4B' },
       { label: `New Accounts (${currentMonth})`, value: currentAccounts, color: '#2563eb' },
       { label: 'Monthly Recovery', value: `PKR ${monthlyRecovery.toLocaleString()}`, color: '#C9A84C' },
-      { label: 'Due Accounts', value: dueAccounts, color: '#f59e0b' },
+      { label: 'Total Leaves', value: emp.totalLeaves, color: '#dc2626' },
       { label: 'Salary', value: `PKR ${emp.salary.toLocaleString()}`, color: '#065f46' },
-      { label: 'Commission', value: `PKR ${emp.totalCommission.toLocaleString()}`, color: '#8B5CF6' },
-      { label: 'Leaves', value: emp.totalLeaves, color: '#dc2626' },
+      { label: 'Total Commission', value: `PKR ${emp.totalCommission.toLocaleString()}`, color: '#8B5CF6' },
     ];
   };
 
@@ -502,18 +477,30 @@ const EmployeeReport = () => {
   const summaryCards = isEmployee ? [
     { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#1E1B4B', bg: 'rgba(30,27,75,0.08)', className: 'accounts' },
     { label: 'Recovery Due', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', className: 'recovery' },
-    { label: 'Overdue', value: displayEmployees.filter(e => e.totalLeaves > 0).length, icon: AlertCircle, color: '#dc2626', bg: 'rgba(220,38,38,0.1)', className: 'overdue' },
+    { label: 'Total Leaves', value: totalLeaves, icon: Calendar, color: '#dc2626', bg: 'rgba(220,38,38,0.1)', className: 'leaves' },
   ] : [
     { label: 'Total Employees', value: totalEmployees, icon: Users, color: '#1E1B4B', bg: 'rgba(30,27,75,0.08)', className: 'users' },
     { label: 'Total Recovery', value: `PKR ${totalRecovery.toLocaleString()}`, icon: DollarSign, color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', className: 'recovery' },
     { label: 'Total Commission', value: `PKR ${totalCommission.toLocaleString()}`, icon: Award, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', className: 'commission' },
     { label: 'Total Accounts', value: totalAccounts, icon: Briefcase, color: '#2563eb', bg: 'rgba(37,99,235,0.1)', className: 'accounts' },
+    { label: 'Total Leaves', value: totalLeaves, icon: Calendar, color: '#dc2626', bg: 'rgba(220,38,38,0.1)', className: 'leaves' },
   ];
 
   const getEmployeeName = (id) => {
     const emp = employees.find(e => e.id === id);
     return emp ? emp.name : 'Select Employee';
   };
+
+  if (loading) {
+    return (
+      <div className="employee-report-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading employee data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="employee-report-container">
@@ -688,7 +675,7 @@ const EmployeeReport = () => {
                     <td className="highlight-number" style={{ fontWeight: 800, color: '#1E1B4B' }}>{emp.totalAccounts}</td>
                     <td style={{ fontWeight: 600 }}>PKR {emp.totalRecovery.toLocaleString()}</td>
                     <td style={{ fontWeight: 600 }}>PKR {emp.totalCommission.toLocaleString()}</td>
-                    <td style={{ fontWeight: 600 }}>{emp.totalLeaves}</td>
+                    <td style={{ fontWeight: 600, color: emp.totalLeaves > 5 ? '#dc2626' : '#1a1a2e' }}>{emp.totalLeaves}</td>
                     <td>
                       <button className="btn-view-detail" onClick={() => openDetailModal(emp)} style={{ fontWeight: 700 }}>
                         <Eye size={15} />
@@ -729,8 +716,8 @@ const EmployeeReport = () => {
                 </div>
               </div>
 
-              {/* 7 Cards - Colorful */}
-              <div className="detail-summary-7">
+              {/* 6 Cards - Colorful */}
+              <div className="detail-summary-6">
                 {getEmployeeStats(selectedEmployee).map((stat, index) => (
                   <div 
                     key={index} 
@@ -791,7 +778,7 @@ const EmployeeReport = () => {
                           <td className="month-accounts" style={{ fontWeight: 700, color: '#1E1B4B' }}>{data.accountsOpened}</td>
                           <td style={{ fontWeight: 600 }}>PKR {data.recoveryAmount.toLocaleString()}</td>
                           <td style={{ fontWeight: 600 }}>PKR {data.commission.toLocaleString()}</td>
-                          <td style={{ fontWeight: 600 }}>{data.leaves}</td>
+                          <td style={{ fontWeight: 600, color: data.leaves > 2 ? '#dc2626' : '#1a1a2e' }}>{data.leaves}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -147,7 +147,7 @@ class UserController extends Controller
             'cnic_front' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'cnic_back' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'agreement_form' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120',
-            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',  // ✅ ADD THIS
+            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -184,7 +184,7 @@ class UserController extends Controller
             $data['agreement_form'] = $path;
         }
 
-        // ✅ Upload Voice Consent
+        // Upload Voice Consent
         if ($request->hasFile('voice_consent')) {
             $file = $request->file('voice_consent');
             $filename = time() . '_voice_' . uniqid() . '.' . $file->getClientOriginalExtension();
@@ -225,7 +225,7 @@ class UserController extends Controller
             'cnic_front' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'cnic_back' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'agreement_form' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120',
-            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',  // ✅ ADD THIS
+            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -274,7 +274,7 @@ class UserController extends Controller
             $data['agreement_form'] = $path;
         }
 
-        // ✅ Upload Voice Consent
+        // Upload Voice Consent
         if ($request->hasFile('voice_consent')) {
             if ($user->voice_consent && Storage::disk('public')->exists($user->voice_consent)) {
                 Storage::disk('public')->delete($user->voice_consent);
@@ -312,7 +312,7 @@ class UserController extends Controller
             $user->cnic_front,
             $user->cnic_back,
             $user->agreement_form,
-            $user->voice_consent  // ✅ ADD THIS
+            $user->voice_consent
         ];
 
         foreach ($files as $file) {
@@ -332,7 +332,7 @@ class UserController extends Controller
     // ============================================
     // ✅ HELPER METHODS
     // ============================================
-    protected function sendResponse($data, $message = 'Success', $statusCode = 200)
+    public function sendResponse($data, $message = 'Success', $statusCode = 200)
     {
         return response()->json([
             'success' => true,
@@ -341,7 +341,7 @@ class UserController extends Controller
         ], $statusCode);
     }
 
-    protected function sendError($message, $statusCode = 400)
+    public function sendError($message, $statusCode = 400)
     {
         return response()->json([
             'success' => false,

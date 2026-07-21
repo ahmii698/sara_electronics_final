@@ -314,24 +314,14 @@ class CustomerController extends Controller
 
                 Log::info('✅ EmployeeAccount created:', ['id' => $employeeAccount->id, 'employee_id' => $employeeId]);
 
-                // ✅ 3. Create Guarantors
-                foreach ($validGuarantors as $g) {
-                    $existingGuarantor = Guarantor::where('cnic', $g['cnic'])->first();
-                    if (!$existingGuarantor) {
-                        Guarantor::create([
-                            'customer_id' => $customer->id,
-                            'name' => $g['name'],
-                            'cnic' => $g['cnic'],
-                            'phone' => $g['phone'],
-                            'address' => $g['address'] ?? '',
-                            'branch_id' => $request->branch_id,
-                            'created_by' => $employeeId,  // ✅ Employee ID
-                            'status' => 'active',
-                        ]);
-                    }
-                }
-
-                Log::info('✅ Guarantors created');
+                // ✅ 3. Guarantors are intentionally NOT created here.
+                // GuarantorController@store handles guarantor creation (with cnic_front / cnic_back images).
+                // Creating them here too used to cause a duplicate record with NULL images,
+                // which then made the frontend's follow-up /guarantors call (with the actual
+                // images) get rejected as "already added for this customer".
+                Log::info('ℹ️ Skipping guarantor creation in CustomerController — handled by GuarantorController with images', [
+                    'valid_guarantors_count' => count($validGuarantors)
+                ]);
 
                 DB::commit();
                 

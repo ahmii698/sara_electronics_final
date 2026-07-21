@@ -1,4 +1,5 @@
 <?php
+// app/Models/Recovery.php
 
 namespace App\Models;
 
@@ -14,8 +15,15 @@ class Recovery extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'account_id', 'customer_id', 'recovery_date', 'amount',
-        'payment_type', 'month', 'description', 'created_by'
+        'account_id', 
+        'customer_id', 
+        'employee_id',  // ✅ ADD THIS
+        'recovery_date', 
+        'amount',
+        'payment_type', 
+        'month', 
+        'description', 
+        'created_by'
     ];
 
     public function account()
@@ -26,6 +34,11 @@ class Recovery extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    public function employee()
+    {
+        return $this->belongsTo(User::class, 'employee_id');
     }
 
     public function creator()
