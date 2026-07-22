@@ -15,13 +15,14 @@ import OverdueInstallments from './components/OverdueInstallments/OverdueInstall
 import AgingReport from './components/Reports/AgingReport';
 import EmployeePerformanceReport from './components/Reports/EmployeePerformanceReport';
 import UsersManagement from './components/Users/Users';
-import Installments from './components/Installments/Installments'; // ✅ ADD THIS
-import Leaveapplication from './components/leave/Leaveapplication'; // ✅ ADD THIS - Leave Application
+import Installments from './components/Installments/Installments';
+import Leaveapplication from './components/leave/Leaveapplication';
+import SystemAccess from './components/SystemAccess/SystemAccess';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import './App.css';
 
-// ✅ Employee sirf inhi paths pe ja sakta hai — Apply Leave yahan add ki
+// ✅ Employee sirf inhi paths pe ja sakta hai - Apply Leave bhi add kar diya
 const EMPLOYEE_ALLOWED_PATHS = ['/employee-performance', '/apply-leave'];
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -45,7 +46,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/add-account" />;
   }
 
-  // Manager - Finance restricted (Salary aur Fixed, Extra ab bahar hai)
+  // Manager - Finance restricted (Salary aur Fixed)
   if (user.role === 'manager') {
     const restrictedPaths = ['/finance/salary', '/finance/fixed'];
     if (restrictedPaths.includes(location.pathname)) {
@@ -117,14 +118,21 @@ const App = () => {
                 <Route path="/overdue-installments" element={<OverdueInstallments />} />
                 <Route path="/aging-report" element={<AgingReport />} />
 
-                {/* ===== USERS ROUTE - ADMIN/MANAGER KE LIYE ===== */}
                 <Route path="/users" element={<UsersManagement />} />
-
-                {/* ===== INSTALLMENTS ROUTE - ADMIN/MANAGER KE LIYE ===== */}
                 <Route path="/installments" element={<Installments />} />
 
-                {/* ===== LEAVE APPLICATION ROUTE - ADMIN/MANAGER/EMPLOYEE SABKE LIYE ===== */}
+                {/* ✅ Apply Leave - Admin, Manager, Employee sab ke liye */}
                 <Route path="/apply-leave" element={<Leaveapplication />} />
+
+                {/* ✅ System Access - Sirf Admin ke liye */}
+                <Route 
+                  path="/system-access" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <SystemAccess />
+                    </ProtectedRoute>
+                  } 
+                />
 
                 <Route path="/login" element={<Navigate to="/" />} />
               </Routes>

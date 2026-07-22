@@ -6,6 +6,7 @@ import { API_URL } from '../../../config';
 const OverdueInstallments = () => {
   const [search, setSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all'); // ✅ 'all' | '1' | '2' | '3'
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [userRole, setUserRole] = useState(null);
@@ -18,7 +19,6 @@ const OverdueInstallments = () => {
   });
   const [saving, setSaving] = useState(false);
 
-  // ✅ Real data (no more dummy overdueData)
   const [loading, setLoading] = useState(true);
   const [overdueAccounts, setOverdueAccounts] = useState([]);
 
@@ -46,6 +46,14 @@ const OverdueInstallments = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
   const currentMonth = getCurrentMonth();
+
+  // ✅ NEW: months between two "YYYY-MM" strings
+  const monthsBetween = (fromMonth, toMonth) => {
+    if (!fromMonth || !toMonth) return 0;
+    const [fy, fm] = fromMonth.split('-').map(Number);
+    const [ty, tm] = toMonth.split('-').map(Number);
+    return (ty - fy) * 12 + (tm - fm);
+  };
 
   // ============================================
   // ✅ FETCH ALL INSTALLMENTS (every page) — need full history per account
@@ -78,28 +86,43 @@ const OverdueInstallments = () => {
   };
 
   // ============================================
-  // ✅ SAME shortfall-based status logic used across the app:
+  // ✅ SAME "oldest due-unpaid month" logic used across the app now:
   //   - Clear   -> every installment fully paid
-  //   - Aging   -> 3+ installments with a short (partial) payment
-  //   - Overdue -> 1-2 installments with a short (partial) payment   ← THIS PAGE
-  //   - Active  -> no short payments at all
+  //   - Aging   -> oldest due-unpaid month is 4+ months back
+  //   - Overdue -> oldest due-unpaid month is 1-3 months back   ← THIS PAGE
+  //   - Active  -> no due-unpaid months at all
   // ============================================
-  const getShortfallCount = (list) => {
-    return list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) > 0).length;
-  };
-
-  const getAccountStatusKey = (list, account) => {
+  const getAccountStatus = (list, account) => {
     const totalInstallments = account?.total_installments || list.length;
-    const fullyPaidCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) <= 0).length;
+    const fullyPaidCount = list.filter(p => parseFloat(p.balance || 0) <= 0).length;
 
     if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
-      return 'clear';
+      return { statusKey: 'clear', overdueMonths: 0 };
     }
 
-    const shortfallCount = getShortfallCount(list);
-    if (shortfallCount >= 3) return 'aging';
-    if (shortfallCount >= 1) return 'overdue';
-    return 'active';
+    // sirf woh unpaid months jinka due date aa chuka hai (future exclude)
+    const dueUnpaidMonths = list
+      .filter(p =>
+        parseFloat(p.balance || 0) > 0 &&
+        p.month &&
+        monthsBetween(p.month, currentMonth) >= 0
+      )
+      .map(p => p.month)
+      .sort();
+
+    if (dueUnpaidMonths.length === 0) {
+      return { statusKey: 'active', overdueMonths: 0 };
+    }
+
+    const oldestDueMonth = dueUnpaidMonths[0];
+    const overdueMonths = monthsBetween(oldestDueMonth, currentMonth) + 1;
+
+    // ✅ Aging ab 4+ se start hoga, isliye 1/2/3 filter yahan kaam karega
+    if (overdueMonths >= 4) {
+      return { statusKey: 'aging', overdueMonths };
+    }
+
+    return { statusKey: 'overdue', overdueMonths };
   };
 
   // ✅ Per-installment row status — used inside the month-by-month history table
@@ -109,6 +132,12 @@ const OverdueInstallments = () => {
     if (paid > 0 && balance <= 0) return 'paid';
     if (paid > 0 && balance > 0) return 'partial';
     return 'unpaid';
+  };
+
+  // ✅ turns overdueMonths into the "Overdue - X Month(s)" label used everywhere
+  const getOverdueLabel = (months) => {
+    if (!months || months <= 0) return 'Overdue';
+    return months === 1 ? 'Overdue - 1 Month' : `Overdue - ${months} Months`;
   };
 
   // ============================================
@@ -133,12 +162,11 @@ const OverdueInstallments = () => {
         const sample = list[0];
         const account = sample.account || {};
 
-        // ✅ Only accounts whose status is actually "Overdue" (1-2 short payments)
-        const statusKey = getAccountStatusKey(list, account);
+        // ✅ Only accounts whose status is actually "Overdue" (1-3 months)
+        const { statusKey, overdueMonths } = getAccountStatus(list, account);
         if (statusKey !== 'overdue') return;
 
         const sortedInstallments = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
-        const shortfallCount = getShortfallCount(list);
 
         // ✅ Total overdue = sum of unpaid/short balances that are already due (month <= current month)
         const totalOverdue = sortedInstallments
@@ -161,7 +189,7 @@ const OverdueInstallments = () => {
           paidAmount: parseFloat(account.paid_amount || 0),
           balance: parseFloat(account.balance || 0),
           totalOverdue,
-          shortfallCount,
+          overdueMonths, // ✅ ab yeh sahi number hai (pehle shortfallCount tha, galat)
           nextPayableInstallment: nextPayable,
           installments: sortedInstallments
         });
@@ -181,7 +209,7 @@ const OverdueInstallments = () => {
 
   const canEdit = userRole === 'admin' || userRole === 'manager';
 
-  // ===== FILTER (search + branch) =====
+  // ===== FILTER (search + branch + overdue months) =====
   const filtered = overdueAccounts.filter(item => {
     const searchMatch = item.customerName.toLowerCase().includes(search.toLowerCase()) ||
       item.caseNo.toLowerCase().includes(search.toLowerCase());
@@ -193,7 +221,13 @@ const OverdueInstallments = () => {
       branchMatch = parseInt(item.branch) === parseInt(branchFilter);
     }
 
-    return searchMatch && branchMatch;
+    // ✅ filter by how many months an account has been overdue
+    let monthMatch = true;
+    if (monthFilter !== 'all') {
+      monthMatch = item.overdueMonths === parseInt(monthFilter);
+    }
+
+    return searchMatch && branchMatch && monthMatch;
   });
 
   const totalBalance = filtered.reduce((sum, item) => sum + item.balance, 0);
@@ -305,7 +339,7 @@ const OverdueInstallments = () => {
               <Clock size={12} /> Live
             </span>
           </div>
-          <p className="subtitle">Accounts with 1-2 short (partial) payments</p>
+          <p className="subtitle">Accounts whose oldest due installment is 1-3 months overdue</p>
         </div>
       </div>
 
@@ -342,6 +376,38 @@ const OverdueInstallments = () => {
             onChange={(e) => setSearch(e.target.value)}
             style={{ fontWeight: 500 }}
           />
+        </div>
+
+        {/* ✅ Overdue months filter — All / 1 Month / 2 Months / 3 Months */}
+        <div className="branch-filters">
+          <button
+            className={`filter-btn ${monthFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setMonthFilter('all')}
+            style={{ fontWeight: 600 }}
+          >
+            All Overdue
+          </button>
+          <button
+            className={`filter-btn ${monthFilter === '1' ? 'active' : ''}`}
+            onClick={() => setMonthFilter('1')}
+            style={{ fontWeight: 600 }}
+          >
+            1 Month
+          </button>
+          <button
+            className={`filter-btn ${monthFilter === '2' ? 'active' : ''}`}
+            onClick={() => setMonthFilter('2')}
+            style={{ fontWeight: 600 }}
+          >
+            2 Months
+          </button>
+          <button
+            className={`filter-btn ${monthFilter === '3' ? 'active' : ''}`}
+            onClick={() => setMonthFilter('3')}
+            style={{ fontWeight: 600 }}
+          >
+            3 Months
+          </button>
         </div>
 
         {!userBranch && (
@@ -421,8 +487,9 @@ const OverdueInstallments = () => {
                       PKR {item.totalOverdue.toLocaleString()}
                     </td>
                     <td>
+                      {/* ✅ Status shows exact overdue months */}
                       <span className="status-badge overdue" style={{ fontWeight: 700 }}>
-                        Overdue
+                        {getOverdueLabel(item.overdueMonths)}
                       </span>
                     </td>
                     <td>
@@ -445,7 +512,7 @@ const OverdueInstallments = () => {
         </div>
       </div>
 
-      {/* ===== PAGINATION (kept simple, same as before) ===== */}
+      {/* ===== PAGINATION ===== */}
       {filtered.length > 0 && (
         <div className="pagination">
           <button style={{ fontWeight: 600 }} disabled>Previous</button>
@@ -502,6 +569,12 @@ const OverdueInstallments = () => {
                     PKR {selectedRecord.totalOverdue.toLocaleString()}
                   </strong>
                 </div>
+                <div className="detail-item">
+                  <span style={{ fontWeight: 700 }}>Overdue Since</span>
+                  <strong style={{ fontWeight: 700, color: '#dc2626' }}>
+                    {getOverdueLabel(selectedRecord.overdueMonths)}
+                  </strong>
+                </div>
               </div>
 
               <div className="installment-history">
@@ -517,7 +590,6 @@ const OverdueInstallments = () => {
                         <th style={{ fontWeight: 800 }}>Due (PKR)</th>
                         <th style={{ fontWeight: 800 }}>Paid (PKR)</th>
                         <th style={{ fontWeight: 800 }}>Overdue</th>
-                        <th style={{ fontWeight: 800 }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -529,11 +601,6 @@ const OverdueInstallments = () => {
                             <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
                             <td className="paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
                             <td className="overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {parseFloat(inst.balance || 0).toLocaleString()}</td>
-                            <td>
-                              <span className={`status-badge ${rowStatus}`} style={{ fontWeight: 700 }}>
-                                {rowStatus === 'paid' ? 'Paid' : rowStatus === 'partial' ? 'Partial' : 'Unpaid'}
-                              </span>
-                            </td>
                           </tr>
                         );
                       })}

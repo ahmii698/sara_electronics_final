@@ -228,14 +228,25 @@ class GuarantorController extends Controller
         ]);
     }
 
+    // ============================================
+    // ✅ UPGRADED: ab poori guarantor_records list bhi deta hai
+    // (kis kis customer ka guarantor hai)
+    // ============================================
     public function checkCnic(Request $request)
     {
         $request->validate(['cnic' => 'required|string']);
         
         $cnic = $request->cnic;
+        $cleanCnic = preg_replace('/[^0-9]/', '', $cnic);
         
-        $customerExists = Customer::where('cnic', $cnic)->exists();
-        $guarantorExists = Guarantor::where('cnic', $cnic)->exists();
+        $customerExists = Customer::where('cnic', $cnic)->orWhere('cnic', $cleanCnic)->exists();
+
+        $guarantorRecords = Guarantor::where('cnic', $cnic)
+            ->orWhere('cnic', $cleanCnic)
+            ->with('customer')
+            ->get();
+
+        $guarantorExists = $guarantorRecords->isNotEmpty();
 
         return response()->json([
             'success' => true,
@@ -243,7 +254,16 @@ class GuarantorController extends Controller
                 'cnic' => $cnic,
                 'exists_as_customer' => $customerExists,
                 'exists_as_guarantor' => $guarantorExists,
-                'is_available' => !($customerExists || $guarantorExists)
+                'is_available' => !($customerExists || $guarantorExists),
+                'guarantor_records' => $guarantorRecords->map(function ($g) {
+                    return [
+                        'guarantor_name' => $g->name,
+                        'guarantor_cnic' => $g->cnic,
+                        'customer_name' => $g->customer->name ?? 'N/A',
+                        'customer_cnic' => $g->customer->cnic ?? 'N/A',
+                        'customer_id' => $g->customer_id,
+                    ];
+                }),
             ]
         ]);
     }

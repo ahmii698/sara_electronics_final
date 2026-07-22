@@ -51,7 +51,7 @@ class SalaryController extends Controller
                 'salary_amount' => 'required|numeric|min:0',
                 'commission' => 'nullable|numeric|min:0',
                 'advances' => 'nullable|numeric|min:0',
-                'leave_count' => 'nullable|integer|min:0',  // ✅ ADD THIS
+                'leave_count' => 'nullable|integer|min:0',
                 'status' => 'nullable|in:paid,pending,partial'
             ]);
 
@@ -59,6 +59,18 @@ class SalaryController extends Controller
                 return response()->json([
                     'success' => false,
                     'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Check if record already exists for this user and month
+            $existing = Salary::where('user_id', $request->user_id)
+                ->where('month', $request->month)
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Salary record already exists for this month'
                 ], 422);
             }
 
@@ -78,7 +90,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // UPDATE SALARY RECORD
+    // UPDATE SALARY RECORD - COMPLETE RESET SUPPORT
     // ============================================
     public function update(Request $request, $id)
     {
@@ -91,7 +103,17 @@ class SalaryController extends Controller
                 ], 404);
             }
 
-            $salary->update($request->all());
+            $validated = $request->validate([
+                'status' => 'sometimes|in:paid,pending,partial',
+                'paid_date' => 'nullable|date',
+                'commission' => 'nullable|numeric|min:0',
+                'total_paid' => 'nullable|numeric|min:0',
+                'leave_count' => 'nullable|integer|min:0',
+                'advances' => 'nullable|numeric|min:0',
+                'salary_amount' => 'nullable|numeric|min:0',
+            ]);
+
+            $salary->update($validated);
 
             return response()->json([
                 'success' => true,
@@ -147,7 +169,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ GET ALL SALARY ADVANCES
+    // GET ALL SALARY ADVANCES
     // ============================================
     public function advances(Request $request)
     {
@@ -175,7 +197,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ CREATE SALARY ADVANCE
+    // CREATE SALARY ADVANCE
     // ============================================
     public function storeAdvance(Request $request)
     {
@@ -229,7 +251,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ DEDUCT ADVANCE
+    // DEDUCT ADVANCE
     // ============================================
     public function deductAdvance($id)
     {
@@ -286,7 +308,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ GET EMPLOYEE LEAVES
+    // GET EMPLOYEE LEAVES
     // ============================================
     public function getLeaves(Request $request)
     {
@@ -322,7 +344,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ ADD EMPLOYEE LEAVE
+    // ADD EMPLOYEE LEAVE
     // ============================================
     public function storeLeave(Request $request)
     {
@@ -377,7 +399,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ UPDATE EMPLOYEE LEAVE
+    // UPDATE EMPLOYEE LEAVE
     // ============================================
     public function updateLeave(Request $request, $id)
     {
@@ -420,7 +442,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ DELETE EMPLOYEE LEAVE
+    // DELETE EMPLOYEE LEAVE
     // ============================================
     public function deleteLeave($id)
     {
@@ -465,7 +487,7 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // ✅ GET MONTHLY SALARY SUMMARY
+    // GET MONTHLY SALARY SUMMARY
     // ============================================
     public function getMonthlySummary(Request $request)
     {

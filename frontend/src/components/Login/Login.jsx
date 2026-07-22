@@ -82,23 +82,34 @@ const Login = ({ setIsLoggedIn }) => {
           return;
         }
 
-        if (user.role === 'admin') {
-          // Admin is allowed on any branch
-        } else if (user.role === 'manager' || user.role === 'employee') {
+        // ✅ Manager/Employee: unka branch_id database mein fix hai,
+        // login ke waqt select ki gayi branch se match hona chahiye.
+        if (user.role === 'manager' || user.role === 'employee') {
           if (user.branch_id !== parseInt(loginData.branch)) {
             setError('Invalid credentials');
             setLoading(false);
             return;
           }
         }
+        // Admin role check yahan intentionally koi branch-match nahi karta —
+        // Admin ka database branch_id null hota hai, isliye Admin login screen
+        // par jo branch SELECT karta hai wahi uski is-session ki active branch
+        // banegi (neeche userData.branch mein). Yeh ensure karta hai ke Admin
+        // bhi Branch 1 se login karke sirf Branch 1 ka data dekhe, Branch 2 se
+        // login karke sirf Branch 2 ka — dono kabhi mix nahi honge.
+
+        const selectedBranchId = parseInt(loginData.branch);
 
         const userData = {
           id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
-          branch: user.branch_id,
-          branchName: user.branch?.name || `Branch ${user.branch_id}`,
+          // ✅ Har role ke liye login-time selected branch hi session branch hai.
+          // Manager/Employee ke liye yeh already user.branch_id ke barabar hai
+          // (upar check ho chuka), Admin ke liye yeh login selection se aati hai.
+          branch: selectedBranchId,
+          branchName: user.branch?.name || `Branch ${selectedBranchId}`,
           employeeId: user.id,
         };
 

@@ -3,14 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   Calendar, User, FileText, Send, CheckCircle,
-  AlertCircle, Clock, Building, X
+  AlertCircle, Building
 } from 'lucide-react';
-import './Leaveapplication.css';
+import './LeaveApplication.css';
 import { API_URL } from '../../../config';
 
 const LeaveApplication = () => {
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [userBranch, setUserBranch] = useState(null);
 
   const [formData, setFormData] = useState({
     user_id: '',
@@ -21,11 +22,15 @@ const LeaveApplication = () => {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
 
-  // ✅ Recent applications (so the person can see what they just submitted)
+  // Recent leave records (so the person can see what was just recorded)
   const [recentLeaves, setRecentLeaves] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
 
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      setUserBranch(user.branch);
+    }
     fetchEmployees();
     fetchRecentLeaves();
   }, []);
@@ -34,7 +39,7 @@ const LeaveApplication = () => {
     setLoadingEmployees(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/users`, {
+      const response = await fetch(`${API_URL}/users?paginate=0`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -43,8 +48,17 @@ const LeaveApplication = () => {
       const data = await response.json();
 
       if (data.success) {
-        const list = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
-        setEmployees(list);
+        let list = [];
+        if (Array.isArray(data.data)) {
+          list = data.data;
+        } else if (data.data && Array.isArray(data.data.data)) {
+          list = data.data.data;
+        } else if (Array.isArray(data)) {
+          list = data;
+        }
+
+        const filtered = list.filter(u => u.role === 'employee' || u.role === 'manager');
+        setEmployees(filtered.length > 0 ? filtered : list);
       } else {
         setEmployees([]);
       }
@@ -68,13 +82,36 @@ const LeaveApplication = () => {
       const data = await response.json();
 
       if (data.success) {
-        setRecentLeaves((data.data || []).slice(0, 8));
+        setRecentLeaves(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching leaves:', error);
     }
     setLoadingRecent(false);
   };
+
+  // ✅ Sirf apni branch ke employees/managers dropdown mein dikhao
+  // (Admin ka bhi ab login-selected branch session mein set hoti hai,
+  // isliye yeh Admin/Manager dono ke liye barabar kaam karta hai)
+  const getBranchScopedEmployees = () => {
+    if (userBranch) {
+      return employees.filter(emp => parseInt(emp.branch_id) === parseInt(userBranch));
+    }
+    return employees;
+  };
+
+  // ✅ Recent Leave Records bhi sirf apni branch ke employees ke dikhao
+  const getBranchScopedRecentLeaves = () => {
+    let list = recentLeaves;
+    if (userBranch) {
+      list = list.filter(leave => parseInt(leave.employee?.branch_id) === parseInt(userBranch));
+    }
+    // sirf latest 4 records
+    return list.slice(0, 4);
+  };
+
+  const filteredEmployees = getBranchScopedEmployees();
+  const filteredRecentLeaves = getBranchScopedRecentLeaves();
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -105,11 +142,11 @@ const LeaveApplication = () => {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: 'Leave application submitted successfully!' });
+        setMessage({ type: 'success', text: 'Leave recorded successfully!' });
         setFormData({ user_id: '', leave_date: '', reason: '' });
         fetchRecentLeaves();
       } else {
-        setMessage({ type: 'error', text: data.message || 'Failed to submit leave application.' });
+        setMessage({ type: 'error', text: data.message || 'Failed to record leave.' });
       }
     } catch (error) {
       console.error('Error submitting leave:', error);
@@ -127,41 +164,31 @@ const LeaveApplication = () => {
     });
   };
 
-  const getStatusBadge = (status) => {
-    if (status === 'approved') {
-      return <span className="leave-badge leave-badge-approved"><CheckCircle size={13} /> Approved</span>;
-    }
-    if (status === 'rejected') {
-      return <span className="leave-badge leave-badge-rejected"><X size={13} /> Rejected</span>;
-    }
-    return <span className="leave-badge leave-badge-pending"><Clock size={13} /> Pending</span>;
-  };
-
   return (
-    <div className="leave-application-page">
-      <div className="leave-page-header">
-        <h2>Apply for Leave</h2>
-        <p>Submit a leave request for an employee</p>
+    <div className="leaveapp-page">
+      <div className="leaveapp-page-header">
+        <h2>Record Leave</h2>
+        <p>Record a leave day for an employee</p>
       </div>
 
-      <div className="leave-content-grid">
+      <div className="leaveapp-content-grid">
         {/* ===== FORM CARD ===== */}
-        <div className="leave-form-card">
+        <div className="leaveapp-form-card">
           <form onSubmit={handleSubmit}>
-            <div className="leave-form-group">
+            <div className="leaveapp-form-group">
               <label>
                 <User size={16} /> Employee
               </label>
               <select
                 value={formData.user_id}
                 onChange={(e) => handleChange('user_id', e.target.value)}
-                className="leave-form-input"
+                className="leaveapp-form-input"
                 disabled={loadingEmployees}
               >
                 <option value="">
                   {loadingEmployees ? 'Loading employees...' : 'Select employee...'}
                 </option>
-                {employees.map(emp => (
+                {filteredEmployees.map(emp => (
                   <option key={emp.id} value={emp.id}>
                     {emp.name} {emp.branch_id ? `(Branch ${emp.branch_id})` : ''}
                   </option>
@@ -169,7 +196,7 @@ const LeaveApplication = () => {
               </select>
             </div>
 
-            <div className="leave-form-group">
+            <div className="leaveapp-form-group">
               <label>
                 <Calendar size={16} /> Leave Date
               </label>
@@ -177,66 +204,65 @@ const LeaveApplication = () => {
                 type="date"
                 value={formData.leave_date}
                 onChange={(e) => handleChange('leave_date', e.target.value)}
-                className="leave-form-input"
+                className="leaveapp-form-input"
               />
             </div>
 
-            <div className="leave-form-group">
+            <div className="leaveapp-form-group">
               <label>
                 <FileText size={16} /> Reason
               </label>
               <textarea
                 value={formData.reason}
                 onChange={(e) => handleChange('reason', e.target.value)}
-                className="leave-form-input leave-form-textarea"
+                className="leaveapp-form-input leaveapp-form-textarea"
                 placeholder="e.g. Medical leave, Family emergency, Personal work..."
                 rows={4}
               />
             </div>
 
             {message && (
-              <div className={`leave-message leave-message-${message.type}`}>
+              <div className={`leaveapp-message leaveapp-message-${message.type}`}>
                 {message.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
                 <span>{message.text}</span>
               </div>
             )}
 
-            <button type="submit" className="leave-submit-btn" disabled={submitting}>
+            <button type="submit" className="leaveapp-submit-btn" disabled={submitting}>
               <Send size={16} />
-              {submitting ? 'Submitting...' : 'Submit Leave Application'}
+              {submitting ? 'Recording...' : 'Record Leave'}
             </button>
           </form>
         </div>
 
-        {/* ===== RECENT APPLICATIONS ===== */}
-        <div className="leave-recent-card">
-          <h3>Recent Applications</h3>
+        {/* ===== RECENT LEAVE RECORDS ===== */}
+        <div className="leaveapp-recent-card">
+          <h3>Recent Leave Records</h3>
           {loadingRecent ? (
-            <div className="leave-loading">
-              <div className="leave-spinner"></div>
+            <div className="leaveapp-loading">
+              <div className="leaveapp-spinner"></div>
             </div>
-          ) : recentLeaves.length === 0 ? (
-            <div className="leave-empty">
+          ) : filteredRecentLeaves.length === 0 ? (
+            <div className="leaveapp-empty">
               <AlertCircle size={22} />
-              <p>No leave applications yet</p>
+              <p>No leave records yet</p>
             </div>
           ) : (
-            <div className="leave-recent-list">
-              {recentLeaves.map(leave => (
-                <div key={leave.id} className="leave-recent-item">
-                  <div className="leave-recent-top">
-                    <div className="leave-recent-name">
+            <div className="leaveapp-recent-list">
+              {filteredRecentLeaves.map(leave => (
+                <div key={leave.id} className="leaveapp-recent-item">
+                  <div className="leaveapp-recent-top">
+                    <div className="leaveapp-recent-name">
                       {leave.employee?.name || 'Unknown'}
                       {leave.employee?.branch_id && (
-                        <span className="leave-recent-branch">
+                        <span className="leaveapp-recent-branch">
                           <Building size={11} /> Branch {leave.employee.branch_id}
                         </span>
                       )}
                     </div>
-                    {getStatusBadge(leave.status)}
                   </div>
-                  <div className="leave-recent-date">{formatDate(leave.leave_date)}</div>
-                  <div className="leave-recent-reason">{leave.reason}</div>
+                  <div className="leaveapp-recent-date">{formatDate(leave.leave_date)}</div>
+                  <div className="leaveapp-recent-reason">{leave.reason}</div>
                 </div>
               ))}
             </div>

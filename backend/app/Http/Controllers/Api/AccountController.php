@@ -189,13 +189,19 @@ class AccountController extends Controller
                 'employee_account_id' => $employeeAccountId,
             ]);
 
-            // Generate Installments
+            // ✅ Generate Installments
+            // Pehle: $i=0 par month seedha "due_date" wale mahine ka ban jata tha
+            // (i.e. "+0 months"), isi liye account isi mahine khulne par pehli
+            // installment turant usi mahine "due" dikhti thi.
+            // Ab: pehli installment hamesha due_date/account-opening ke MAHINE
+            // ke EK MAHINE BAAD se shuru hogi — matlab July mein account khula
+            // to pehli installment August mein due hogi, phir September, waghera.
             $monthly = $request->monthly_installment;
             $totalMonths = $request->total_installments;
             $startDate = date('Y-m', strtotime($request->due_date));
 
             for ($i = 0; $i < $totalMonths; $i++) {
-                $month = date('Y-m', strtotime("+{$i} months", strtotime($startDate . '-01')));
+                $month = date('Y-m', strtotime('+' . ($i + 1) . ' months', strtotime($startDate . '-01')));
                 $due = $monthly;
                 
                 Installment::create([

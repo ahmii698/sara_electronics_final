@@ -35,8 +35,16 @@ class UserController extends Controller
                   ->orWhere('phone', 'LIKE', "%{$search}%");
         }
 
-        $users = $query->orderBy('id', 'desc')->paginate(20);
-        
+        $query->orderBy('id', 'desc');
+
+        // ✅ FIX: agar frontend ?paginate=0 bheje to pura array do (no pagination),
+        // warna purana pagination behavior (20 per page) as-is rahega.
+        if ($request->boolean('paginate', true) === false) {
+            $users = $query->get();
+        } else {
+            $users = $query->paginate(20);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $users

@@ -117,6 +117,13 @@ const EmployeeReport = () => {
 
   const currentMonth = getCurrentMonth();
 
+  // ✅ Shared helper: builds the "YYYY-MM" key for the current month,
+  // used to pull this month's slice out of an employee's monthlyData.
+  const getCurrentMonthKey = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+
   const getFilteredEmployees = () => {
     let filtered = employees;
     if (userBranch) {
@@ -451,22 +458,27 @@ const EmployeeReport = () => {
   const totalEmployees = displayEmployees.length;
 
   const getCurrentMonthAccounts = (emp) => {
-    const now = new Date();
-    const currentMonthNum = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-    const key = `${currentYear}-${String(currentMonthNum).padStart(2, '0')}`;
+    const key = getCurrentMonthKey();
     return emp.monthlyData[key]?.accountsOpened || 0;
+  };
+
+  // ✅ NEW: same idea as getCurrentMonthAccounts, but for leaves —
+  // pulls this employee's leave count for the current month only.
+  const getCurrentMonthLeaves = (emp) => {
+    const key = getCurrentMonthKey();
+    return emp.monthlyData[key]?.leaves || 0;
   };
 
   const getEmployeeStats = (emp) => {
     const currentAccounts = getCurrentMonthAccounts(emp);
-    const monthlyRecovery = emp.monthlyData[`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`]?.recoveryAmount || 0;
+    const currentLeaves = getCurrentMonthLeaves(emp);
+    const monthlyRecovery = emp.monthlyData[getCurrentMonthKey()]?.recoveryAmount || 0;
 
     return [
       { label: 'Total Accounts', value: emp.totalAccounts, color: '#1E1B4B' },
       { label: `New Accounts (${currentMonth})`, value: currentAccounts, color: '#2563eb' },
       { label: 'Monthly Recovery', value: `PKR ${monthlyRecovery.toLocaleString()}`, color: '#C9A84C' },
-      { label: 'Total Leaves', value: emp.totalLeaves, color: '#dc2626' },
+      { label: `Leaves (${currentMonth})`, value: currentLeaves, color: '#dc2626' },
       { label: 'Salary', value: `PKR ${emp.salary.toLocaleString()}`, color: '#065f46' },
       { label: 'Total Commission', value: `PKR ${emp.totalCommission.toLocaleString()}`, color: '#8B5CF6' },
     ];
@@ -646,7 +658,7 @@ const EmployeeReport = () => {
                 <th style={{ fontWeight: 800 }}>Accounts</th>
                 <th style={{ fontWeight: 800 }}>Recovery</th>
                 <th style={{ fontWeight: 800 }}>Commission</th>
-                <th style={{ fontWeight: 800 }}>Leaves</th>
+                <th style={{ fontWeight: 800 }}>Leaves ({currentMonth})</th>
                 <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
             </thead>
@@ -661,29 +673,32 @@ const EmployeeReport = () => {
                   </td>
                 </tr>
               ) : (
-                displayEmployees.map((emp, index) => (
-                  <tr key={emp.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
-                    <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
-                    <td>
-                      <div className="emp-name-cell">
-                        <div className="emp-avatar" style={{ background: '#ede9fe', color: '#1E1B4B', fontWeight: 700 }}>
-                          {emp.name.charAt(0)}
+                displayEmployees.map((emp, index) => {
+                  const currentLeaves = getCurrentMonthLeaves(emp);
+                  return (
+                    <tr key={emp.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
+                      <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
+                      <td>
+                        <div className="emp-name-cell">
+                          <div className="emp-avatar" style={{ background: '#ede9fe', color: '#1E1B4B', fontWeight: 700 }}>
+                            {emp.name.charAt(0)}
+                          </div>
+                          {emp.name}
                         </div>
-                        {emp.name}
-                      </div>
-                    </td>
-                    <td className="highlight-number" style={{ fontWeight: 800, color: '#1E1B4B' }}>{emp.totalAccounts}</td>
-                    <td style={{ fontWeight: 600 }}>PKR {emp.totalRecovery.toLocaleString()}</td>
-                    <td style={{ fontWeight: 600 }}>PKR {emp.totalCommission.toLocaleString()}</td>
-                    <td style={{ fontWeight: 600, color: emp.totalLeaves > 5 ? '#dc2626' : '#1a1a2e' }}>{emp.totalLeaves}</td>
-                    <td>
-                      <button className="btn-view-detail" onClick={() => openDetailModal(emp)} style={{ fontWeight: 700 }}>
-                        <Eye size={15} />
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="highlight-number" style={{ fontWeight: 800, color: '#1E1B4B' }}>{emp.totalAccounts}</td>
+                      <td style={{ fontWeight: 600 }}>PKR {emp.totalRecovery.toLocaleString()}</td>
+                      <td style={{ fontWeight: 600 }}>PKR {emp.totalCommission.toLocaleString()}</td>
+                      <td style={{ fontWeight: 600, color: currentLeaves > 2 ? '#dc2626' : '#1a1a2e' }}>{currentLeaves}</td>
+                      <td>
+                        <button className="btn-view-detail" onClick={() => openDetailModal(emp)} style={{ fontWeight: 700 }}>
+                          <Eye size={15} />
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

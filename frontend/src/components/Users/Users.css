@@ -143,20 +143,20 @@
 .users-stat-card.total {
   border-top-color: #1E1B4B;
 }
-.users-stat-card.admins {
+.users-stat-card.clear {
+  border-top-color: #eab308;
+}
+.users-stat-card.paid {
   border-top-color: #22c55e;
 }
-.users-stat-card.managers {
-  border-top-color: #f59e0b;
+.users-stat-card.overdue {
+  border-top-color: #3b82f6;
 }
-.users-stat-card.employees {
+.users-stat-card.aging {
+  border-top-color: #ef4444;
+}
+.users-stat-card.balance {
   border-top-color: #C9A84C;
-}
-.users-stat-card.active-users {
-  border-top-color: #22c55e;
-}
-.users-stat-card.inactive-users {
-  border-top-color: #6b7280;
 }
 
 .users-stat-icon {
@@ -381,14 +381,6 @@
   font-weight: 700;
 }
 
-.overdue-row {
-  border-left: 4px solid #dc2626 !important;
-}
-
-.overdue-row td {
-  border-bottom-color: #fecaca !important;
-}
-
 .no-data {
   text-align: center;
   padding: 2.5rem !important;
@@ -452,7 +444,7 @@
   color: #6b7280;
 }
 
-/* ===== BADGES ===== */
+/* ===== CATEGORY BADGES (used in modal) ===== */
 .client-badge {
   display: inline-flex;
   align-items: center;
@@ -463,40 +455,21 @@
   font-weight: 700;
 }
 
+.client-badge.clear {
+  background: #fef9c3;
+  color: #854d0e;
+}
 .client-badge.paid {
   background: #d1fae5;
   color: #065f46;
 }
-.client-badge.unpaid {
+.client-badge.overdue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.client-badge.aging {
   background: #fee2e2;
   color: #991b1b;
-}
-.client-badge.partial {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.account-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.15rem 0.6rem;
-  border-radius: 9999px;
-  font-size: 0.65rem;
-  font-weight: 700;
-}
-
-.account-status-badge.active {
-  background: #d1fae5;
-  color: #065f46;
-}
-.account-status-badge.hold {
-  background: #fef3c7;
-  color: #92400e;
-}
-.account-status-badge.closed {
-  background: #f3f4f6;
-  color: #6b7280;
 }
 
 /* ===== ACTIONS ===== */
@@ -732,9 +705,23 @@
   color: #dc2626;
 }
 
-.user-detail-item .overdue-text {
-  color: #dc2626;
-  font-weight: 700;
+/* ============================================ */
+/* ===== ROW COLOR CODING - THIN LINE ONLY, NO FULL BACKGROUND FILL ===== */
+/* ============================================ */
+.row-clear {
+  border-left: 4px solid #eab308 !important;
+}
+
+.row-paid {
+  border-left: 4px solid #22c55e !important;
+}
+
+.row-overdue {
+  border-left: 4px solid #3b82f6 !important;
+}
+
+.row-aging {
+  border-left: 4px solid #ef4444 !important;
 }
 
 /* ============================================ */
@@ -859,42 +846,7 @@
   }
 }
 
-
-/* src/components/UsersManagement/Users.css - Add these styles */
-
-/* Row color coding */
-.row-paid {
-  border-left: 4px solid #22c55e !important;
-  background-color: #f0fdf4 !important;
-}
-
-.row-paid:hover {
-  background-color: #dcfce7 !important;
-}
-
-.row-partial {
-  border-left: 4px solid #f59e0b !important;
-  background-color: #fffbeb !important;
-}
-
-.row-partial:hover {
-  background-color: #fef3c7 !important;
-}
-
-.row-overdue {
-  border-left: 4px solid #ef4444 !important;
-  background-color: #fef2f2 !important;
-}
-
-.row-overdue:hover {
-  background-color: #fee2e2 !important;
-}
-
-.row-active {
-  border-left: 4px solid #3b82f6 !important;
-}
-
-/* Detail Modal */
+/* ===== DETAIL MODAL ===== */
 .detail-modal .users-modal-content {
   max-width: 900px !important;
   max-height: 90vh !important;

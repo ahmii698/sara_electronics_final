@@ -32,18 +32,14 @@ class LeaveController extends Controller
 
     // ============================================
     // GET /api/leaves
-    // List leave applications (admin view / branch view)
-    // Optional filters: ?status=pending  ?user_id=5  ?branch_id=1
+    // List leave records (admin view / branch view)
+    // Optional filters: ?user_id=5  ?branch_id=1
     // ============================================
     public function index(Request $request)
     {
         try {
             $query = EmployeeLeave::with('employee:id,name,branch_id,role')
                 ->orderBy('leave_date', 'desc');
-
-            if ($request->filled('status')) {
-                $query->where('status', $request->status);
-            }
 
             if ($request->filled('user_id')) {
                 $query->where('user_id', $request->user_id);
@@ -65,9 +61,10 @@ class LeaveController extends Controller
 
     // ============================================
     // POST /api/leaves
-    // Submit a new leave application.
+    // Record a leave directly - NO pending/approval workflow.
     // Form only sends: user_id, leave_date, reason.
-    // month/year/status are filled in automatically here.
+    // month/year are filled in automatically here, and the
+    // record is saved as final (status = 'approved') immediately.
     // ============================================
     public function store(Request $request)
     {
@@ -90,42 +87,18 @@ class LeaveController extends Controller
                 'month'      => $date->format('Y-m'),   // ✅ auto-derived
                 'year'       => $date->format('Y'),       // ✅ auto-derived
                 'reason'     => $request->reason,
-                'status'     => 'pending',
+                'status'     => 'approved', // ✅ direct final entry, no pending review step
             ]);
 
-            return $this->sendResponse($leave, 'Leave application submitted successfully', 201);
+            return $this->sendResponse($leave, 'Leave recorded successfully', 201);
         } catch (\Exception $e) {
             return $this->sendError($e->getMessage(), 500);
         }
     }
 
     // ============================================
-    // PATCH /api/leaves/{id}/status
-    // Approve / reject a leave request (admin action)
-    // ============================================
-    public function updateStatus(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'status' => 'required|in:approved,rejected,pending',
-        ]);
-
-        if ($validator->fails()) {
-            return $this->sendError('Validation error', 422, $validator->errors());
-        }
-
-        $leave = EmployeeLeave::find($id);
-        if (!$leave) {
-            return $this->sendError('Leave record not found', 404);
-        }
-
-        $leave->status = $request->status;
-        $leave->save();
-
-        return $this->sendResponse($leave, 'Leave status updated successfully');
-    }
-
-    // ============================================
     // DELETE /api/leaves/{id}
+    // (Kept in case you need to remove a mistakenly-entered record)
     // ============================================
     public function destroy($id)
     {

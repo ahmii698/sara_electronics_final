@@ -50,17 +50,26 @@ class ExpenseController extends Controller
         return $this->sendResponse($expense, 'Fixed expense updated');
     }
 
-    public function payFixed($id)
+    // ✅ FIX: ab request se amount bhi accept karta hai (frontend jo bhejta hai),
+    // taake "Pay Now" pe jo amount enter kiya wahi save ho — pehle yeh amount
+    // ignore ho raha tha aur hamesha purana expense.amount hi reh jata tha.
+    public function payFixed(Request $request, $id)
     {
         $expense = FixedExpense::find($id);
         if (!$expense) {
             return $this->sendError('Expense not found', 404);
         }
 
-        $expense->update([
+        $updateData = [
             'paid' => true,
             'last_paid' => date('Y-m-d')
-        ]);
+        ];
+
+        if ($request->has('amount') && $request->amount !== null) {
+            $updateData['amount'] = $request->amount;
+        }
+
+        $expense->update($updateData);
 
         return $this->sendResponse($expense, 'Fixed expense paid');
     }
@@ -106,6 +115,26 @@ class ExpenseController extends Controller
 
         $expense = ExtraExpense::create($data);
         return $this->sendResponse($expense, 'Extra expense created', 201);
+    }
+
+    // ✅ NEW: yeh method pehle missing tha — isi wajah se frontend ka
+    // "Edit" button Extra Expense ke liye kaam nahi karta tha (404 error).
+    public function updateExtra(Request $request, $id)
+    {
+        $expense = ExtraExpense::find($id);
+        if (!$expense) {
+            return $this->sendError('Expense not found', 404);
+        }
+
+        $request->validate([
+            'description' => 'required|string',
+            'amount' => 'required|numeric|min:0',
+            'branch_id' => 'required|exists:branches,id',
+            'date' => 'nullable|date'
+        ]);
+
+        $expense->update($request->all());
+        return $this->sendResponse($expense, 'Extra expense updated');
     }
 
     public function deleteExtra($id)

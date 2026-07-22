@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\RecoveryController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\SystemAccessController;  // ✅ ADD THIS
 
 /*
 |--------------------------------------------------------------------------
@@ -36,7 +37,7 @@ Route::post('/users/update-password-public', [UserController::class, 'updatePass
 Route::post('/otp/send', [OtpController::class, 'sendOtp']);
 Route::post('/otp/verify', [OtpController::class, 'verifyOtp']);
 
-// ✅ TEST ROUTE - NO AUTH REQUIRED (PEHLE ISKO CHECK KARO)
+// ✅ TEST ROUTE - NO AUTH REQUIRED
 Route::get('/test', function() {
     return response()->json([
         'success' => true,
@@ -111,6 +112,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/guarantors', [GuarantorController::class, 'store']);
     Route::put('/guarantors/{id}', [GuarantorController::class, 'update']);
     Route::delete('/guarantors/{id}', [GuarantorController::class, 'destroy']);
+    // ✅ NAYA: guarantor CNIC check route (controller mein method pehle se maujood tha)
+    Route::post('/guarantors/check-cnic', [GuarantorController::class, 'checkCnic']);
 
     // Expenses
     Route::get('/expenses/fixed', [ExpenseController::class, 'fixedExpenses']);
@@ -121,6 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/expenses/extra', [ExpenseController::class, 'extraExpenses']);
     Route::post('/expenses/extra', [ExpenseController::class, 'storeExtra']);
+    Route::put('/expenses/extra/{id}', [ExpenseController::class, 'updateExtra']);
     Route::delete('/expenses/extra/{id}', [ExpenseController::class, 'deleteExtra']);
 
     // ============================================
@@ -136,7 +140,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/salary/advances/{id}/deduct', [SalaryController::class, 'deductAdvance']);
     Route::delete('/salary/advances/{id}', [SalaryController::class, 'deleteAdvance']);
 
-    // ✅ Employee Leaves Routes (existing — SalaryController, unchanged)
+    // ✅ Employee Leaves Routes
     Route::get('/employee-leaves', [SalaryController::class, 'getLeaves']);
     Route::post('/employee-leaves', [SalaryController::class, 'storeLeave']);
     Route::put('/employee-leaves/{id}', [SalaryController::class, 'updateLeave']);
@@ -168,15 +172,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/monthly-report', [ReportController::class, 'getMonthlyReport']);
 
     // ============================================
-    // ✅ NEW: Employee Report for React Component (AUTH REQUIRED)
+    // ✅ Employee Report for React Component (AUTH REQUIRED)
     // ============================================
     Route::get('/employee-report', [ReportController::class, 'getEmployeeReport']);
 
     // ============================================
-    // ✅ NEW: Leave Application (dropdown form -> employee_leaves table)
+    // ✅ Leave Application Routes
     // ============================================
     Route::get('/leaves', [LeaveController::class, 'index']);
     Route::post('/leaves', [LeaveController::class, 'store']);
     Route::patch('/leaves/{id}/status', [LeaveController::class, 'updateStatus']);
     Route::delete('/leaves/{id}', [LeaveController::class, 'destroy']);
+
+    // ============================================
+    // ✅ SYSTEM ACCESS ROUTES - NEW
+    // ============================================
+    Route::get('/system-access', [SystemAccessController::class, 'index']);
+    Route::get('/system-access/{id}', [SystemAccessController::class, 'show']);
+    Route::put('/system-access/{id}/toggle-status', [SystemAccessController::class, 'toggleStatus']);
 });

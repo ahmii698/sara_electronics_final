@@ -1,28 +1,38 @@
+// src/components/EmployeePerformanceReport/EmployeePerformanceReport.jsx
+
 import React, { useState, useEffect } from 'react';
-import { Search, User, DollarSign, Users, Briefcase, Calendar, Clock, Award, Building, Download, Eye, X, TrendingUp, CheckCircle, AlertCircle, AlertTriangle, FileText, Filter, ChevronDown } from 'lucide-react';
+import { Search, User, DollarSign, Users, Calendar, Clock, AlertTriangle, FileText, Eye, X, TrendingUp, ChevronDown } from 'lucide-react';
 import './EmployeePerformanceReport.css';
+import { API_URL } from '../../../config';
 
 const EmployeePerformanceReport = () => {
   const [search, setSearch] = useState('');
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [userId, setUserId] = useState(null);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [activeTab, setActiveTab] = useState('total');
-  const [currentEmployeeId, setCurrentEmployeeId] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [employeesList, setEmployeesList] = useState([]);
+  const [accounts, setAccounts] = useState([]);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
       setUserBranch(user.branch);
-      if (user.employeeId) {
-        setCurrentEmployeeId(user.employeeId);
-        setSelectedEmployeeId(user.employeeId);
+      setUserId(user.id);
+      // Employee khud apna hi data dekhta hai
+      if (user.role === 'employee') {
+        setSelectedEmployeeId(user.id);
       }
     }
+    fetchEmployees();
+    fetchAccounts();
   }, []);
 
   const isEmployee = userRole === 'employee';
@@ -30,239 +40,181 @@ const EmployeePerformanceReport = () => {
   const isManager = userRole === 'manager';
   const canEditRemarks = isAdmin || isManager;
 
-  const employeesList = [
-    { id: 1, name: 'Ahmed Khan', branch: 1, role: 'employee' },
-    { id: 2, name: 'Sara Ali', branch: 2, role: 'manager' },
-    { id: 3, name: 'Usman Malik', branch: 1, role: 'employee' },
-    { id: 4, name: 'Fatima Noor', branch: 2, role: 'employee' },
-    { id: 5, name: 'Bilal Ahmed', branch: 1, role: 'employee' },
-    { id: 6, name: 'Hina Riaz', branch: 2, role: 'employee' },
-    { id: 7, name: 'Imran Ali', branch: 1, role: 'employee' },
-    { id: 8, name: 'Nadia Khan', branch: 2, role: 'employee' },
-  ];
+  // ============================================
+  // ✅ REAL DATA FETCH
+  // ============================================
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        let list = Array.isArray(data.data) ? data.data
+          : (data.data?.data && Array.isArray(data.data.data)) ? data.data.data
+          : [];
+        // Sirf employee/manager dikhane hain dropdown mein
+        list = list.filter(u => u.role === 'employee' || u.role === 'manager');
+        setEmployeesList(list);
+      }
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/accounts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const raw = data.data.data || data.data || [];
+        const mapped = raw.map(acc => {
+          const employeeAccount = acc.employee_account || {};
+          const employee = employeeAccount.employee || {};
+          return {
+            id: acc.id,
+            caseNo: acc.case_no || 'N/A',
+            customer: acc.customer?.name || 'N/A',
+            cnic: acc.customer?.cnic || '',
+            phone: acc.customer?.phone || '',
+            address: acc.customer?.address || '',
+            product: acc.product_name || 'N/A',
+            amount: parseFloat(acc.total_amount) || 0,
+            paid: parseFloat(acc.paid_amount) || 0,
+            balance: parseFloat(acc.balance) || 0,
+            monthly: parseFloat(acc.monthly_installment) || 0,
+            date: acc.created_at ? acc.created_at.split('T')[0] : null,
+            branch: acc.branch_id || 1,
+            // ✅ ye employee ne account khola tha (jiske hisaab se performance track karni hai)
+            employeeId: employee.id || acc.created_by || null,
+            employeeName: employee.name || 'N/A',
+            guarantors: acc.customer?.guarantors || [],
+            installments: acc.installments || []
+          };
+        });
+        setAccounts(mapped);
+      }
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================
+  // ✅ MONTH HELPERS (same logic as Installments.jsx / UsersManagement.jsx)
+  // ============================================
+  const monthsBetween = (fromMonth, toMonth) => {
+    if (!fromMonth || !toMonth) return 0;
+    const [fy, fm] = fromMonth.split('-').map(Number);
+    const [ty, tm] = toMonth.split('-').map(Number);
+    return (ty - fy) * 12 + (tm - fm);
+  };
+
+  const getCurrentMonthStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  // Ek account "overdue" hai ya nahi — sabse purani due-unpaid installment dekh kar
+  const isAccountOverdue = (account) => {
+    const list = Array.isArray(account.installments) ? account.installments : [];
+    if (list.length === 0) return account.balance > 0; // fallback
+
+    const currentMonthStr = getCurrentMonthStr();
+    const dueUnpaid = list.filter(p =>
+      parseFloat(p.balance || 0) > 0 &&
+      p.month &&
+      monthsBetween(p.month, currentMonthStr) >= 0
+    );
+    return dueUnpaid.length > 0;
+  };
+
+  // Is mahine ki installment ka balance (agar is mahine ka record mile)
+  const getThisMonthDue = (account) => {
+    const list = Array.isArray(account.installments) ? account.installments : [];
+    const currentMonthStr = getCurrentMonthStr();
+    const thisMonthRecord = list.find(p => p.month === currentMonthStr);
+    if (thisMonthRecord) {
+      return parseFloat(thisMonthRecord.balance || 0);
+    }
+    return 0;
+  };
 
   const getFilteredEmployees = () => {
     if (userBranch) {
-      return employeesList.filter(emp => emp.branch === parseInt(userBranch));
+      return employeesList.filter(emp => parseInt(emp.branch_id || emp.branch) === parseInt(userBranch));
     }
     return employeesList;
   };
 
   const filteredEmployees = getFilteredEmployees();
 
-  const [allData, setAllData] = useState({
-    totalAccounts: 45,
-    newAccounts: 8,
-    totalRecovery: 320000,
-    totalCommission: 178000,
-    accounts: [
-      { 
-        id: 1, 
-        customer: 'Ahmed Khan', 
-        caseNo: 'SR-001', 
-        amount: 60000, 
-        paid: 25000, 
-        balance: 35000,
-        monthly: 5000,
-        date: '2026-01-15',
-        dueDate: 'May 5, 2026',
-        mirror: 40000,
-        remarks: '',
-        status: 'pending',
-        cnic: '12345-6789012-3',
-        phone: '0300-1234567',
-        address: 'House #12, Street 5, Lahore',
-        product: 'Samsung LED 55"',
-        employeeId: 1,
-        guarantors: [
-          { name: 'Ali Raza', cnic: '12345-6789012-4', phone: '0300-7654321', address: 'House #34, Street 8' },
-          { name: 'Zainab Khan', cnic: '12345-6789012-5', phone: '0300-9876543', address: 'House #56, Street 10' }
-        ],
-        installments: [
-          { id: 1, month: 'Jan 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jan 5, 2026', description: 'First installment payment' },
-          { id: 2, month: 'Feb 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Feb 5, 2026', description: 'Second installment' },
-          { id: 3, month: 'Mar 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Mar 5, 2026', description: 'Third installment' },
-          { id: 4, month: 'Apr 2026', due: 5000, paid: 3000, status: 'partial', paymentDate: 'Apr 5, 2026', description: 'Partial payment received' },
-          { id: 5, month: 'May 2026', due: 5000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-          { id: 6, month: 'Jun 2026', due: 5000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-        ]
-      },
-      { 
-        id: 2, 
-        customer: 'Usman Malik', 
-        caseNo: 'SR-003', 
-        amount: 40000, 
-        paid: 15000, 
-        balance: 25000,
-        monthly: 4000,
-        date: '2026-01-20',
-        dueDate: 'May 20, 2026',
-        mirror: 28000,
-        remarks: '',
-        status: 'pending',
-        cnic: '12345-6789012-6',
-        phone: '0300-2345678',
-        address: 'House #78, Street 12, Lahore',
-        product: 'Dell Laptop',
-        employeeId: 1,
-        guarantors: [
-          { name: 'Fatima Noor', cnic: '12345-6789012-7', phone: '0300-8765432', address: 'House #90, Street 15' }
-        ],
-        installments: [
-          { id: 1, month: 'Jan 2026', due: 4000, paid: 4000, status: 'paid', paymentDate: 'Jan 20, 2026', description: 'First installment' },
-          { id: 2, month: 'Feb 2026', due: 4000, paid: 4000, status: 'paid', paymentDate: 'Feb 20, 2026', description: 'Second installment' },
-          { id: 3, month: 'Mar 2026', due: 4000, paid: 4000, status: 'paid', paymentDate: 'Mar 20, 2026', description: 'Third installment' },
-          { id: 4, month: 'Apr 2026', due: 4000, paid: 2000, status: 'partial', paymentDate: 'Apr 20, 2026', description: 'Partial payment' },
-          { id: 5, month: 'May 2026', due: 4000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-          { id: 6, month: 'Jun 2026', due: 4000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-          { id: 7, month: 'Jul 2026', due: 4000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-        ]
-      },
-      { 
-        id: 3, 
-        customer: 'Bilal Ahmed', 
-        caseNo: 'SR-007', 
-        amount: 30000, 
-        paid: 0, 
-        balance: 30000,
-        monthly: 3000,
-        date: '2026-02-10',
-        dueDate: 'Mar 10, 2026',
-        mirror: 32000,
-        remarks: '',
-        status: 'overdue',
-        cnic: '12345-6789012-8',
-        phone: '0300-3456789',
-        address: 'House #12, Street 20, Lahore',
-        product: 'Samsung Galaxy S24',
-        employeeId: 1,
-        guarantors: [
-          { name: 'Hina Riaz', cnic: '12345-6789012-9', phone: '0300-6543210', address: 'House #34, Street 25' }
-        ],
-        installments: [
-          { id: 1, month: 'Feb 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-          { id: 2, month: 'Mar 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-          { id: 3, month: 'Apr 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-          { id: 4, month: 'May 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-        ]
-      },
-      { 
-        id: 4, 
-        customer: 'Ali Raza', 
-        caseNo: 'SR-005', 
-        amount: 50000, 
-        paid: 50000, 
-        balance: 0,
-        monthly: 0,
-        date: '2026-01-05',
-        dueDate: '-',
-        mirror: 0,
-        remarks: '',
-        status: 'paid',
-        cnic: '12345-6789012-0',
-        phone: '0300-4567890',
-        address: 'House #56, Street 30, Lahore',
-        product: 'Apple iPhone 15',
-        employeeId: 2,
-        guarantors: [],
-        installments: [
-          { id: 1, month: 'Jan 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jan 5, 2026', description: 'First installment' },
-          { id: 2, month: 'Feb 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Feb 5, 2026', description: 'Second installment' },
-          { id: 3, month: 'Mar 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Mar 5, 2026', description: 'Third installment' },
-          { id: 4, month: 'Apr 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Apr 5, 2026', description: 'Fourth installment' },
-          { id: 5, month: 'May 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'May 5, 2026', description: 'Fifth installment' },
-          { id: 6, month: 'Jun 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jun 5, 2026', description: 'Sixth installment' },
-          { id: 7, month: 'Jul 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Jul 5, 2026', description: 'Seventh installment' },
-          { id: 8, month: 'Aug 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Aug 5, 2026', description: 'Eighth installment' },
-          { id: 9, month: 'Sep 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Sep 5, 2026', description: 'Ninth installment' },
-          { id: 10, month: 'Oct 2026', due: 5000, paid: 5000, status: 'paid', paymentDate: 'Oct 5, 2026', description: 'Tenth installment' },
-        ]
-      },
-      { 
-        id: 5, 
-        customer: 'Zainab Khan', 
-        caseNo: 'SR-009', 
-        amount: 35000, 
-        paid: 20000, 
-        balance: 15000,
-        monthly: 3000,
-        date: '2026-03-01',
-        dueDate: 'Jun 1, 2026',
-        mirror: 17000,
-        remarks: '',
-        status: 'pending',
-        cnic: '12345-6789012-1',
-        phone: '0300-5678901',
-        address: 'House #45, Street 40, Lahore',
-        product: 'LG Refrigerator',
-        employeeId: 1,
-        guarantors: [],
-        installments: [
-          { id: 1, month: 'Mar 2026', due: 3000, paid: 3000, status: 'paid', paymentDate: 'Mar 1, 2026', description: 'First installment' },
-          { id: 2, month: 'Apr 2026', due: 3000, paid: 3000, status: 'paid', paymentDate: 'Apr 1, 2026', description: 'Second installment' },
-          { id: 3, month: 'May 2026', due: 3000, paid: 2000, status: 'partial', paymentDate: 'May 1, 2026', description: 'Partial payment' },
-          { id: 4, month: 'Jun 2026', due: 3000, paid: 0, status: 'unpaid', paymentDate: '-', description: 'Awaiting payment' },
-        ]
-      },
-      { 
-        id: 6, 
-        customer: 'Hina Riaz', 
-        caseNo: 'SR-010', 
-        amount: 25000, 
-        paid: 25000, 
-        balance: 0,
-        monthly: 0,
-        date: '2026-03-15',
-        dueDate: '-',
-        mirror: 0,
-        remarks: '',
-        status: 'paid',
-        cnic: '12345-6789012-2',
-        phone: '0300-6789012',
-        address: 'House #67, Street 50, Lahore',
-        product: 'Sony Soundbar',
-        employeeId: 2,
-        guarantors: [],
-        installments: [
-          { id: 1, month: 'Mar 2026', due: 25000, paid: 25000, status: 'paid', paymentDate: 'Mar 15, 2026', description: 'Full payment' },
-        ]
-      },
-    ]
-  });
+  // ============================================
+  // ✅ BRANCH SCOPING — sabse pehle sirf apni branch ke accounts nikalo.
+  // Admin ho ya Manager, dono ka session-branch (login-time selected) hi
+  // yahan decide karti hai konse accounts dikhne hain. Koi role exception
+  // nahi — warna "All Employees" select karte hi doosri branch ka data
+  // bhi mix ho jata tha.
+  // ============================================
+  const getBranchScopedAccounts = () => {
+    if (userBranch) {
+      return accounts.filter(acc => parseInt(acc.branch) === parseInt(userBranch));
+    }
+    return accounts;
+  };
 
+  // ============================================
+  // ✅ PER-EMPLOYEE STATS — sirf usi employee ke (aur apni branch ke) accounts se calculate hote hain
+  // ============================================
   const getEmployeeAccounts = (employeeId) => {
-    if (!employeeId) return allData.accounts;
-    return allData.accounts.filter(acc => acc.employeeId === employeeId);
+    const branchScoped = getBranchScopedAccounts();
+    if (!employeeId) return branchScoped;
+    return branchScoped.filter(acc => parseInt(acc.employeeId) === parseInt(employeeId));
   };
 
   const getEmployeeStats = (employeeId) => {
-    const accounts = getEmployeeAccounts(employeeId);
-    const total = accounts.length;
-    const totalRecovery = accounts.reduce((sum, acc) => sum + acc.amount, 0);
-    const overdue = accounts.filter(acc => acc.balance > 0).length;
-    const paid = accounts.filter(acc => acc.status === 'paid').length;
-    const pending = accounts.filter(acc => acc.status === 'pending').length;
-    
+    const empAccounts = getEmployeeAccounts(employeeId);
+
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    const newAccounts = accounts.filter(acc => {
+
+    const totalAccounts = empAccounts.length;
+
+    const newAccounts = empAccounts.filter(acc => {
+      if (!acc.date) return false;
       const accDate = new Date(acc.date);
       return accDate.getMonth() === currentMonth && accDate.getFullYear() === currentYear;
-    }).length;
+    });
+
+    // ✅ Recovery Due = is mahine ka jo paisa abhi tak nahi aaya, un sab accounts ka jama
+    const recoveryDue = empAccounts.reduce((sum, acc) => sum + getThisMonthDue(acc), 0);
+
+    // ✅ Overdue = jitne accounts ka koi purana due month abhi tak clear nahi
+    const overdueAccounts = empAccounts.filter(acc => isAccountOverdue(acc));
 
     return {
-      totalAccounts: total,
-      newAccounts: newAccounts,
-      totalRecovery: totalRecovery,
-      overdueAccounts: overdue,
-      paidAccounts: paid,
-      pendingAccounts: pending,
-      accounts: accounts
+      totalAccounts,
+      newAccountsList: newAccounts,
+      recoveryDue,
+      overdueList: overdueAccounts,
+      accounts: empAccounts
     };
   };
 
-  const selectedEmployeeData = selectedEmployeeId ? getEmployeeStats(selectedEmployeeId) : getEmployeeStats(null);
+  const selectedEmployeeData = getEmployeeStats(selectedEmployeeId);
   const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);
 
   const filteredAccounts = selectedEmployeeData.accounts.filter(item => {
@@ -274,49 +226,9 @@ const EmployeePerformanceReport = () => {
     return true;
   });
 
-  const getCurrentMonthAccounts = () => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    return selectedEmployeeData.accounts.filter(acc => {
-      const accDate = new Date(acc.date);
-      return accDate.getMonth() === currentMonth && accDate.getFullYear() === currentYear;
-    });
-  };
-
-  const currentMonthAccounts = getCurrentMonthAccounts();
-  const overdueAccounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
-
   const openAccountModal = (account) => {
     setSelectedAccount(account);
     setShowAccountModal(true);
-  };
-
-  // ===== UPDATE REMARKS (admin/manager only) =====
-  const updateRemarks = (accountId, value) => {
-    if (!canEditRemarks) return;
-    const updatedAccounts = allData.accounts.map(acc => 
-      acc.id === accountId ? { ...acc, remarks: value } : acc
-    );
-    setAllData({ ...allData, accounts: updatedAccounts });
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'paid': return '#22c55e';
-      case 'pending': return '#f59e0b';
-      case 'overdue': return '#dc2626';
-      default: return '#6b7280';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch(status) {
-      case 'paid': return 'Paid';
-      case 'pending': return 'Pending';
-      case 'overdue': return 'Overdue';
-      default: return 'Unknown';
-    }
   };
 
   const getEmployeeName = (id) => {
@@ -328,8 +240,8 @@ const EmployeePerformanceReport = () => {
   const cards = isEmployee ? [
     { 
       key: 'new', 
-      label: 'New Accounts', 
-      value: currentMonthAccounts.length,
+      label: 'New Accounts (This Month)', 
+      value: selectedEmployeeData.newAccountsList.length,
       icon: TrendingUp,
       color: '#2563eb',
       bg: 'rgba(37, 99, 235, 0.12)',
@@ -337,8 +249,8 @@ const EmployeePerformanceReport = () => {
     },
     { 
       key: 'recovery', 
-      label: 'Recovery Due', 
-      value: `PKR ${selectedEmployeeData.totalRecovery.toLocaleString()}`,
+      label: 'Recovery Due (This Month)', 
+      value: `PKR ${selectedEmployeeData.recoveryDue.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
       bg: 'rgba(201, 168, 76, 0.15)',
@@ -347,7 +259,7 @@ const EmployeePerformanceReport = () => {
     { 
       key: 'overdue', 
       label: 'Overdue', 
-      value: overdueAccounts.length,
+      value: selectedEmployeeData.overdueList.length,
       icon: AlertTriangle,
       color: '#dc2626',
       bg: 'rgba(220, 38, 38, 0.12)',
@@ -365,8 +277,8 @@ const EmployeePerformanceReport = () => {
     },
     { 
       key: 'new', 
-      label: 'New Accounts', 
-      value: currentMonthAccounts.length,
+      label: 'New Accounts (This Month)', 
+      value: selectedEmployeeData.newAccountsList.length,
       icon: TrendingUp,
       color: '#2563eb',
       bg: 'rgba(37, 99, 235, 0.12)',
@@ -374,8 +286,8 @@ const EmployeePerformanceReport = () => {
     },
     { 
       key: 'recovery', 
-      label: 'Recovery Due', 
-      value: `PKR ${selectedEmployeeData.totalRecovery.toLocaleString()}`,
+      label: 'Recovery Due (This Month)', 
+      value: `PKR ${selectedEmployeeData.recoveryDue.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
       bg: 'rgba(201, 168, 76, 0.15)',
@@ -384,13 +296,19 @@ const EmployeePerformanceReport = () => {
     { 
       key: 'overdue', 
       label: 'Overdue', 
-      value: overdueAccounts.length,
+      value: selectedEmployeeData.overdueList.length,
       icon: AlertTriangle,
       color: '#dc2626',
       bg: 'rgba(220, 38, 38, 0.12)',
       className: 'overdue-card-main'
     },
   ];
+
+  const getStatusForAccount = (account) => {
+    if (account.balance <= 0) return 'paid';
+    if (isAccountOverdue(account)) return 'overdue';
+    return 'pending';
+  };
 
   const renderTable = () => {
     if (activeTab === 'total' && !isEmployee) {
@@ -422,48 +340,46 @@ const EmployeePerformanceReport = () => {
                 {filteredAccounts.length === 0 ? (
                   <tr><td colSpan="9" className="no-data">No accounts found</td></tr>
                 ) : (
-                  filteredAccounts.map((item, index) => (
-                    <tr key={item.id} className={`${item.status === 'overdue' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                      <td className="case-number">{item.caseNo}</td>
-                      <td>
-                        <div className="customer-info">
-                          <div className="customer-avatar" style={{ background: item.status === 'paid' ? '#d1fae5' : item.status === 'overdue' ? '#fee2e2' : '#fef3c7', color: item.status === 'paid' ? '#065f46' : item.status === 'overdue' ? '#991b1b' : '#92400e' }}>
-                            {item.customer.charAt(0)}
+                  filteredAccounts.map((item, index) => {
+                    const status = getStatusForAccount(item);
+                    return (
+                      <tr key={item.id} className={`${status === 'overdue' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                        <td className="case-number">{item.caseNo}</td>
+                        <td>
+                          <div className="customer-info">
+                            <div className="customer-avatar" style={{ background: status === 'paid' ? '#d1fae5' : status === 'overdue' ? '#fee2e2' : '#fef3c7', color: status === 'paid' ? '#065f46' : status === 'overdue' ? '#991b1b' : '#92400e' }}>
+                              {item.customer.charAt(0)}
+                            </div>
+                            {item.customer}
                           </div>
-                          {item.customer}
-                        </div>
-                      </td>
-                      <td>{item.product}</td>
-                      <td className="amount">PKR {item.amount.toLocaleString()}</td>
-                      <td className="paid-amount">PKR {item.paid.toLocaleString()}</td>
-                      <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'}>
-                        PKR {item.balance.toLocaleString()}
-                      </td>
-                      <td>
-                        <div className="date-info">
-                          <Calendar size={12} />
-                          {item.date}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${item.status}`}>
-                          {item.status === 'paid' ? 'Paid' : 
-                           item.status === 'pending' ? 'Pending' : 'Overdue'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="action-group">
-                          <button 
-                            className="btn-view-account" 
-                            onClick={() => openAccountModal(item)}
-                            title="View Account Details"
-                          >
-                            <Eye size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td>{item.product}</td>
+                        <td className="amount">PKR {item.amount.toLocaleString()}</td>
+                        <td className="paid-amount">PKR {item.paid.toLocaleString()}</td>
+                        <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'}>
+                          PKR {item.balance.toLocaleString()}
+                        </td>
+                        <td>
+                          <div className="date-info">
+                            <Calendar size={12} />
+                            {item.date || '-'}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${status}`}>
+                            {status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue'}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="action-group">
+                            <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
+                              <Eye size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -473,14 +389,14 @@ const EmployeePerformanceReport = () => {
     }
 
     if (activeTab === 'new') {
-      const accounts = isEmployee ? currentMonthAccounts : currentMonthAccounts;
+      const list = selectedEmployeeData.newAccountsList;
       return (
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
               <FileText size={18} style={{ color: '#2563eb' }} />
               <h3>New Accounts (This Month)</h3>
-              <span className="record-count">{accounts.length} accounts</span>
+              <span className="record-count">{list.length} accounts</span>
             </div>
           </div>
           <div className="table-scroll">
@@ -497,45 +413,43 @@ const EmployeePerformanceReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {accounts.length === 0 ? (
+                {list.length === 0 ? (
                   <tr><td colSpan="7" className="no-data">No new accounts this month</td></tr>
                 ) : (
-                  accounts.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
-                      <td className="case-number">{item.caseNo}</td>
-                      <td>
-                        <div className="customer-info">
-                          <div className="customer-avatar">{item.customer.charAt(0)}</div>
-                          {item.customer}
-                        </div>
-                      </td>
-                      <td>{item.product}</td>
-                      <td className="amount">PKR {item.amount.toLocaleString()}</td>
-                      <td>
-                        <div className="date-info">
-                          <Calendar size={12} />
-                          {item.date}
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${item.status}`}>
-                          {item.status === 'paid' ? 'Paid' : 
-                           item.status === 'pending' ? 'Pending' : 'Overdue'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="action-group">
-                          <button 
-                            className="btn-view-account" 
-                            onClick={() => openAccountModal(item)}
-                            title="View Account Details"
-                          >
-                            <Eye size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  list.map((item, index) => {
+                    const status = getStatusForAccount(item);
+                    return (
+                      <tr key={item.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
+                        <td className="case-number">{item.caseNo}</td>
+                        <td>
+                          <div className="customer-info">
+                            <div className="customer-avatar">{item.customer.charAt(0)}</div>
+                            {item.customer}
+                          </div>
+                        </td>
+                        <td>{item.product}</td>
+                        <td className="amount">PKR {item.amount.toLocaleString()}</td>
+                        <td>
+                          <div className="date-info">
+                            <Calendar size={12} />
+                            {item.date || '-'}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${status}`}>
+                            {status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue'}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="action-group">
+                            <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
+                              <Eye size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -544,16 +458,16 @@ const EmployeePerformanceReport = () => {
       );
     }
 
-
     if (activeTab === 'recovery') {
-      const accounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
+      // ✅ Sirf wo accounts jinka is mahine ka due amount abhi bhi baaki hai
+      const list = selectedEmployeeData.accounts.filter(acc => getThisMonthDue(acc) > 0);
       return (
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
               <FileText size={18} style={{ color: '#C9A84C' }} />
-              <h3>Recovery Due</h3>
-              <span className="record-count">{accounts.length} customers</span>
+              <h3>Recovery Due (This Month)</h3>
+              <span className="record-count">{list.length} customers</span>
             </div>
           </div>
           <div className="table-scroll">
@@ -562,19 +476,17 @@ const EmployeePerformanceReport = () => {
                 <tr>
                   <th>Customer</th>
                   <th>Case #</th>
-                  <th>Date</th>
                   <th>Installment</th>
-                  <th>Balance (PKR)</th>
-                  <th>Mirror (PKR)</th>
-                  <th>Remarks</th>
+                  <th>This Month Due (PKR)</th>
+                  <th>Total Balance (PKR)</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {accounts.length === 0 ? (
-                  <tr><td colSpan="8" className="no-data">No recovery due</td></tr>
+                {list.length === 0 ? (
+                  <tr><td colSpan="6" className="no-data">No recovery due this month</td></tr>
                 ) : (
-                  accounts.map((item, index) => (
+                  list.map((item, index) => (
                     <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                       <td>
                         <div className="customer-info">
@@ -583,36 +495,12 @@ const EmployeePerformanceReport = () => {
                         </div>
                       </td>
                       <td className="case-number">{item.caseNo}</td>
-                      <td>
-                        <div className="date-info">
-                          <Calendar size={12} />
-                          {item.dueDate || '-'}
-                        </div>
-                      </td>
                       <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
-                      <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
-                      <td>{item.mirror > 0 ? `PKR ${item.mirror.toLocaleString()}` : '---'}</td>
-                      <td>
-                        {canEditRemarks ? (
-                          <input
-                            type="text"
-                            className="remarks-input"
-                            value={item.remarks || ''}
-                            onChange={(e) => updateRemarks(item.id, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            placeholder="Add remarks..."
-                          />
-                        ) : (
-                          <span className="remarks-display">{item.remarks && item.remarks.trim() ? item.remarks : '-'}</span>
-                        )}
-                      </td>
+                      <td className="balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
+                      <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'}>PKR {item.balance.toLocaleString()}</td>
                       <td>
                         <div className="action-group">
-                          <button 
-                            className="btn-view-account" 
-                            onClick={() => openAccountModal(item)}
-                            title="View Account Details"
-                          >
+                          <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
                             <Eye size={15} />
                           </button>
                         </div>
@@ -626,17 +514,16 @@ const EmployeePerformanceReport = () => {
         </div>
       );
     }
-   
 
     if (activeTab === 'overdue') {
-      const accounts = selectedEmployeeData.accounts.filter(acc => acc.balance > 0);
+      const list = selectedEmployeeData.overdueList;
       return (
         <div className="table-container">
           <div className="table-header">
             <div className="table-header-left">
               <FileText size={18} style={{ color: '#dc2626' }} />
               <h3>Overdue Accounts</h3>
-              <span className="record-count">{accounts.length} customers</span>
+              <span className="record-count">{list.length} customers</span>
             </div>
           </div>
           <div className="table-scroll">
@@ -645,19 +532,16 @@ const EmployeePerformanceReport = () => {
                 <tr>
                   <th>Customer</th>
                   <th>Case #</th>
-                  <th>Date</th>
                   <th>Installment</th>
                   <th>Balance (PKR)</th>
-                  <th>Mirror (PKR)</th>
-                  <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {accounts.length === 0 ? (
-                  <tr><td colSpan="8" className="no-data">No overdue accounts</td></tr>
+                {list.length === 0 ? (
+                  <tr><td colSpan="5" className="no-data">No overdue accounts</td></tr>
                 ) : (
-                  accounts.map((item, index) => (
+                  list.map((item, index) => (
                     <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                       <td>
                         <div className="customer-info">
@@ -666,36 +550,11 @@ const EmployeePerformanceReport = () => {
                         </div>
                       </td>
                       <td className="case-number">{item.caseNo}</td>
-                      <td>
-                        <div className="date-info">
-                          <Calendar size={12} />
-                          {item.dueDate || '-'}
-                        </div>
-                      </td>
                       <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
                       <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
-                      <td>{item.mirror > 0 ? `PKR ${item.mirror.toLocaleString()}` : '---'}</td>
-                      <td>
-                        {canEditRemarks ? (
-                          <input
-                            type="text"
-                            className="remarks-input"
-                            value={item.remarks || ''}
-                            onChange={(e) => updateRemarks(item.id, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            placeholder="Add remarks..."
-                          />
-                        ) : (
-                          <span className="remarks-display">{item.remarks && item.remarks.trim() ? item.remarks : '-'}</span>
-                        )}
-                      </td>
                       <td>
                         <div className="action-group">
-                          <button 
-                            className="btn-view-account" 
-                            onClick={() => openAccountModal(item)}
-                            title="View Account Details"
-                          >
+                          <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
                             <Eye size={15} />
                           </button>
                         </div>
@@ -720,6 +579,17 @@ const EmployeePerformanceReport = () => {
       setActiveTab('total');
     }
   }, [isEmployee, selectedEmployeeId]);
+
+  if (loading) {
+    return (
+      <div className="employee-performance-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading performance data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="employee-performance-container">
@@ -795,7 +665,7 @@ const EmployeePerformanceReport = () => {
           <div className="selected-employee-avatar">{selectedEmployee.name.charAt(0)}</div>
           <div className="selected-employee-details">
             <span className="selected-employee-name">{selectedEmployee.name}</span>
-            <span className="selected-employee-role">{selectedEmployee.role} • Branch {selectedEmployee.branch}</span>
+            <span className="selected-employee-role">{selectedEmployee.role} • Branch {selectedEmployee.branch_id || selectedEmployee.branch}</span>
           </div>
         </div>
       )}
@@ -824,7 +694,7 @@ const EmployeePerformanceReport = () => {
 
       {renderTable()}
 
-      {/* ===== ACCOUNT DETAIL MODAL - WITH INSTALLMENT TABLE ===== */}
+      {/* ===== ACCOUNT DETAIL MODAL ===== */}
       {showAccountModal && selectedAccount && (
         <div className="epr-modal-overlay" onClick={() => setShowAccountModal(false)}>
           <div className="epr-modal-content epr-modal-account" onClick={(e) => e.stopPropagation()}>
@@ -839,9 +709,8 @@ const EmployeePerformanceReport = () => {
             </div>
 
             <div className="epr-modal-body">
-              {/* Customer Info */}
               <div className="account-detail-header">
-                <div className="account-detail-avatar" style={{ background: selectedAccount.status === 'paid' ? '#065f46' : selectedAccount.status === 'overdue' ? '#991b1b' : '#1E1B4B' }}>
+                <div className="account-detail-avatar" style={{ background: '#1E1B4B' }}>
                   {selectedAccount.customer.charAt(0)}
                 </div>
                 <div className="account-detail-info">
@@ -850,14 +719,13 @@ const EmployeePerformanceReport = () => {
                   <span className="account-detail-product" style={{ fontWeight: 500 }}>Product: {selectedAccount.product}</span>
                 </div>
                 <div className="account-detail-status">
-                  <span className={`status-badge ${selectedAccount.status}`}>
-                    {selectedAccount.status === 'paid' ? 'Paid' : 
-                     selectedAccount.status === 'pending' ? 'Pending' : 'Overdue'}
+                  <span className={`status-badge ${getStatusForAccount(selectedAccount)}`}>
+                    {getStatusForAccount(selectedAccount) === 'paid' ? 'Paid' :
+                     getStatusForAccount(selectedAccount) === 'pending' ? 'Pending' : 'Overdue'}
                   </span>
                 </div>
               </div>
 
-              {/* Personal Info */}
               <div className="account-detail-grid">
                 <div className="account-detail-item">
                   <span style={{ fontWeight: 700 }}>CNIC</span>
@@ -887,7 +755,6 @@ const EmployeePerformanceReport = () => {
                 </div>
               </div>
 
-              {/* Guarantors */}
               {selectedAccount.guarantors && selectedAccount.guarantors.length > 0 && (
                 <div className="guarantors-section">
                   <h4 style={{ fontWeight: 700 }}>Guarantors</h4>
@@ -904,7 +771,6 @@ const EmployeePerformanceReport = () => {
                 </div>
               )}
 
-              {/* ===== INSTALLMENT PAYMENT HISTORY TABLE ===== */}
               <div className="installment-details-section">
                 <div className="section-header">
                   <h4 style={{ fontWeight: 700 }}>Installment Payment History</h4>
@@ -915,124 +781,30 @@ const EmployeePerformanceReport = () => {
                     <thead>
                       <tr>
                         <th style={{ fontWeight: 800 }}>#</th>
-                        <th style={{ fontWeight: 800 }}>Due Date</th>
-                        <th style={{ fontWeight: 800 }}>Installment Amount</th>
-                        <th style={{ fontWeight: 800 }}>Amount Paid</th>
+                        <th style={{ fontWeight: 800 }}>Month</th>
+                        <th style={{ fontWeight: 800 }}>Due Amount</th>
+                        <th style={{ fontWeight: 800 }}>Paid</th>
                         <th style={{ fontWeight: 800 }}>Balance</th>
-                        <th style={{ fontWeight: 800 }}>Status</th>
-                        <th style={{ fontWeight: 800 }}>Payment Date</th>
-                        <th style={{ fontWeight: 800 }}>Description</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedAccount.installments && selectedAccount.installments.length > 0 ? (
-                        selectedAccount.installments.map((inst, index) => {
-                          const balance = inst.due - inst.paid;
-                          return (
-                            <tr key={inst.id} className={`${inst.status === 'unpaid' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                              <td style={{ fontWeight: 700 }}>{index + 1}</td>
-                              <td style={{ fontWeight: 600 }}>{inst.month}</td>
-                              <td style={{ fontWeight: 600 }}>PKR {inst.due.toLocaleString()}</td>
-                              <td className={inst.paid > 0 ? 'paid-amount' : ''} style={{ fontWeight: 700 }}>
-                                PKR {inst.paid.toLocaleString()}
-                              </td>
-                              <td className={balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
-                                PKR {balance.toLocaleString()}
-                              </td>
-                              <td>
-                                <span className={`status-badge ${inst.status}`} style={{ fontWeight: 700 }}>
-                                  {inst.status === 'paid' ? 'Paid' : 
-                                   inst.status === 'partial' ? 'Partial' : 'Pending'}
-                                </span>
-                              </td>
-                              <td style={{ fontWeight: 500 }}>{inst.paymentDate || '-'}</td>
-                              <td className="description-cell" style={{ fontWeight: 500 }}>{inst.description || '-'}</td>
-                            </tr>
-                          );
-                        })
+                        selectedAccount.installments.map((inst, index) => (
+                          <tr key={inst.id} className={`${parseFloat(inst.balance || 0) > 0 ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                            <td style={{ fontWeight: 700 }}>{index + 1}</td>
+                            <td style={{ fontWeight: 600 }}>{inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}</td>
+                            <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
+                            <td className="paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
+                            <td className={parseFloat(inst.balance || 0) > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
+                              PKR {parseFloat(inst.balance || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))
                       ) : (
-                        <tr><td colSpan="8" className="no-data">No installment records found</td></tr>
+                        <tr><td colSpan="5" className="no-data">No installment records found</td></tr>
                       )}
                     </tbody>
                   </table>
-                </div>
-
-                {/* ===== PAY NOW WITH INPUT FIELD ===== */}
-                {selectedAccount.balance > 0 && (
-                  <div className="pay-now-section">
-                    <div className="pay-now-row">
-                      <div className="pay-input-group">
-                        <span className="pay-currency" style={{ fontWeight: 700 }}>PKR</span>
-                        <input 
-                          type="number" 
-                          className="pay-amount-input"
-                          placeholder="Enter amount"
-                          min="1"
-                          max={selectedAccount.balance}
-                          defaultValue={selectedAccount.balance}
-                          id={`payAmount_${selectedAccount.id}`}
-                          style={{ fontWeight: 600 }}
-                        />
-                      </div>
-                      <button 
-                        className="btn-pay-now-full"
-                        onClick={() => {
-                          const input = document.getElementById(`payAmount_${selectedAccount.id}`);
-                          const amount = parseInt(input.value);
-                          
-                          if (!amount || amount <= 0) {
-                            alert('Please enter a valid amount');
-                            return;
-                          }
-                          
-                          if (amount > selectedAccount.balance) {
-                            alert(`Amount cannot exceed balance: PKR ${selectedAccount.balance.toLocaleString()}`);
-                            return;
-                          }
-                          
-                          const newBalance = selectedAccount.balance - amount;
-                          const newPaid = selectedAccount.paid + amount;
-                          
-                          const updatedAccounts = allData.accounts.map(acc => {
-                            if (acc.id === selectedAccount.id) {
-                              return {
-                                ...acc,
-                                balance: newBalance,
-                                paid: newPaid,
-                                status: newBalance === 0 ? 'paid' : acc.status
-                              };
-                            }
-                            return acc;
-                          });
-                          
-                          setAllData({ ...allData, accounts: updatedAccounts });
-                          
-                          setSelectedAccount({
-                            ...selectedAccount,
-                            balance: newBalance,
-                            paid: newPaid,
-                            status: newBalance === 0 ? 'paid' : selectedAccount.status
-                          });
-                          
-                          alert(`Payment of PKR ${amount.toLocaleString()} successful!\nRemaining Balance: PKR ${newBalance.toLocaleString()}`);
-                        }}
-                      >
-                        <DollarSign size={18} />
-                        Pay Now
-                      </button>
-                    </div>
-                    <p className="pay-hint" style={{ fontWeight: 600 }}>Enter amount to pay (Max: PKR {selectedAccount.balance.toLocaleString()})</p>
-                  </div>
-                )}
-
-                {/* Description */}
-                <div className="installment-description">
-                  <label style={{ fontWeight: 700 }}>Description</label>
-                  <textarea 
-                    className="description-textarea"
-                    placeholder="Add description here..."
-                    rows="3"
-                  ></textarea>
                 </div>
               </div>
             </div>

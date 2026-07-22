@@ -2,19 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Search, Users as UsersIcon, UserPlus, User, Mail, Phone, Building, Calendar, 
-  Shield, CheckCircle, XCircle, Clock, Edit, Trash2, Eye, 
-  Filter, ChevronDown, Award, Briefcase, UserCheck, UserX,
-  DollarSign, AlertCircle, PauseCircle, PlayCircle, TrendingUp, TrendingDown,
-  FileText, Printer, Download, BarChart3, X, FileText as FileIcon
+  Search, Users as UsersIcon, UserPlus, User, Building, Calendar, 
+  CheckCircle, Clock, Edit, Trash2, Eye, 
+  Award, Briefcase,
+  DollarSign, AlertCircle, AlertTriangle, X
 } from 'lucide-react';
 import './Users.css';
 import { API_URL } from '../../../config';
 
 const UsersManagement = () => {
   const [search, setSearch] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -66,18 +64,14 @@ const UsersManagement = () => {
       const data = await response.json();
       if (data.success) {
         const accounts = data.data.data || data.data || [];
-        // Transform accounts to client format
         const clientsData = accounts.map(account => ({
           id: account.id,
           name: account.customer?.name || 'N/A',
-          email: account.customer?.email || '',
           phone: account.customer?.phone || '',
           cnic: account.customer?.cnic || '',
           address: account.customer?.address || '',
           branch: account.branch_id || 1,
           accountStatus: account.status || 'active',
-          paymentStatus: account.balance <= 0 ? 'paid' : 
-                         account.paid_amount > 0 ? 'partial' : 'unpaid',
           totalAmount: parseFloat(account.total_amount) || 0,
           paidAmount: parseFloat(account.paid_amount) || 0,
           balance: parseFloat(account.balance) || 0,
@@ -87,7 +81,6 @@ const UsersManagement = () => {
           nextDueDate: account.next_due_date || account.due_date || 'N/A',
           joiningDate: account.created_at ? new Date(account.created_at).toLocaleDateString() : 'N/A',
           lastPaymentDate: account.last_payment_date || 'N/A',
-          overdueDays: account.balance > 0 ? Math.floor(Math.random() * 60) : 0,
           product: account.product_name || 'N/A',
           caseNo: account.case_no || 'N/A',
           employeeId: account.created_by || null,
@@ -96,6 +89,7 @@ const UsersManagement = () => {
           employeeName: account.employee_account?.employee?.name || null,
           creatorName: account.creator?.name || null,
           creatorRole: account.creator?.role || null,
+          // ✅ per-installment payment records — needed for months-based overdue calc
           installments: account.installments || []
         }));
         setClients(clientsData);
@@ -104,6 +98,96 @@ const UsersManagement = () => {
       console.error('Error fetching clients:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ============================================
+  // ✅ SAME LOGIC AS Installments.jsx
+  // ============================================
+
+  // "2026-07" jaisi do month-strings ke darmiyan farq (months) nikalta hai
+  const monthsBetween = (fromMonth, toMonth) => {
+    if (!fromMonth || !toMonth) return 0;
+    const [fy, fm] = fromMonth.split('-').map(Number);
+    const [ty, tm] = toMonth.split('-').map(Number);
+    return (ty - fy) * 12 + (tm - fm);
+  };
+
+  const getCurrentMonthStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  // ✅ Client-level category — based on the OLDEST unpaid installment whose
+  // month has already arrived (future months are ignored).
+  // - fully paid off (all installments paid)     -> 'clear'
+  // - no due-but-unpaid month yet                -> 'paid' (active/on-track)
+  // - oldest due-unpaid installment is 1-3 months overdue -> 'overdue' (with count)
+  // - oldest due-unpaid installment is 4+ months overdue  -> 'aging'
+  const getClientCategoryInfo = (client) => {
+    const list = Array.isArray(client.installments) ? client.installments : [];
+    const totalInstallments = client.totalInstallments || list.length;
+    const fullyPaidCount = list.filter(p => parseFloat(p.balance || 0) <= 0).length;
+
+    // Fallback: agar installments list nahi mili to sirf balance se decide karo
+    if (list.length === 0) {
+      if (client.balance <= 0) return { category: 'clear', months: 0 };
+      return { category: 'paid', months: 0 };
+    }
+
+    if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
+      return { category: 'clear', months: 0 };
+    }
+
+    const currentMonthStr = getCurrentMonthStr();
+
+    const dueUnpaidMonths = list
+      .filter(p =>
+        parseFloat(p.balance || 0) > 0 &&
+        p.month &&
+        monthsBetween(p.month, currentMonthStr) >= 0
+      )
+      .map(p => p.month)
+      .sort();
+
+    if (dueUnpaidMonths.length === 0) {
+      return { category: 'paid', months: 0 };
+    }
+
+    const oldestDueMonth = dueUnpaidMonths[0];
+    const overdueCount = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
+
+    if (overdueCount >= 4) {
+      return { category: 'aging', months: overdueCount };
+    }
+
+    return { category: 'overdue', months: overdueCount };
+  };
+
+  const getRowColorClass = (client) => {
+    const { category } = getClientCategoryInfo(client);
+    switch (category) {
+      case 'clear': return 'row-clear';
+      case 'paid': return 'row-paid';
+      case 'overdue': return 'row-overdue';
+      case 'aging': return 'row-aging';
+      default: return '';
+    }
+  };
+
+  const getCategoryBadge = (client) => {
+    const { category, months } = getClientCategoryInfo(client);
+    switch (category) {
+      case 'aging':
+        return <span className="client-badge aging" style={{ fontWeight: 700 }}><AlertTriangle size={12} /> Aging ({months}m)</span>;
+      case 'overdue':
+        return <span className="client-badge overdue" style={{ fontWeight: 700 }}><AlertCircle size={12} /> Overdue ({months}m)</span>;
+      case 'paid':
+        return <span className="client-badge paid" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Active</span>;
+      case 'clear':
+        return <span className="client-badge clear" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Clear Account</span>;
+      default:
+        return null;
     }
   };
 
@@ -123,12 +207,8 @@ const UsersManagement = () => {
       );
     }
 
-    if (paymentFilter !== 'all') {
-      filtered = filtered.filter(item => item.paymentStatus === paymentFilter);
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(item => item.accountStatus === statusFilter);
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(item => getClientCategoryInfo(item).category === categoryFilter);
     }
 
     if (dateFilter !== 'all') {
@@ -159,66 +239,13 @@ const UsersManagement = () => {
 
   const filteredData = getFilteredData();
 
-  // ===== STATS =====
+  // ===== STATS (based on the 4 categories) =====
   const totalClients = clients.length;
-  const totalActive = clients.filter(c => c.accountStatus === 'active').length;
-  const totalHold = clients.filter(c => c.accountStatus === 'hold').length;
-  const totalClosed = clients.filter(c => c.accountStatus === 'closed' || c.balance <= 0).length;
-  const totalPaid = clients.filter(c => c.paymentStatus === 'paid' || c.balance <= 0).length;
-  const totalUnpaid = clients.filter(c => c.paymentStatus === 'unpaid' && c.balance > 0).length;
-  const totalPartial = clients.filter(c => c.paymentStatus === 'partial' && c.balance > 0).length;
+  const totalAging = clients.filter(c => getClientCategoryInfo(c).category === 'aging').length;
+  const totalOverdue = clients.filter(c => getClientCategoryInfo(c).category === 'overdue').length;
+  const totalPaid = clients.filter(c => getClientCategoryInfo(c).category === 'paid').length;
+  const totalClear = clients.filter(c => getClientCategoryInfo(c).category === 'clear').length;
   const totalBalance = clients.reduce((sum, c) => sum + c.balance, 0);
-
-  // ===== BADGES =====
-  const getPaymentBadge = (status, balance) => {
-    // If balance is 0 or less, show PAID
-    if (balance <= 0) {
-      return <span className="client-badge paid" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Paid</span>;
-    }
-    
-    switch(status) {
-      case 'paid':
-        return <span className="client-badge paid" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Paid</span>;
-      case 'unpaid':
-        return <span className="client-badge unpaid" style={{ fontWeight: 700 }}><XCircle size={12} /> Unpaid</span>;
-      case 'partial':
-        return <span className="client-badge partial" style={{ fontWeight: 700 }}><AlertCircle size={12} /> Partial</span>;
-      default:
-        return <span className="client-badge" style={{ fontWeight: 700 }}>{status}</span>;
-    }
-  };
-
-  const getAccountStatusBadge = (status, balance) => {
-    // If balance is 0, show Closed
-    if (balance <= 0) {
-      return <span className="account-status-badge closed" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Closed</span>;
-    }
-    
-    switch(status) {
-      case 'active':
-        return <span className="account-status-badge active" style={{ fontWeight: 700 }}><PlayCircle size={12} /> Active</span>;
-      case 'hold':
-        return <span className="account-status-badge hold" style={{ fontWeight: 700 }}><PauseCircle size={12} /> Hold</span>;
-      case 'closed':
-        return <span className="account-status-badge closed" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Closed</span>;
-      default:
-        return <span className="account-status-badge" style={{ fontWeight: 700 }}>{status}</span>;
-    }
-  };
-
-  // Get row color based on status
-  const getRowColorClass = (client) => {
-    if (client.balance <= 0) {
-      return 'row-paid'; // Green - Fully Paid
-    }
-    if (client.paymentStatus === 'unpaid' || client.overdueDays > 30) {
-      return 'row-overdue'; // Red - Overdue/Pending
-    }
-    if (client.paymentStatus === 'partial') {
-      return 'row-partial'; // Yellow - Partial/Active
-    }
-    return 'row-active'; // Default
-  };
 
   const formatCurrency = (amount) => {
     return `PKR ${amount.toLocaleString()}`;
@@ -266,7 +293,6 @@ const UsersManagement = () => {
   const isAdmin = userRole === 'admin';
   const isManager = userRole === 'manager';
 
-  // Colorful stats cards
   const statCards = [
     { 
       label: 'Total Clients', 
@@ -277,44 +303,44 @@ const UsersManagement = () => {
       className: 'total'
     },
     { 
-      label: 'Active', 
-      value: totalActive, 
-      icon: PlayCircle, 
-      color: '#22c55e', 
-      bg: 'rgba(34,197,94,0.12)',
-      className: 'active-users'
-    },
-    { 
-      label: 'Hold', 
-      value: totalHold, 
-      icon: PauseCircle, 
-      color: '#f59e0b', 
-      bg: 'rgba(245,158,11,0.12)',
-      className: 'managers'
-    },
-    { 
-      label: 'Closed', 
-      value: totalClosed, 
+      label: 'Clear Account', 
+      value: totalClear, 
       icon: CheckCircle, 
-      color: '#6b7280', 
-      bg: 'rgba(107,114,128,0.1)',
-      className: 'inactive-users'
+      color: '#eab308', 
+      bg: 'rgba(234,179,8,0.12)',
+      className: 'clear'
     },
     { 
-      label: 'Paid', 
+      label: 'Active / On-track', 
       value: totalPaid, 
       icon: CheckCircle, 
       color: '#22c55e', 
       bg: 'rgba(34,197,94,0.12)',
-      className: 'admins'
+      className: 'paid'
     },
     { 
-      label: 'Balance', 
+      label: 'Overdue', 
+      value: totalOverdue, 
+      icon: Clock, 
+      color: '#3b82f6', 
+      bg: 'rgba(59,130,246,0.12)',
+      className: 'overdue'
+    },
+    { 
+      label: 'Aging', 
+      value: totalAging, 
+      icon: AlertTriangle, 
+      color: '#ef4444', 
+      bg: 'rgba(239,68,68,0.12)',
+      className: 'aging'
+    },
+    { 
+      label: 'Total Balance', 
       value: formatCurrency(totalBalance), 
       icon: DollarSign, 
       color: '#C9A84C', 
       bg: 'rgba(201,168,76,0.12)',
-      className: 'employees'
+      className: 'balance'
     },
   ];
 
@@ -341,15 +367,13 @@ const UsersManagement = () => {
             <th style={{ fontWeight: 800 }}>Total (PKR)</th>
             <th style={{ fontWeight: 800 }}>Paid (PKR)</th>
             <th style={{ fontWeight: 800 }}>Balance (PKR)</th>
-            <th style={{ fontWeight: 800 }}>Payment</th>
-            <th style={{ fontWeight: 800 }}>Status</th>
             <th style={{ fontWeight: 800 }}>Actions</th>
           </tr>
         </thead>
         <tbody>
           {data.length === 0 ? (
             <tr>
-              <td colSpan="10" className="no-data">
+              <td colSpan="8" className="no-data">
                 <div className="no-data-content">
                   <UsersIcon size={32} />
                   <p style={{ fontWeight: 600 }}>No clients found</p>
@@ -379,8 +403,6 @@ const UsersManagement = () => {
                 <td className={client.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
                   {formatCurrency(client.balance)}
                 </td>
-                <td>{getPaymentBadge(client.paymentStatus, client.balance)}</td>
-                <td>{getAccountStatusBadge(client.accountStatus, client.balance)}</td>
                 <td>
                   <div className="action-group">
                     <button className="btn-view" onClick={() => viewDetail(client)} title="View Details" style={{ fontWeight: 700 }}>
@@ -426,10 +448,6 @@ const UsersManagement = () => {
               Add Client
             </button>
           )}
-          <button className="btn-export" onClick={() => alert('Exporting...')} style={{ fontWeight: 700 }}>
-            <Download size={18} />
-            Export
-          </button>
         </div>
       </div>
 
@@ -468,17 +486,12 @@ const UsersManagement = () => {
           />
         </div>
         <div className="filter-group">
-          <select className="filter-select" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} style={{ fontWeight: 500 }}>
-            <option value="all">All Payment</option>
-            <option value="paid">Paid</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="partial">Partial</option>
-          </select>
-          <select className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ fontWeight: 500 }}>
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="hold">Hold</option>
-            <option value="closed">Closed</option>
+          <select className="filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ fontWeight: 500 }}>
+            <option value="all">All</option>
+            <option value="clear">Clear Account</option>
+            <option value="paid">Active</option>
+            <option value="overdue">Overdue</option>
+            <option value="aging">Aging</option>
           </select>
           <select className="filter-select date-filter" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={{ fontWeight: 500 }}>
             <option value="all">All Time</option>
@@ -523,8 +536,7 @@ const UsersManagement = () => {
                 <div className="user-detail-info">
                   <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedUser.name}</h4>
                   <div className="detail-badges">
-                    {getPaymentBadge(selectedUser.paymentStatus, selectedUser.balance)}
-                    {getAccountStatusBadge(selectedUser.accountStatus, selectedUser.balance)}
+                    {getCategoryBadge(selectedUser)}
                     <span className="user-detail-branch" style={{ fontWeight: 500 }}>
                       <Building size={14} />
                       {getBranchName(selectedUser.branch)}
@@ -537,10 +549,6 @@ const UsersManagement = () => {
               <div className="detail-section">
                 <h5 style={{ fontWeight: 700 }}>Personal Information</h5>
                 <div className="user-detail-grid two-col">
-                  <div className="user-detail-item">
-                    <span style={{ fontWeight: 700 }}>Email</span>
-                    <strong style={{ fontWeight: 600 }}>{selectedUser.email || 'N/A'}</strong>
-                  </div>
                   <div className="user-detail-item">
                     <span style={{ fontWeight: 700 }}>Phone</span>
                     <strong style={{ fontWeight: 600 }}>{selectedUser.phone}</strong>
@@ -593,12 +601,6 @@ const UsersManagement = () => {
                     <strong style={{ fontWeight: 600 }}>{selectedUser.nextDueDate}</strong>
                   </div>
                   <div className="summary-item">
-                    <span style={{ fontWeight: 700 }}>Overdue Days</span>
-                    <strong className={selectedUser.overdueDays > 30 ? 'overdue-text' : ''} style={{ fontWeight: 700 }}>
-                      {selectedUser.overdueDays > 0 ? selectedUser.overdueDays : 'None'}
-                    </strong>
-                  </div>
-                  <div className="summary-item">
                     <span style={{ fontWeight: 700 }}>Joining Date</span>
                     <strong style={{ fontWeight: 600 }}>{selectedUser.joiningDate}</strong>
                   </div>
@@ -646,7 +648,6 @@ const UsersManagement = () => {
                           <th style={{ fontWeight: 700 }}>Due Amount</th>
                           <th style={{ fontWeight: 700 }}>Paid</th>
                           <th style={{ fontWeight: 700 }}>Balance</th>
-                          <th style={{ fontWeight: 700 }}>Status</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -657,7 +658,6 @@ const UsersManagement = () => {
                             <td>{formatCurrency(p.due_amount)}</td>
                             <td>{formatCurrency(p.paid_amount)}</td>
                             <td>{formatCurrency(p.balance)}</td>
-                            <td>{getPaymentBadge(p.status, p.balance)}</td>
                           </tr>
                         ))}
                       </tbody>

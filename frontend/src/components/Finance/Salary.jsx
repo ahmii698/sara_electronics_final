@@ -36,36 +36,30 @@ const Salary = () => {
     try {
       const token = localStorage.getItem('token');
       
-      // Fetch employees
       const empRes = await fetch(`${API_URL}/users?role=employee`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const empData = await empRes.json();
       
-      // Fetch salary records
       const salRes = await fetch(`${API_URL}/salary`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const salData = await salRes.json();
       
-      // Fetch advances
       const advRes = await fetch(`${API_URL}/salary/advances`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const advData = await advRes.json();
 
       if (empData.success) {
-        // Merge data
         const mergedEmployees = empData.data.data.map(emp => {
           const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
           const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
           
-          // Calculate total advances (not deducted)
           const totalAdvances = advances
             .filter(a => !a.deducted)
             .reduce((sum, a) => sum + parseFloat(a.amount), 0);
           
-          // Calculate total paid (deducted advances)
           const deductedAdvances = advances
             .filter(a => a.deducted)
             .reduce((sum, a) => sum + parseFloat(a.amount), 0);
@@ -108,9 +102,6 @@ const Salary = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ CHECK IF USER CAN MANAGE SALARY
-  // ============================================
   const canManageSalary = () => {
     return userRole === 'admin' || userRole === 'manager';
   };
@@ -131,22 +122,28 @@ const Salary = () => {
     return `${date} ${time}`;
   };
 
-  // ============================================
-  // ✅ PAY NOW - SEND TO API
-  // ============================================
+  // ✅ Format date to YYYY-MM-DD only
+  const formatLastPaid = (dateStr) => {
+    if (!dateStr) return 'Never';
+    if (dateStr === 'Never') return 'Never';
+    const parts = dateStr.split('T');
+    if (parts.length > 1) {
+      return parts[0];
+    }
+    return dateStr;
+  };
+
   const handlePayNow = async (id) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const emp = employees.find(e => e.id === id);
       
-      // Find or create salary record
       const month = new Date().toISOString().slice(0, 7);
       let salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
       
       let response;
       if (salaryRecord) {
-        // Update existing salary record
         response = await fetch(`${API_URL}/salary/${salaryRecord.id}/pay`, {
           method: 'POST',
           headers: {
@@ -155,7 +152,6 @@ const Salary = () => {
           }
         });
       } else {
-        // Create new salary record
         const finalSalary = emp.salary - emp.totalAdvances;
         const totalPaid = finalSalary + emp.commission;
         
@@ -181,7 +177,6 @@ const Salary = () => {
       const data = await response.json();
       
       if (data.success) {
-        // Mark all advances as deducted
         const advancesToDeduct = advanceData.filter(a => a.user_id === id && !a.deducted);
         for (const adv of advancesToDeduct) {
           await fetch(`${API_URL}/salary/advances/${adv.id}/deduct`, {
@@ -205,9 +200,6 @@ const Salary = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ ADD ADVANCE - SEND TO API
-  // ============================================
   const handleAddAdvance = async (id) => {
     if (!advanceAmount || parseInt(advanceAmount) <= 0) {
       alert('Please enter a valid amount');
@@ -254,10 +246,10 @@ const Salary = () => {
   };
 
   // ============================================
-  // ✅ RESET SALARY STATUS
+  // ✅ RESET SALARY - COMPLETE RESET FOR NEXT MONTH
   // ============================================
   const handleReset = async (id) => {
-    if (!window.confirm('Reset this employee\'s salary for this month?')) {
+    if (!window.confirm('Reset this employee\'s salary for the current month?\n\nThis will:\n• Mark as Pending\n• Remove Paid Date\n• Reset Commission to 0\n• Reset Total Paid to 0')) {
       return;
     }
 
@@ -268,6 +260,7 @@ const Salary = () => {
       const salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
       
       if (salaryRecord) {
+        // ✅ COMPLETE RESET - All fields reset
         const response = await fetch(`${API_URL}/salary/${salaryRecord.id}`, {
           method: 'PUT',
           headers: {
@@ -275,17 +268,24 @@ const Salary = () => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            status: 'pending'
+            status: 'pending',
+            paid_date: null,
+            commission: 0,
+            total_paid: 0,
+            leave_count: 0,
+            advances: 0
           })
         });
         
         const data = await response.json();
         if (data.success) {
           await fetchAllData();
-          alert('✅ Salary reset successfully!');
+          alert('✅ Salary reset successfully! Employee is now pending for the new month.');
         } else {
           alert(data.message || 'Failed to reset salary');
         }
+      } else {
+        alert('No salary record found for this month.');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -294,14 +294,10 @@ const Salary = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ EDIT SALARY
-  // ============================================
   const handleEditSalary = async (id, newSalary) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const month = new Date().toISOString().slice(0, 7);
       
       const response = await fetch(`${API_URL}/users/${id}`, {
         method: 'PUT',
@@ -330,16 +326,12 @@ const Salary = () => {
     setEditingEmployee(null);
   };
 
-  // ============================================
-  // ✅ EDIT COMMISSION
-  // ============================================
   const handleEditCommission = async (id, newCommission) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const month = new Date().toISOString().slice(0, 7);
       
-      // Check if salary record exists
       let salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
       
       let response;
@@ -432,7 +424,6 @@ const Salary = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
-  // Colorful stat chips
   const statChips = [
     { 
       label: `${totalEmployees} Employees`, 
@@ -583,7 +574,9 @@ const Salary = () => {
                         {emp.paid ? 'Paid' : 'Pending'}
                       </span>
                     </td>
-                    <td className="last-paid" style={{ fontWeight: 600 }}>{emp.lastPaid || 'Never'}</td>
+                    <td className="last-paid" style={{ fontWeight: 600 }}>
+                      {formatLastPaid(emp.lastPaid)}
+                    </td>
                     <td>
                       <div className="action-group">
                         <button className="btn-view" onClick={() => handleViewHistory(emp)} title="View History">
@@ -619,7 +612,7 @@ const Salary = () => {
         </table>
       </div>
 
-      {/* ===== HISTORY MODAL - FIXED TOTAL PAID ===== */}
+      {/* ===== HISTORY MODAL ===== */}
       {showHistoryModal && selectedEmployee && (
         <div className="salary-modal-overlay" onClick={() => setShowHistoryModal(false)}>
           <div className="salary-modal-content salary-modal-history" onClick={(e) => e.stopPropagation()}>
@@ -657,7 +650,6 @@ const Salary = () => {
                 </div>
                 <div className="summary-item" style={{ background: 'rgba(34, 197, 94, 0.08)', borderRadius: '0.75rem' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Total Paid</span>
-                  {/* ✅ FIX: Salary + Commission - Advances */}
                   <strong style={{ fontSize: '1.1rem', color: '#22c55e' }}>
                     PKR {(
                       selectedEmployee.salary + 

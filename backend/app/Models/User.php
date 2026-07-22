@@ -4,30 +4,51 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Storage;
 
-class User extends Model
+class User extends Authenticatable
 {
-    use HasFactory, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $table = 'users';
     protected $primaryKey = 'id';
     public $timestamps = true;
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'cnic', 'address',
-        'role', 'branch_id', 'salary', 'is_active',
-        'cnic_front', 'cnic_back', 'agreement_form',
-        'voice_consent'  // ✅ ADD THIS
+        'name', 
+        'email', 
+        'password', 
+        'phone', 
+        'cnic', 
+        'address',
+        'role', 
+        'branch_id', 
+        'salary', 
+        'is_active',
+        'cnic_front', 
+        'cnic_back', 
+        'agreement_form',
+        'voice_consent'
     ];
 
     protected $hidden = [
-        'password'
+        'password',
+        'remember_token',
     ];
 
-    // Relations
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'is_active' => 'boolean',
+        'salary' => 'decimal:2',
+    ];
+
+    // ============================================
+    // RELATIONS
+    // ============================================
+    
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');
@@ -63,7 +84,15 @@ class User extends Model
         return $this->hasMany(EmployeeAccount::class, 'employee_id');
     }
 
-    // ✅ Accessor for Voice Consent URL
+    public function leaves()
+    {
+        return $this->hasMany(EmployeeLeave::class, 'user_id');
+    }
+
+    // ============================================
+    // ✅ ACCESSORS FOR DOCUMENT URLS
+    // ============================================
+    
     public function getVoiceConsentUrlAttribute()
     {
         if ($this->voice_consent && Storage::disk('public')->exists($this->voice_consent)) {
@@ -72,7 +101,6 @@ class User extends Model
         return null;
     }
 
-    // ✅ Accessor for CNIC Front URL
     public function getCnicFrontUrlAttribute()
     {
         if ($this->cnic_front && Storage::disk('public')->exists($this->cnic_front)) {
@@ -81,7 +109,6 @@ class User extends Model
         return null;
     }
 
-    // ✅ Accessor for CNIC Back URL
     public function getCnicBackUrlAttribute()
     {
         if ($this->cnic_back && Storage::disk('public')->exists($this->cnic_back)) {
@@ -90,7 +117,6 @@ class User extends Model
         return null;
     }
 
-    // ✅ Accessor for Agreement Form URL
     public function getAgreementFormUrlAttribute()
     {
         if ($this->agreement_form && Storage::disk('public')->exists($this->agreement_form)) {
@@ -99,7 +125,47 @@ class User extends Model
         return null;
     }
 
-    // Helper methods for account counts
+    // ============================================
+    // ✅ CNIC FORMATTING
+    // ============================================
+    
+    public function getFormattedCnicAttribute()
+    {
+        $cnic = $this->cnic;
+        if (strlen($cnic) == 13) {
+            return substr($cnic, 0, 5) . '-' . substr($cnic, 5, 7) . '-' . substr($cnic, 12, 1);
+        }
+        return $cnic;
+    }
+
+    public function setCnicAttribute($value)
+    {
+        $this->attributes['cnic'] = preg_replace('/[^0-9]/', '', $value);
+    }
+
+    // ============================================
+    // ✅ ROLE CHECK HELPERS
+    // ============================================
+    
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isManager()
+    {
+        return $this->role === 'manager';
+    }
+
+    public function isEmployee()
+    {
+        return $this->role === 'employee';
+    }
+
+    // ============================================
+    // ✅ ACCOUNT STATS
+    // ============================================
+    
     public function getTotalAccountsAttribute()
     {
         return $this->employeeAccounts()->count();
@@ -120,7 +186,10 @@ class User extends Model
             ->count();
     }
 
-    // Scopes
+    // ============================================
+    // ✅ SCOPES
+    // ============================================
+    
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -139,5 +208,15 @@ class User extends Model
     public function scopeEmployees($query)
     {
         return $query->whereIn('role', ['employee', 'manager']);
+    }
+
+    public function scopeAdmins($query)
+    {
+        return $query->where('role', 'admin');
+    }
+
+    public function scopeManagers($query)
+    {
+        return $query->where('role', 'manager');
     }
 }

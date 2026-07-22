@@ -113,7 +113,10 @@ const Installments = () => {
       const token = localStorage.getItem('token');
       let url = `${API_URL}/installments?status=${filterStatus}`;
       
-      if (userBranch && userRole !== 'admin') {
+      // ✅ Ab Admin ka bhi login-time selected branch session mein set hota hai,
+      // isliye Admin ko bhi sirf usi branch ka data milna chahiye — koi role
+      // exception nahi, dono branches ka data kabhi mix nahi hona chahiye.
+      if (userBranch) {
         url += `&branch_id=${userBranch}`;
       }
       
@@ -211,53 +214,104 @@ const Installments = () => {
     });
   };
 
-  // ✅ Per-installment status badge — used in the payment-history TABLE (unchanged logic)
-  const getStatusBadge = (status, balance, due_amount, paid_amount) => {
+  // ✅ "2026-07" jaisi do month-strings ke darmiyan farq (months) nikalta hai
+  const monthsBetween = (fromMonth, toMonth) => {
+    if (!fromMonth || !toMonth) return 0;
+    const [fy, fm] = fromMonth.split('-').map(Number);
+    const [ty, tm] = toMonth.split('-').map(Number);
+    return (ty - fy) * 12 + (tm - fm);
+  };
+
+  // ✅ Current month ko "2026-07" format mein deta hai
+  const getCurrentMonthStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  // ✅ Per-installment badge — due month aate hi TURANT "Overdue" dikhata hai,
+  // month khatam hone ka wait nahi karta. Sirf FUTURE (abhi due hi nahi hua)
+  // months "Unpaid" rehte hain.
+  // - balance <= 0                    -> Paid
+  // - month abhi aaya nahi (future)   -> Unpaid
+  // - due ho chuka + balance baaki    -> Overdue (1m) turant, phir 2m, 3m...
+  // - 3 month ya zyada overdue        -> Aging
+  const getStatusBadge = (item) => {
+    const balance = parseFloat(item.balance || 0);
+
     if (balance <= 0) {
       return <span className="badge badge-paid"><CheckCircle size={14} /> Paid</span>;
     }
-    
-    if (paid_amount > 0 && balance > 0) {
+
+    if (!item.month) {
+      return <span className="badge badge-unpaid"><Clock size={14} /> Unpaid</span>;
+    }
+
+    const monthsDiff = monthsBetween(item.month, getCurrentMonthStr());
+
+    if (monthsDiff < 0) {
+      // yeh installment abhi future mein due hogi, abhi kuch nahi
+      return <span className="badge badge-unpaid"><Clock size={14} /> Unpaid</span>;
+    }
+
+    // current month khud pehla overdue month count hota hai
+    const overdueCount = monthsDiff + 1;
+
+    if (overdueCount >= 3) {
       return <span className="badge badge-aging"><AlertTriangle size={14} /> Aging</span>;
     }
-    
-    if (status === 'overdue') {
-      return <span className="badge badge-overdue"><AlertCircle size={14} /> Overdue</span>;
-    }
-    
-    return <span className="badge badge-unpaid"><Clock size={14} /> Unpaid</span>;
+
+    return (
+      <span className="badge badge-overdue">
+        <AlertCircle size={14} /> Overdue ({overdueCount}m)
+      </span>
+    );
   };
 
-  // ✅ Account-level status — used ONLY for the "Account Status" field in the
-  // Customer Information card (modal header area). Rules:
-  // - "Clear"   -> every installment is fully paid off
-  // - "Active"  -> whatever has been paid so far was paid IN FULL (zero shortfalls)
-  // - "Overdue" -> customer has given a short (partial) payment 1-2 times
-  // - "Aging"   -> customer has given a short (partial) payment 3+ times
+  // ✅ Account-level status — sirf "due ho chuki" unpaid installments dekhta hai
+  // (future months ko ignore karta hai, warna hamesha "overdue" dikhta rehta)
+  // - sab installments fully paid                -> Clear
+  // - koi bhi due month tak balance baaki nahi   -> Active
+  // - sabse purani due-unpaid installment 1-2m   -> Overdue (Xm)
+  // - sabse purani due-unpaid installment >=3m   -> Aging
   const getAccountCardStatus = (payments, account) => {
     const list = Array.isArray(payments) ? payments : [];
     const totalInstallments = account?.total_installments || list.length;
 
-    const fullyPaidCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) <= 0).length;
+    const fullyPaidCount = list.filter(p => parseFloat(p.balance || 0) <= 0).length;
 
-    // ✅ Clear: all installments fully paid off
     if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
       return <span className="badge badge-paid"><CheckCircle size={14} /> Clear</span>;
     }
 
-    // ✅ Shortfall = an installment where SOME amount was paid but less than what was due
-    const shortfallCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) > 0).length;
+    const currentMonthStr = getCurrentMonthStr();
 
-    if (shortfallCount >= 3) {
+    // sirf woh unpaid months jinka due date aa chuka hai (future wale exclude)
+    const dueUnpaidMonths = list
+      .filter(p =>
+        parseFloat(p.balance || 0) > 0 &&
+        p.month &&
+        monthsBetween(p.month, currentMonthStr) >= 0
+      )
+      .map(p => p.month)
+      .sort(); // "YYYY-MM" string sort = chronological
+
+    if (dueUnpaidMonths.length === 0) {
+      // koi bhi aisi installment nahi jiska paisa abhi tak due ho — sab clear hai current tak
+      return <span className="badge badge-active"><CheckCircle size={14} /> Active</span>;
+    }
+
+    const oldestDueMonth = dueUnpaidMonths[0];
+    const overdueCount = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
+
+    if (overdueCount >= 3) {
       return <span className="badge badge-aging"><AlertTriangle size={14} /> Aging</span>;
     }
 
-    if (shortfallCount >= 1) {
-      return <span className="badge badge-overdue"><AlertCircle size={14} /> Overdue</span>;
-    }
-
-    // ✅ No shortfalls at all — whatever was paid was paid in full (or nothing paid yet)
-    return <span className="badge badge-unpaid"><Clock size={14} /> Active</span>;
+    return (
+      <span className="badge badge-overdue">
+        <AlertCircle size={14} /> Overdue ({overdueCount}m)
+      </span>
+    );
   };
 
   const formatDate = (date) => {
@@ -671,7 +725,7 @@ const Installments = () => {
                             <td>{formatCurrency(p.due_amount)}</td>
                             <td>{formatCurrency(p.paid_amount)}</td>
                             <td>{formatCurrency(p.balance)}</td>
-                            <td>{getStatusBadge(p.status, p.balance, p.due_amount, p.paid_amount)}</td>
+                            <td>{getStatusBadge(p)}</td>
                             <td>{p.payment_date ? formatDate(p.payment_date) : '-'}</td>
                           </tr>
                         ))}
@@ -1097,7 +1151,7 @@ const Installments = () => {
                       <td className="text-right" style={{color: item.balance > 0 ? '#ef4444' : '#10b981'}}>
                         {formatCurrency(item.balance)}
                       </td>
-                      <td>{getStatusBadge(item.status, item.balance, item.due_amount, item.paid_amount)}</td>
+                      <td>{getStatusBadge(item)}</td>
                       
                       <td>
                         <span style={{fontWeight: '600', color: '#3730a3', fontSize: '12px'}}>

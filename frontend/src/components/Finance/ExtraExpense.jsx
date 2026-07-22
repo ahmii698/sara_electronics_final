@@ -12,6 +12,7 @@ const ExtraExpense = () => {
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -22,28 +23,55 @@ const ExtraExpense = () => {
     }
   }, []);
 
-  const [expenses, setExpenses] = useState([
-    { id: 1, description: 'Tea for staff', amount: 500, branch: 1, date: '2026-03-01' },
-    { id: 2, description: 'Pens and stationary', amount: 300, branch: 1, date: '2026-03-02' },
-    { id: 3, description: 'Cleaning supplies', amount: 700, branch: 1, date: '2026-03-03' },
-    { id: 4, description: 'Printer ink', amount: 1200, branch: 1, date: '2026-04-04' },
-    { id: 5, description: 'Office snacks', amount: 450, branch: 1, date: '2026-04-05' },
-    { id: 6, description: 'Water bottles', amount: 300, branch: 1, date: '2026-05-06' },
-    { id: 7, description: 'Broom and dustpan', amount: 250, branch: 1, date: '2026-05-07' },
-    { id: 8, description: 'Notebooks', amount: 600, branch: 1, date: '2026-06-08' },
-    { id: 9, description: 'Printer paper', amount: 800, branch: 1, date: '2026-06-10' },
-    { id: 10, description: 'Coffee supplies', amount: 350, branch: 1, date: '2026-06-12' },
-    { id: 11, description: 'Desk lamp', amount: 450, branch: 1, date: '2026-07-01' },
-    { id: 12, description: 'Extension board', amount: 200, branch: 1, date: '2026-07-03' },
-    { id: 13, description: 'Tea for staff B2', amount: 400, branch: 2, date: '2026-03-01' },
-    { id: 14, description: 'Stationary B2', amount: 250, branch: 2, date: '2026-03-05' },
-    { id: 15, description: 'Cleaning B2', amount: 600, branch: 2, date: '2026-04-02' },
-    { id: 16, description: 'Printer ink B2', amount: 1000, branch: 2, date: '2026-04-10' },
-    { id: 17, description: 'Snacks B2', amount: 350, branch: 2, date: '2026-05-03' },
-    { id: 18, description: 'Water B2', amount: 200, branch: 2, date: '2026-05-08' },
-    { id: 19, description: 'Notebooks B2', amount: 500, branch: 2, date: '2026-06-05' },
-    { id: 20, description: 'Paper B2', amount: 700, branch: 2, date: '2026-06-12' },
-  ]);
+  useEffect(() => {
+    fetchExpenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userBranch]);
+
+  const [expenses, setExpenses] = useState([]);
+
+  // ============================================
+  // ✅ FETCH REAL DATA FROM BACKEND
+  // Pehle yahan hardcoded demo array tha jo kabhi refresh hi nahi hota tha.
+  // Ab yeh GET /expenses/extra?branch_id=... call karta hai — jo backend
+  // mein pehle se maujood hai — aur asal database ka data laata hai.
+  // ============================================
+  const fetchExpenses = async () => {
+    setFetching(true);
+    try {
+      const token = localStorage.getItem('token');
+      let url = `${API_URL}/expenses/extra`;
+      if (userBranch) {
+        url += `?branch_id=${userBranch}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const mapped = (data.data || []).map(exp => ({
+          id: exp.id,
+          description: exp.description,
+          amount: parseFloat(exp.amount) || 0,
+          branch: exp.branch_id,
+          date: exp.date
+        }));
+        setExpenses(mapped);
+      } else {
+        setExpenses([]);
+      }
+    } catch (error) {
+      console.error('Error fetching extra expenses:', error);
+      setExpenses([]);
+    }
+    setFetching(false);
+  };
 
   const [newExpense, setNewExpense] = useState({
     description: '',
@@ -145,16 +173,7 @@ const ExtraExpense = () => {
       }
 
       if (data.success) {
-        // ✅ Add to local state
-        const newId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
-        setExpenses([...expenses, {
-          id: newId,
-          description: newExpense.description,
-          amount: parseInt(newExpense.amount),
-          branch: branch,
-          date: date,
-        }]);
-
+        await fetchExpenses();
         setNewExpense({ description: '', amount: '', branch: 1, date: '' });
         setShowModal(false);
         alert('✅ Expense added successfully!');
@@ -171,6 +190,8 @@ const ExtraExpense = () => {
 
   // ============================================
   // ✅ UPDATE EXPENSE
+  // ✅ NOTE: yeh call ab kaam karega — backend mein PUT /expenses/extra/{id}
+  // route + updateExtra() function add kar diya gaya hai (pehle missing tha).
   // ============================================
   const handleEditExpense = async () => {
     if (!newExpense.description || !newExpense.amount) {
@@ -208,19 +229,7 @@ const ExtraExpense = () => {
       }
 
       if (data.success) {
-        setExpenses(expenses.map(e => {
-          if (e.id === editingExpense.id) {
-            return {
-              ...e,
-              description: newExpense.description,
-              amount: parseInt(newExpense.amount),
-              branch: branch,
-              date: newExpense.date || e.date,
-            };
-          }
-          return e;
-        }));
-
+        await fetchExpenses();
         setNewExpense({ description: '', amount: '', branch: 1, date: '' });
         setShowModal(false);
         setEditingExpense(null);
@@ -265,7 +274,7 @@ const ExtraExpense = () => {
       }
 
       if (data.success) {
-        setExpenses(expenses.filter(e => e.id !== id));
+        await fetchExpenses();
         alert('✅ Expense deleted successfully!');
       } else {
         alert(data.message || 'Failed to delete expense');
@@ -369,6 +378,17 @@ const ExtraExpense = () => {
       className: 'stat-total'
     },
   ];
+
+  if (fetching) {
+    return (
+      <div className="extra-expense-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading extra expenses...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="extra-expense-container">

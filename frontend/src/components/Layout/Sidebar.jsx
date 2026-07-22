@@ -61,7 +61,9 @@ const Sidebar = () => {
   const isManager = userRole === 'manager';
   const isEmployee = userRole === 'employee';
 
-  // Dashboard - Admin only
+  // ============================================
+  // ✅ DASHBOARD - Admin only
+  // ============================================
   const navItems = [];
   if (isAdmin) {
     navItems.push({
@@ -71,7 +73,9 @@ const Sidebar = () => {
     });
   }
 
-  // Employee Performance - All can see
+  // ============================================
+  // ✅ MY PERFORMANCE - All can see
+  // ============================================
   if (isEmployee || isAdmin || isManager) {
     navItems.push({
       path: '/employee-performance',
@@ -80,7 +84,9 @@ const Sidebar = () => {
     });
   }
 
-  // ✅ Leave Application - All roles can see (Admin, Manager, Employee)
+  // ============================================
+  // ✅ APPLY LEAVE - All can see (Admin, Manager, Employee)
+  // ============================================
   if (isEmployee || isAdmin || isManager) {
     navItems.push({
       path: '/apply-leave',
@@ -89,19 +95,22 @@ const Sidebar = () => {
     });
   }
 
-  // Finance dropdown (admin only)
+  // ============================================
+  // ✅ FINANCE DROPDOWN - Admin only
+  // ============================================
   const financeItems = isAdmin ? [
     { path: '/finance/salary', label: 'Employee Salary' },
     { path: '/finance/fixed', label: 'Fixed Expenses' }
   ] : [];
 
-  // ✅ Other items (Admin & Manager)
+  // ============================================
+  // ✅ OTHER ITEMS - Admin & Manager
+  // ============================================
   const otherItems = [];
   if (isAdmin || isManager) {
     otherItems.push(
       { path: '/extra-expenses', icon: PlusCircle, label: 'Extra Expenses' },
       { path: '/employee-report', icon: BarChart3, label: 'Employee Report' },
-      // ✅ OVERDUE INSTALLMENTS - UNCOMMENTED (Admin aur Manager dono ko dikhega)
       { path: '/overdue-installments', icon: Clock, label: 'Overdue Installments' },
       { path: '/aging-report', icon: AlertTriangle, label: 'Aging Report' },
       { path: '/add-account', icon: UserPlus, label: 'Add Account' },
@@ -111,11 +120,16 @@ const Sidebar = () => {
     );
   }
 
-  // ✅ System Access - Admin only (page banayenge baad mein, link abhi se reserve)
+  // ============================================
+  // ✅ SYSTEM ACCESS - SIRF ADMIN KO DIKHEGA
+  // ============================================
+  // 👇 System Access ko ALAG SE PUSH KARO
   if (isAdmin) {
-    otherItems.push(
-      { path: '/system-access', icon: Shield, label: 'System Access' }
-    );
+    otherItems.push({
+      path: '/system-access',
+      icon: Shield,
+      label: 'System Access'
+    });
   }
 
   return (

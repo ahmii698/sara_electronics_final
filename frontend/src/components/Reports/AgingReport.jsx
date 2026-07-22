@@ -13,7 +13,6 @@ const AgingReport = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // ✅ Real data (no more dummy agingData)
   const [loading, setLoading] = useState(true);
   const [agingAccounts, setAgingAccounts] = useState([]);
 
@@ -36,13 +35,28 @@ const AgingReport = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ===== GET CURRENT MONTH =====
+  // ===== CURRENT MONTH (used for month-name formatting only) =====
   const getCurrentMonth = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
 
   const currentMonth = getCurrentMonth();
+
+  // ============================================
+  // ✅ SAME month-math helpers as Installments.jsx
+  // ============================================
+  const monthsBetween = (fromMonth, toMonth) => {
+    if (!fromMonth || !toMonth) return 0;
+    const [fy, fm] = fromMonth.split('-').map(Number);
+    const [ty, tm] = toMonth.split('-').map(Number);
+    return (ty - fy) * 12 + (tm - fm);
+  };
+
+  const getCurrentMonthStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
 
   // ============================================
   // ✅ FETCH ALL INSTALLMENTS (every page) so we can look at each
@@ -54,7 +68,6 @@ const AgingReport = () => {
     let allData = [];
     let lastPage = 1;
 
-    // Non-admins only need their own branch — filter server-side to save data
     const branchParam = (branch && role !== 'admin') ? `&branch_id=${branch}` : '';
 
     do {
@@ -77,43 +90,73 @@ const AgingReport = () => {
   };
 
   // ============================================
-  // ✅ SAME shortfall-based status logic as the Installments page's
-  // "Account Status" card:
-  //   - Clear   -> every installment fully paid
-  //   - Aging   -> 3+ installments where SOME amount was paid but less than due
-  //   - Overdue -> 1-2 such short payments
-  //   - Active  -> no short payments at all
-  // Here we only care whether the account is "Aging".
+  // ✅ EXACT SAME LOGIC as Installments.jsx / OverdueInstallments.jsx.
+  // Looks at the OLDEST unpaid installment whose due month has already
+  // arrived (ignores future months), and counts how many months behind
+  // it is. Returns { statusKey, overdueMonths }.
+  //   - Clear   -> every installment (up to total_installments) fully paid
+  //   - Active  -> no due-and-unpaid installment at all
+  //   - Overdue -> oldest due-unpaid installment is 1-3 months behind
+  //   - Aging   -> oldest due-unpaid installment is 4+ months behind   ✅ FIXED (was 3+)
   // ============================================
-  const getShortfallCount = (list) => {
-    return list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) > 0).length;
-  };
-
-  const getAccountStatusKey = (list, account) => {
+  const getAccountAgingInfo = (list, account) => {
     const totalInstallments = account?.total_installments || list.length;
-    const fullyPaidCount = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && parseFloat(p.balance || 0) <= 0).length;
+    const fullyPaidCount = list.filter(p => parseFloat(p.balance || 0) <= 0).length;
 
     if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
-      return 'clear';
+      return { statusKey: 'clear', overdueMonths: 0 };
     }
 
-    const shortfallCount = getShortfallCount(list);
-    if (shortfallCount >= 3) return 'aging';
-    if (shortfallCount >= 1) return 'overdue';
-    return 'active';
+    const currentMonthStr = getCurrentMonthStr();
+
+    // sirf woh unpaid months jinka due date aa chuka hai (future wale exclude)
+    const dueUnpaidMonths = list
+      .filter(p =>
+        parseFloat(p.balance || 0) > 0 &&
+        p.month &&
+        monthsBetween(p.month, currentMonthStr) >= 0
+      )
+      .map(p => p.month)
+      .sort(); // "YYYY-MM" string sort = chronological
+
+    if (dueUnpaidMonths.length === 0) {
+      return { statusKey: 'active', overdueMonths: 0 };
+    }
+
+    const oldestDueMonth = dueUnpaidMonths[0];
+    const overdueMonths = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
+
+    // ✅ FIXED: ab 4+ se Aging start hogi, taake Installments.jsx aur
+    // OverdueInstallments.jsx ke sath 100% match ho (pehle 3+ tha, jiski
+    // wajah se ek account 3rd month mein Overdue page aur Aging page
+    // dono par ek sath dikh raha tha)
+    if (overdueMonths >= 4) {
+      return { statusKey: 'aging', overdueMonths };
+    }
+
+    return { statusKey: 'overdue', overdueMonths };
   };
 
-  // ✅ Per-installment row status — used inside the month-by-month history table
+  // ✅ Per-installment row status — used inside the month-by-month history table.
+  // Mirrors Installments.jsx's getStatusBadge logic (month-aware), not just paid/partial/unpaid.
   const getInstallmentRowStatus = (inst) => {
-    const paid = parseFloat(inst.paid_amount || 0);
     const balance = parseFloat(inst.balance || 0);
-    if (paid > 0 && balance <= 0) return 'paid';
-    if (paid > 0 && balance > 0) return 'partial';
-    return 'unpaid';
+    if (balance <= 0) return { key: 'paid', label: 'Paid' };
+
+    if (!inst.month) return { key: 'unpaid', label: 'Unpaid' };
+
+    const monthsDiff = monthsBetween(inst.month, getCurrentMonthStr());
+    if (monthsDiff < 0) return { key: 'unpaid', label: 'Unpaid' }; // future month, not due yet
+
+    const overdueCount = monthsDiff + 1;
+    // ✅ FIXED: 4+ se Aging (pehle 3+ tha)
+    if (overdueCount >= 4) return { key: 'aging', label: 'Aging' };
+    return { key: 'overdue', label: `Overdue (${overdueCount}m)` };
   };
 
   // ============================================
-  // ✅ BUILD THE AGING LIST from all installments, grouped by account
+  // ✅ BUILD THE AGING LIST from all installments, grouped by account,
+  // using the SAME classification as Installments.jsx / OverdueInstallments.jsx
   // ============================================
   const fetchAgingAccounts = async (branch, role) => {
     setLoading(true);
@@ -134,12 +177,11 @@ const AgingReport = () => {
         const sample = list[0];
         const account = sample.account || {};
 
-        // ✅ Only accounts whose status is actually "Aging"
-        const statusKey = getAccountStatusKey(list, account);
+        // ✅ Only accounts whose status is actually "Aging" (4+ months behind)
+        const { statusKey, overdueMonths } = getAccountAgingInfo(list, account);
         if (statusKey !== 'aging') return;
 
         const sortedInstallments = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
-        const shortfallCount = getShortfallCount(list);
 
         const paidEntries = list.filter(p => parseFloat(p.paid_amount || 0) > 0 && p.payment_date);
         const lastPaymentDate = paidEntries.length > 0
@@ -162,13 +204,13 @@ const AgingReport = () => {
           paidAmount: parseFloat(account.paid_amount || 0),
           balance: parseFloat(account.balance || 0),
           lastPaymentDate,
-          shortfallCount,
+          overdueMonths,
           installments: sortedInstallments
         });
       });
 
-      // Worst accounts (most short payments) first
-      agingList.sort((a, b) => b.shortfallCount - a.shortfallCount);
+      // Worst accounts (most months overdue) first
+      agingList.sort((a, b) => b.overdueMonths - a.overdueMonths);
 
       setAgingAccounts(agingList);
     } catch (error) {
@@ -203,8 +245,8 @@ const AgingReport = () => {
   // ===== TOTALS =====
   const totalRecords = filtered.length;
   const totalBalance = filtered.reduce((sum, item) => sum + item.balance, 0);
-  const avgShortfalls = totalRecords > 0
-    ? Math.round(filtered.reduce((sum, item) => sum + item.shortfallCount, 0) / totalRecords)
+  const avgOverdueMonths = totalRecords > 0
+    ? Math.round(filtered.reduce((sum, item) => sum + item.overdueMonths, 0) / totalRecords)
     : 0;
 
   // ===== VIEW DETAIL =====
@@ -261,8 +303,8 @@ const AgingReport = () => {
       className: 'balance-card'
     },
     {
-      label: 'Avg. Short Payments',
-      value: avgShortfalls,
+      label: 'Avg. Months Overdue',
+      value: avgOverdueMonths,
       icon: Clock,
       color: '#2563eb',
       bg: 'rgba(37,99,235,0.12)',
@@ -285,7 +327,8 @@ const AgingReport = () => {
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
-          <p className="subtitle">Customers who fell short on payment 3 or more times</p>
+          {/* ✅ FIXED text: 3+ -> 4+ */}
+          <p className="subtitle">Customers whose oldest due installment is 4+ months overdue</p>
         </div>
         <button className="btn-export" onClick={exportReport}>
           <Download size={18} />
@@ -365,7 +408,8 @@ const AgingReport = () => {
             <h3 style={{ fontWeight: 700 }}>Aging Customers</h3>
             <span className="record-count" style={{ fontWeight: 600 }}>{totalRecords} entries</span>
           </div>
-          <span className="aging-info" style={{ fontWeight: 600 }}>Showing accounts with 3+ short payments</span>
+          {/* ✅ FIXED text: 3+ -> 4+ */}
+          <span className="aging-info" style={{ fontWeight: 600 }}>Showing accounts 4+ months overdue</span>
         </div>
 
         <div className="table-scroll">
@@ -377,7 +421,7 @@ const AgingReport = () => {
                 <th style={{ fontWeight: 800 }}>Description</th>
                 <th style={{ fontWeight: 800 }}>Balance</th>
                 <th style={{ fontWeight: 800 }}>Monthly</th>
-                <th style={{ fontWeight: 800 }}>Short Payments</th>
+                <th style={{ fontWeight: 800 }}>Months Overdue</th>
                 <th style={{ fontWeight: 800 }}>Last Payment</th>
                 <th style={{ fontWeight: 800 }}>Status</th>
                 <th style={{ fontWeight: 800 }}>Actions</th>
@@ -431,7 +475,7 @@ const AgingReport = () => {
                         borderRadius: '9999px',
                         fontSize: '0.7rem'
                       }}>
-                        {item.shortfallCount} times
+                        {item.overdueMonths}m
                       </span>
                     </td>
                     <td className="last-payment" style={{ fontWeight: 500 }}>{formatDate(item.lastPaymentDate)}</td>
@@ -539,8 +583,8 @@ const AgingReport = () => {
                   <strong style={{ fontWeight: 700 }}>PKR {selectedCustomer.monthlyInstallment.toLocaleString()}</strong>
                 </div>
                 <div className="detail-summary-item">
-                  <span style={{ fontWeight: 700 }}>Short Payments</span>
-                  <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>{selectedCustomer.shortfallCount} times</strong>
+                  <span style={{ fontWeight: 700 }}>Months Overdue</span>
+                  <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>{selectedCustomer.overdueMonths}m</strong>
                 </div>
               </div>
 
@@ -562,19 +606,19 @@ const AgingReport = () => {
                     <tbody>
                       {selectedCustomer.installments.map((inst, index) => {
                         const rowStatus = getInstallmentRowStatus(inst);
-                        const isOverdue = inst.month < currentMonth && parseFloat(inst.paid_amount || 0) < parseFloat(inst.due_amount || 0);
+                        const isOverdue = rowStatus.key === 'overdue' || rowStatus.key === 'aging';
                         return (
                           <tr key={inst.id || index} className={`${isOverdue ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                             <td className="month-cell" style={{ fontWeight: 600 }}>
                               {inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}
                             </td>
                             <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
-                            <td className={rowStatus === 'paid' ? 'paid-amount' : 'balance-amount'} style={{ fontWeight: 700 }}>
+                            <td className={rowStatus.key === 'paid' ? 'paid-amount' : 'balance-amount'} style={{ fontWeight: 700 }}>
                               PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}
                             </td>
                             <td>
-                              <span className={`status-badge ${rowStatus}`} style={{ fontWeight: 700 }}>
-                                {rowStatus === 'paid' ? 'Paid' : rowStatus === 'partial' ? 'Partial' : 'Unpaid'}
+                              <span className={`status-badge ${rowStatus.key}`} style={{ fontWeight: 700 }}>
+                                {rowStatus.label}
                               </span>
                             </td>
                           </tr>

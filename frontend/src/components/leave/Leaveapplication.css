@@ -1,27 +1,27 @@
 /* src/components/LeaveApplication/LeaveApplication.css */
 
-.leave-application-page {
+.leaveapp-page {
   padding: 24px;
 }
 
-.leave-page-header {
+.leaveapp-page-header {
   margin-bottom: 24px;
 }
 
-.leave-page-header h2 {
+.leaveapp-page-header h2 {
   font-size: 1.6rem;
   font-weight: 800;
   color: #1E1B4B;
   margin: 0 0 4px 0;
 }
 
-.leave-page-header p {
+.leaveapp-page-header p {
   color: #6b7280;
   font-size: 0.9rem;
   margin: 0;
 }
 
-.leave-content-grid {
+.leaveapp-content-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
@@ -29,13 +29,13 @@
 }
 
 @media (max-width: 900px) {
-  .leave-content-grid {
+  .leaveapp-content-grid {
     grid-template-columns: 1fr;
   }
 }
 
 /* ===== FORM CARD ===== */
-.leave-form-card {
+.leaveapp-form-card {
   background: #fff;
   border-radius: 12px;
   padding: 28px;
@@ -43,11 +43,11 @@
   border-top: 4px solid #C9A84C;
 }
 
-.leave-form-group {
+.leaveapp-form-group {
   margin-bottom: 20px;
 }
 
-.leave-form-group label {
+.leaveapp-form-group label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -57,7 +57,7 @@
   margin-bottom: 8px;
 }
 
-.leave-form-input {
+.leaveapp-form-input {
   width: 100%;
   padding: 11px 14px;
   border: 1px solid #e5e7eb;
@@ -69,19 +69,19 @@
   box-sizing: border-box;
 }
 
-.leave-form-input:focus {
+.leaveapp-form-input:focus {
   outline: none;
   border-color: #C9A84C;
   background: #fff;
 }
 
-.leave-form-textarea {
+.leaveapp-form-textarea {
   resize: vertical;
   min-height: 90px;
   font-family: inherit;
 }
 
-.leave-message {
+.leaveapp-message {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -92,17 +92,17 @@
   margin-bottom: 18px;
 }
 
-.leave-message-success {
+.leaveapp-message-success {
   background: #dcfce7;
   color: #166534;
 }
 
-.leave-message-error {
+.leaveapp-message-error {
   background: #fee2e2;
   color: #991b1b;
 }
 
-.leave-submit-btn {
+.leaveapp-page .leaveapp-submit-btn {
   width: 100%;
   display: flex;
   align-items: center;
@@ -116,34 +116,36 @@
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
+  opacity: 1;
+  visibility: visible;
   transition: background 0.15s ease;
 }
 
-.leave-submit-btn:hover:not(:disabled) {
+.leaveapp-page .leaveapp-submit-btn:hover:not(:disabled) {
   background: #2d2870;
 }
 
-.leave-submit-btn:disabled {
+.leaveapp-page .leaveapp-submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 /* ===== RECENT APPLICATIONS CARD ===== */
-.leave-recent-card {
+.leaveapp-recent-card {
   background: #fff;
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 }
 
-.leave-recent-card h3 {
+.leaveapp-recent-card h3 {
   font-size: 1.05rem;
   font-weight: 700;
   color: #1E1B4B;
   margin: 0 0 16px 0;
 }
 
-.leave-recent-list {
+.leaveapp-recent-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -151,20 +153,20 @@
   overflow-y: auto;
 }
 
-.leave-recent-item {
+.leaveapp-recent-item {
   border: 1px solid #f0f0f0;
   border-radius: 10px;
   padding: 12px 14px;
 }
 
-.leave-recent-top {
+.leaveapp-recent-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
 
-.leave-recent-name {
+.leaveapp-recent-name {
   font-weight: 700;
   color: #1a1a2e;
   font-size: 0.9rem;
@@ -173,7 +175,7 @@
   gap: 8px;
 }
 
-.leave-recent-branch {
+.leaveapp-recent-branch {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -182,19 +184,19 @@
   color: #6b7280;
 }
 
-.leave-recent-date {
+.leaveapp-recent-date {
   font-size: 0.8rem;
   color: #2563eb;
   font-weight: 600;
   margin-bottom: 4px;
 }
 
-.leave-recent-reason {
+.leaveapp-recent-reason {
   font-size: 0.82rem;
   color: #6b7280;
 }
 
-.leave-badge {
+.leaveapp-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -204,41 +206,41 @@
   font-weight: 700;
 }
 
-.leave-badge-approved {
+.leaveapp-badge-approved {
   background: #dcfce7;
   color: #166534;
 }
 
-.leave-badge-rejected {
+.leaveapp-badge-rejected {
   background: #fee2e2;
   color: #991b1b;
 }
 
-.leave-badge-pending {
+.leaveapp-badge-pending {
   background: #fef3c7;
   color: #92400e;
 }
 
-.leave-loading {
+.leaveapp-loading {
   display: flex;
   justify-content: center;
   padding: 40px 0;
 }
 
-.leave-spinner {
+.leaveapp-spinner {
   width: 28px;
   height: 28px;
   border: 3px solid #f0f0f0;
   border-top-color: #C9A84C;
   border-radius: 50%;
-  animation: leave-spin 0.7s linear infinite;
+  animation: leaveapp-spin 0.7s linear infinite;
 }
 
-@keyframes leave-spin {
+@keyframes leaveapp-spin {
   to { transform: rotate(360deg); }
 }
 
-.leave-empty {
+.leaveapp-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -247,7 +249,7 @@
   color: #9ca3af;
 }
 
-.leave-empty p {
+.leaveapp-empty p {
   font-size: 0.85rem;
   margin: 0;
 }

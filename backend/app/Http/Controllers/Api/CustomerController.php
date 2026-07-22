@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Storage;
 
 class CustomerController extends Controller
 {
+    // ✅ Combined limit across both accounts for the same CNIC
+    const MAX_ACCOUNTS_PER_CNIC = 2;
+    const MAX_COMBINED_AMOUNT = 100000;
+
     public function index(Request $request)
     {
         $query = Customer::with(['branch', 'creator', 'accounts', 'employeeAccount', 'employeeAccount.employee']);
@@ -55,22 +59,117 @@ class CustomerController extends Controller
         return $this->sendResponse($customer, 'Customer details retrieved');
     }
 
+    // ============================================
+    // ✅ UPGRADED: CNIC check — ab poori account/limit/guarantor report deta hai
+    // ============================================
     public function checkCnic(Request $request)
     {
         $request->validate(['cnic' => 'required|string']);
-        
+
         $cnic = $request->cnic;
-        
-        $customerExists = Customer::where('cnic', $cnic)->exists();
-        $guarantorExists = Guarantor::where('cnic', $cnic)->exists();
+        $cleanCnic = preg_replace('/[^0-9]/', '', $cnic);
+
+        // ✅ 1) Kya ye CNIC pehle se ek customer hai (aur uske accounts kya hain)
+        $customer = Customer::where('cnic', $cnic)
+            ->orWhere('cnic', $cleanCnic)
+            ->with([
+                'accounts' => function ($q) {
+                    $q->orderBy('created_at', 'desc');
+                },
+                'accounts.installments',
+                'accounts.creator',
+                'accounts.employeeAccount.employee',
+            ])
+            ->first();
+
+        // ✅ 2) Kya ye CNIC kisi aur ka guarantor hai
+        $guarantorRecords = Guarantor::where('cnic', $cnic)
+            ->orWhere('cnic', $cleanCnic)
+            ->with('customer')
+            ->get();
+
+        $existsAsCustomer = $customer !== null;
+        $existsAsGuarantor = $guarantorRecords->isNotEmpty();
+
+        $accountsData = [];
+        $accountsCount = 0;
+        $totalCombinedAmount = 0;
+        $canOpenMore = true;
+        $remainingLimit = self::MAX_COMBINED_AMOUNT;
+
+        if ($customer) {
+            $accounts = $customer->accounts;
+            $accountsCount = $accounts->count();
+            $totalCombinedAmount = (float) $accounts->sum('total_amount');
+            $canOpenMore = $accountsCount < self::MAX_ACCOUNTS_PER_CNIC
+                && $totalCombinedAmount < self::MAX_COMBINED_AMOUNT;
+            $remainingLimit = max(0, self::MAX_COMBINED_AMOUNT - $totalCombinedAmount);
+
+            $accountsData = $accounts->map(function ($acc) {
+                return [
+                    'id' => $acc->id,
+                    'case_no' => $acc->case_no,
+                    'product_name' => $acc->product_name,
+                    'total_amount' => (float) $acc->total_amount,
+                    'paid_amount' => (float) $acc->paid_amount,
+                    'balance' => (float) $acc->balance,
+                    'monthly_installment' => (float) $acc->monthly_installment,
+                    'total_installments' => $acc->total_installments,
+                    'installments_paid' => $acc->installments_paid,
+                    'status' => $acc->status,
+                    'branch_id' => $acc->branch_id,
+                    'created_at' => $acc->created_at,
+                    'creator_name' => $acc->creator->name ?? 'N/A',
+                    'employee_name' => $acc->employeeAccount->employee->name ?? 'N/A',
+                    'installments' => $acc->installments->map(function ($i) {
+                        return [
+                            'month' => $i->month,
+                            'due_amount' => (float) $i->due_amount,
+                            'paid_amount' => (float) $i->paid_amount,
+                            'balance' => (float) $i->balance,
+                            'status' => $i->status,
+                        ];
+                    }),
+                ];
+            });
+        }
 
         return $this->sendResponse([
             'cnic' => $cnic,
-            'exists_as_customer' => $customerExists,
-            'exists_as_guarantor' => $guarantorExists,
-            'is_available' => !($customerExists || $guarantorExists),
-            'message' => $customerExists ? 'This CNIC already exists as a customer' : 
-                        ($guarantorExists ? 'This CNIC already exists as a guarantor' : 
+            'exists_as_customer' => $existsAsCustomer,
+            'exists_as_guarantor' => $existsAsGuarantor,
+            'is_available' => !($existsAsCustomer || $existsAsGuarantor),
+
+            // ✅ customer + accounts report
+            'customer' => $customer ? [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'cnic' => $customer->cnic,
+                'phone' => $customer->phone,
+                'address' => $customer->address,
+                'work' => $customer->work,
+                'branch_id' => $customer->branch_id,
+                'created_at' => $customer->created_at,
+            ] : null,
+            'accounts' => $accountsData,
+            'accounts_count' => $accountsCount,
+            'total_combined_amount' => $totalCombinedAmount,
+            'can_open_more' => $canOpenMore,
+            'remaining_limit' => $remainingLimit,
+
+            // ✅ agar ye CNIC khud kisi ka guarantor hai
+            'guarantor_records' => $guarantorRecords->map(function ($g) {
+                return [
+                    'guarantor_name' => $g->name,
+                    'guarantor_cnic' => $g->cnic,
+                    'customer_name' => $g->customer->name ?? 'N/A',
+                    'customer_cnic' => $g->customer->cnic ?? 'N/A',
+                    'customer_id' => $g->customer_id,
+                ];
+            }),
+
+            'message' => $existsAsCustomer ? 'This CNIC already exists as a customer' :
+                        ($existsAsGuarantor ? 'This CNIC already exists as a guarantor' :
                         'CNIC is available')
         ], 'CNIC check completed');
     }
@@ -82,7 +181,41 @@ class CustomerController extends Controller
             Log::info('========== CUSTOMER STORE REQUEST ==========');
             Log::info('created_by (employee_id):', [$request->created_by]);
             Log::info('product_name:', [$request->product_name]);
-            
+
+            // ============================================
+            // ✅ HARD LIMIT CHECK: max 2 accounts per CNIC,
+            // combined total_amount max PKR 100,000
+            // ============================================
+            $cleanCnic = preg_replace('/[^0-9]/', '', $request->cnic ?? '');
+
+            $existingCustomer = Customer::where('cnic', $request->cnic)
+                ->orWhere('cnic', $cleanCnic)
+                ->with('accounts')
+                ->first();
+
+            if ($existingCustomer) {
+                $existingAccountsCount = $existingCustomer->accounts->count();
+                $existingTotal = (float) $existingCustomer->accounts->sum('total_amount');
+
+                // Naye account ka amount — invoice_price hi total_amount ban ke jayega
+                $newAccountAmount = (float) $request->input('invoice_price', 0);
+
+                if ($existingAccountsCount >= self::MAX_ACCOUNTS_PER_CNIC) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This CNIC already has ' . self::MAX_ACCOUNTS_PER_CNIC . ' accounts. Maximum limit reached.'
+                    ], 422);
+                }
+
+                if (($existingTotal + $newAccountAmount) > self::MAX_COMBINED_AMOUNT) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Combined account amount cannot exceed PKR ' . number_format(self::MAX_COMBINED_AMOUNT) . '. Remaining limit: PKR ' . number_format(self::MAX_COMBINED_AMOUNT - $existingTotal)
+                    ], 422);
+                }
+            }
+            // ============================================
+
             // Get guarantors from request
             $guarantors = [];
             
@@ -141,10 +274,15 @@ class CustomerController extends Controller
 
             Log::info('Valid Guarantors count:', ['count' => count($validGuarantors)]);
 
-            // Validate
+            // ✅ Validate — "unique:customers,cnic" hata diya gaya hai.
+            // Wajah: system 1 CNIC pe 2 accounts allow karta hai (MAX_ACCOUNTS_PER_CNIC),
+            // magar ye Laravel rule 2nd account ko hamesha "cnic already taken" keh kar
+            // reject kar deta tha — chahe wo 2-account/1-lakh limit ke andar hi kyun na ho.
+            // Asli limit-check upar wale custom block mein already ho raha hai, isi liye
+            // ye purana unique rule ab zaroori nahi.
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:100',
-                'cnic' => 'required|string|unique:customers,cnic',
+                'cnic' => 'required|string',
                 'phone' => 'required|string|max:20',
                 'address' => 'nullable|string',
                 'work' => 'nullable|string|max:100',
@@ -280,7 +418,11 @@ class CustomerController extends Controller
             DB::beginTransaction();
 
             try {
-                // ✅ 1. Create Customer with employee_id as created_by
+                // ✅ 1. Har account ke liye hamesha ek NAYA, bilkul independent
+                // Customer row banega — chahe same CNIC ka pehle se koi customer
+                // record maujood ho. Koi reuse/link nahi. (DB ke cnic column se
+                // unique constraint migration ke zariye hata diya gaya hai, isi
+                // liye ab ye insert "Duplicate entry" error diye bina chalega.)
                 $customer = Customer::create([
                     'name' => $request->name,
                     'cnic' => $request->cnic,

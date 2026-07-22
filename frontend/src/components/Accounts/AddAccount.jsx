@@ -7,6 +7,9 @@ import {
 import './AddAccount.css';
 import { API_URL } from '../../../config';
 
+const MAX_ACCOUNTS_PER_CNIC = 2;
+const MAX_COMBINED_AMOUNT = 100000;
+
 const AddAccount = () => {
   const [step, setStep] = useState(1);
   const [searchCNIC, setSearchCNIC] = useState('');
@@ -29,225 +32,130 @@ const AddAccount = () => {
   // ✅ DOUBLE SUBMIT GUARD
   const isSubmittingRef = useRef(false);
 
-  // ===== COMPLETE SYSTEM DATA =====
-  const systemData = {
-    customers: [
-      { 
-        id: 1, 
-        name: 'Ahmed Khan', 
-        cnic: '12345-6789012-3', 
-        phone: '0300-1234567',
-        address: 'House #12, Street 5, Lahore',
-        branch: 1,
-        hasAccount: true,
-        isGuarantorFor: ['Usman Malik', 'Bilal Ahmed']
-      },
-      { 
-        id: 2, 
-        name: 'Sara Ali', 
-        cnic: '12345-6789012-4', 
-        phone: '0300-7654321',
-        address: 'House #34, Street 8, Lahore',
-        branch: 2,
-        hasAccount: true,
-        isGuarantorFor: []
-      },
-      { 
-        id: 3, 
-        name: 'Usman Malik', 
-        cnic: '12345-6789012-6', 
-        phone: '0300-2345678',
-        address: 'House #78, Street 12, Lahore',
-        branch: 1,
-        hasAccount: true,
-        isGuarantorFor: []
-      },
-      { 
-        id: 4, 
-        name: 'Fatima Noor', 
-        cnic: '12345-6789012-7', 
-        phone: '0300-8765432',
-        address: 'House #90, Street 15, Lahore',
-        branch: 2,
-        hasAccount: true,
-        isGuarantorFor: []
-      },
-      { 
-        id: 5, 
-        name: 'Bilal Ahmed', 
-        cnic: '12345-6789012-8', 
-        phone: '0300-3456789',
-        address: 'House #12, Street 20, Lahore',
-        branch: 1,
-        hasAccount: true,
-        isGuarantorFor: []
-      },
-      { 
-        id: 6, 
-        name: 'Hina Riaz', 
-        cnic: '12345-6789012-9', 
-        phone: '0300-6543210',
-        address: 'House #34, Street 25, Lahore',
-        branch: 2,
-        hasAccount: true,
-        isGuarantorFor: []
-      },
-      { 
-        id: 7, 
-        name: 'Ali Raza', 
-        cnic: '12345-6789012-0', 
-        phone: '0300-4567890',
-        address: 'House #56, Street 30, Lahore',
-        branch: 1,
-        hasAccount: true,
-        isGuarantorFor: []
-      },
-    ],
-    guarantorRecords: [
-      { 
-        guarantorCNIC: '12345-6789012-4', 
-        guarantorName: 'Sara Ali',
-        customerCNIC: '12345-6789012-3',
-        customerName: 'Ahmed Khan',
-        branch: 1
-      },
-      { 
-        guarantorCNIC: '12345-6789012-5', 
-        guarantorName: 'Zainab Khan',
-        customerCNIC: '12345-6789012-3',
-        customerName: 'Ahmed Khan',
-        branch: 1
-      },
-      { 
-        guarantorCNIC: '12345-6789012-7', 
-        guarantorName: 'Fatima Noor',
-        customerCNIC: '12345-6789012-6',
-        customerName: 'Usman Malik',
-        branch: 1
-      },
-      { 
-        guarantorCNIC: '12345-6789012-9', 
-        guarantorName: 'Hina Riaz',
-        customerCNIC: '12345-6789012-8',
-        customerName: 'Bilal Ahmed',
-        branch: 1
-      },
-    ]
-  };
-
-  const getAllCNICs = () => {
-    return systemData.customers.map(c => c.cnic);
-  };
-
-  const getCustomerByCNIC = (cnic) => {
-    return systemData.customers.find(c => c.cnic === cnic);
-  };
-
-  const getGuarantorRecordsByCNIC = (cnic) => {
-    return systemData.guarantorRecords.filter(g => g.guarantorCNIC === cnic);
-  };
-
-  const getGuarantorRecordsForCustomer = (customerCNIC) => {
-    return systemData.guarantorRecords.filter(g => g.customerCNIC === customerCNIC);
-  };
-
-  const checkCustomerExists = (cnic) => {
-    if (!cnic || cnic.length < 5) return null;
-    return getCustomerByCNIC(cnic);
-  };
-
-  const checkIfGuarantor = (cnic) => {
-    if (!cnic || cnic.length < 5) return null;
-    const records = getGuarantorRecordsByCNIC(cnic);
-    if (records.length > 0) {
-      return records;
-    }
-    return null;
-  };
-
-  const checkCustomerGuarantors = (cnic) => {
-    if (!cnic || cnic.length < 5) return null;
-    const records = getGuarantorRecordsForCustomer(cnic);
-    if (records.length > 0) {
-      return records;
-    }
-    return null;
-  };
+  // ✅ NAYA: real CNIC check ka data (mock systemData hata diya gaya hai)
+  const [existingAccountData, setExistingAccountData] = useState(null); // /customers/check-cnic ka result
+  const [showExistingAccountModal, setShowExistingAccountModal] = useState(false);
+  const [cnicCheckLoading, setCnicCheckLoading] = useState(false);
 
   const showToast = (message, type = 'warning', details = null) => {
     setToast({ message, type, details });
   };
 
-  const handleCnicBlur = () => {
+  // ============================================
+  // ✅ REAL CNIC CHECK — Main Customer field
+  // ============================================
+  const handleCnicBlur = async () => {
     if (!formData.cnic || formData.cnic.length < 5) return;
-    
-    const customer = checkCustomerExists(formData.cnic);
-    if (customer) {
-      showToast(
-        `⚠️ This CNIC (${formData.cnic}) already exists! Customer: ${customer.name}`,
-        'warning'
-      );
-      return;
-    }
 
-    const guarantorRecords = checkIfGuarantor(formData.cnic);
-    if (guarantorRecords) {
-      const details = guarantorRecords.map(g => 
-        `• Guarantor for: ${g.customerName} (${g.customerCNIC}) - Branch ${g.branch}`
-      ).join('\n');
-      showToast(
-        `ℹ️ This person (${formData.cnic}) is already a guarantor for ${guarantorRecords.length} customer(s)!`,
-        'info',
-        details
-      );
-      return;
-    }
+    setCnicCheckLoading(true);
+    const token = localStorage.getItem('token');
 
-    const customerGuarantors = checkCustomerGuarantors(formData.cnic);
-    if (customerGuarantors) {
-      const details = customerGuarantors.map(g => 
-        `• ${g.guarantorName} (${g.guarantorCNIC})`
-      ).join('\n');
-      showToast(
-        `ℹ️ This customer (${formData.cnic}) already has ${customerGuarantors.length} guarantor(s)!`,
-        'info',
-        details
-      );
+    try {
+      // 1) Customer + accounts + limit check
+      const custRes = await fetch(`${API_URL}/customers/check-cnic`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ cnic: formData.cnic })
+      });
+      const custJson = await custRes.json();
+      const custData = custJson.data;
+
+      if (custData && custData.exists_as_customer) {
+        setExistingAccountData(custData);
+        setShowExistingAccountModal(true);
+
+        if (!custData.can_open_more) {
+          showToast(
+            `🚫 ${custData.customer.name} already has ${custData.accounts_count} account(s) — maximum limit reached. No more accounts can be opened.`,
+            'warning'
+          );
+        } else {
+          showToast(
+            `⚠️ ${custData.customer.name} already has an account! Remaining limit: PKR ${Number(custData.remaining_limit).toLocaleString()}`,
+            'warning'
+          );
+        }
+      } else {
+        setExistingAccountData(null);
+      }
+
+      // 2) Is this CNIC itself a guarantor for someone?
+      if (custData && custData.exists_as_guarantor && custData.guarantor_records?.length > 0) {
+        const details = custData.guarantor_records.map(g =>
+          `• Guarantor for: ${g.customer_name} (${g.customer_cnic})`
+        ).join('\n');
+        showToast(
+          `ℹ️ This person (${formData.cnic}) is already a guarantor for ${custData.guarantor_records.length} customer(s)!`,
+          'info',
+          details
+        );
+      }
+    } catch (err) {
+      console.error('CNIC check error:', err);
     }
+    setCnicCheckLoading(false);
   };
 
-  const handleGuarantorCnicBlur = (index) => {
+  // ============================================
+  // ✅ REAL CNIC CHECK — Guarantor fields
+  // ============================================
+  const handleGuarantorCnicBlur = async (index) => {
     const cnic = formData.guarantors[index].cnic;
     if (!cnic || cnic.length < 5) return;
 
-    const customer = checkCustomerExists(cnic);
-    if (customer) {
-      showToast(
-        `ℹ️ Guarantor CNIC (${cnic}) belongs to existing customer: ${customer.name}`,
-        'info'
-      );
-      return;
-    }
+    const token = localStorage.getItem('token');
 
-    const guarantorRecords = checkIfGuarantor(cnic);
-    if (guarantorRecords) {
-      const details = guarantorRecords.map(g => 
-        `• Already guarantor for: ${g.customerName} (${g.customerCNIC})`
-      ).join('\n');
-      showToast(
-        `⚠️ This CNIC (${cnic}) is already a guarantor for ${guarantorRecords.length} customer(s)!`,
-        'warning',
-        details
-      );
-      return;
-    }
+    try {
+      // 1) Is this CNIC already an existing customer?
+      const custRes = await fetch(`${API_URL}/customers/check-cnic`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ cnic })
+      });
+      const custJson = await custRes.json();
+      const custData = custJson.data;
 
-    const existingCustomer = getCustomerByCNIC(cnic);
-    if (existingCustomer) {
-      showToast(
-        `ℹ️ ${existingCustomer.name} (${cnic}) already has an account in the system!`,
-        'info'
-      );
+      if (custData && custData.exists_as_customer) {
+        showToast(
+          `ℹ️ Guarantor CNIC (${cnic}) belongs to existing customer: ${custData.customer.name}`,
+          'info'
+        );
+        return;
+      }
+
+      // 2) Is this CNIC already a guarantor somewhere else?
+      const gRes = await fetch(`${API_URL}/guarantors/check-cnic`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ cnic })
+      });
+      const gJson = await gRes.json();
+      const gData = gJson.data;
+
+      if (gData && gData.exists_as_guarantor && gData.guarantor_records?.length > 0) {
+        const details = gData.guarantor_records.map(r =>
+          `• Already guarantor for: ${r.customer_name} (${r.customer_cnic})`
+        ).join('\n');
+        showToast(
+          `⚠️ This CNIC (${cnic}) is already a guarantor for ${gData.guarantor_records.length} customer(s)!`,
+          'warning',
+          details
+        );
+      }
+    } catch (err) {
+      console.error('Guarantor CNIC check error:', err);
     }
   };
 
@@ -573,6 +481,12 @@ const AddAccount = () => {
     if (completeGuarantors.length < 2) {
       newErrors.guarantors = 'Minimum 2 complete guarantors required';
     }
+
+    // ✅ HARD STOP — agar CNIC ki limit khatam ho chuki hai to Next hi na hone do
+    if (existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
+      newErrors.cnic = `This CNIC already has ${existingAccountData.accounts_count} accounts. Maximum limit reached.`;
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -588,12 +502,27 @@ const AddAccount = () => {
     if (!formData.chalanFront) {
       newErrors.chalanFront = 'Chalan Front image is required';
     }
+
+    // ✅ HARD STOP — combined amount 1 lakh se upar na jaye
+    if (existingAccountData && existingAccountData.exists_as_customer) {
+      const newAmount = parseFloat(formData.invoicePrice) || 0;
+      const projectedTotal = (existingAccountData.total_combined_amount || 0) + newAmount;
+      if (projectedTotal > MAX_COMBINED_AMOUNT) {
+        newErrors.invoicePrice = `Combined amount cannot exceed PKR ${MAX_COMBINED_AMOUNT.toLocaleString()}. Remaining limit: PKR ${Math.max(0, MAX_COMBINED_AMOUNT - (existingAccountData.total_combined_amount || 0)).toLocaleString()}`;
+      }
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => { if (validateStep1()) setStep(2); };
+  const handleNext = () => {
+    if (existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
+      showToast('🚫 This CNIC already has the maximum number of accounts. Cannot proceed further.', 'warning');
+      return;
+    }
+    if (validateStep1()) setStep(2);
+  };
   const handlePrev = () => setStep(1);
 
   const handleFinalSubmit = (e) => {
@@ -641,6 +570,8 @@ const AddAccount = () => {
       customerFormData.append('status', selectedStatus);
       customerFormData.append('created_by', parseInt(employeeId));
       customerFormData.append('product_name', formData.productName);
+      // ✅ backend limit-check ke liye invoice_price bhi bhej rahe hain customer store call mein
+      customerFormData.append('invoice_price', parseFloat(formData.invoicePrice) || 0);
       
       if (formData.cnicFront) {
         customerFormData.append('cnic_front', formData.cnicFront);
@@ -692,16 +623,19 @@ const AddAccount = () => {
       const data = await response.json();
 
       if (!response.ok) {
+        // ✅ Ab yahan native alert() ki jagah existing toast system use ho raha hai —
+        // dusre errors ki tarah upar-dayen dikhega aur 8 second mein khud gayab ho jayega.
         if (data.errors) {
           const apiErrors = {};
           Object.keys(data.errors).forEach(key => {
             apiErrors[key] = data.errors[key][0];
           });
           setErrors(apiErrors);
-          alert('Validation Errors:\n' + JSON.stringify(data.errors, null, 2));
+          const firstMessage = Object.values(apiErrors)[0];
+          showToast(`❌ ${firstMessage}`, 'warning');
         } else {
           setErrors({ form: data.message || 'Failed to create customer' });
-          alert('Error: ' + (data.message || 'Failed to create customer'));
+          showToast(`❌ ${data.message || 'Failed to create customer'}`, 'warning');
         }
         setLoading(false);
         setShowStatusModal(false);
@@ -877,19 +811,20 @@ const AddAccount = () => {
             created_by: null,
           });
           setVoiceFiles([]);
+          setExistingAccountData(null);
           setStep(1);
         } else {
           setErrors({ form: accountData.message || 'Failed to create account' });
-          alert('Failed to create account: ' + (accountData.message || 'Unknown error'));
+          showToast(`❌ ${accountData.message || 'Failed to create account'}`, 'warning');
         }
       } else {
         setErrors({ form: data.message || 'Failed to create customer' });
-        alert('Failed to create customer: ' + (data.message || 'Unknown error'));
+        showToast(`❌ ${data.message || 'Failed to create customer'}`, 'warning');
       }
     } catch (err) {
       console.error('Error:', err);
       setErrors({ form: 'Network error. Please try again.' });
-      alert('Network error. Please check your connection.');
+      showToast('❌ Network error. Please check your connection.', 'warning');
     }
     
     setLoading(false);
@@ -920,6 +855,23 @@ const AddAccount = () => {
     if (userRole === 'manager') return 'Manager';
     if (userRole === 'employee') return 'Employee';
     return 'User';
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-PK', {
+      style: 'currency',
+      currency: 'PKR',
+      minimumFractionDigits: 0
+    }).format(amount || 0);
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-PK', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
   return (
@@ -1029,6 +981,81 @@ const AddAccount = () => {
         </div>
       )}
 
+      {/* ============================================ */}
+      {/* ✅ NAYA: Existing Customer / Account Report Modal */}
+      {/* ============================================ */}
+      {showExistingAccountModal && existingAccountData && (
+        <div className="status-modal-overlay" onClick={() => setShowExistingAccountModal(false)}>
+          <div className="status-modal" style={{ maxWidth: '720px', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className="status-modal-header">
+              <AlertCircle size={24} className="status-modal-icon" style={{ color: '#ef4444' }} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Existing Customer Found</h3>
+              <button className="status-modal-close" onClick={() => setShowExistingAccountModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="status-modal-body">
+              <div style={{
+                padding: '14px',
+                background: existingAccountData.can_open_more ? '#fef3c7' : '#fee2e2',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontWeight: 700
+              }}>
+                {existingAccountData.can_open_more
+                  ? `⚠️ ${existingAccountData.accounts_count} account already exists. Combined amount so far: ${formatCurrency(existingAccountData.total_combined_amount)}. Remaining limit: ${formatCurrency(existingAccountData.remaining_limit)}`
+                  : `🚫 This CNIC already has ${existingAccountData.accounts_count} account(s) — limit reached. Combined amount: ${formatCurrency(existingAccountData.total_combined_amount)}`}
+              </div>
+
+              <h4 style={{ fontWeight: 700, marginBottom: '8px' }}>Customer Info</h4>
+              <div className="form-grid" style={{ marginBottom: '16px' }}>
+                <div><strong>Name:</strong> {existingAccountData.customer.name}</div>
+                <div><strong>CNIC:</strong> {existingAccountData.customer.cnic}</div>
+                <div><strong>Phone:</strong> {existingAccountData.customer.phone}</div>
+                <div><strong>Address:</strong> {existingAccountData.customer.address}</div>
+                <div><strong>Work:</strong> {existingAccountData.customer.work}</div>
+                <div><strong>Branch:</strong> Branch {existingAccountData.customer.branch_id}</div>
+              </div>
+
+              <h4 style={{ fontWeight: 700, marginBottom: '8px' }}>Existing Account(s)</h4>
+              {existingAccountData.accounts.map(acc => (
+                <div key={acc.id} style={{ border: '1px solid #e5e7eb', borderRadius: '10px', padding: '14px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginBottom: '8px' }}>
+                    <span>Case: {acc.case_no}</span>
+                    <span>{acc.product_name}</span>
+                  </div>
+                  <div className="form-grid" style={{ fontSize: '13px' }}>
+                    <div>Total: {formatCurrency(acc.total_amount)}</div>
+                    <div>Paid: {formatCurrency(acc.paid_amount)}</div>
+                    <div>Balance: {formatCurrency(acc.balance)}</div>
+                    <div>Installments: {acc.installments_paid}/{acc.total_installments}</div>
+                    <div>Created By: {acc.creator_name}</div>
+                    <div>Employee: {acc.employee_name}</div>
+                    <div>Opened: {formatDate(acc.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+
+              {existingAccountData.guarantor_records && existingAccountData.guarantor_records.length > 0 && (
+                <>
+                  <h4 style={{ fontWeight: 700, marginBottom: '8px', marginTop: '12px' }}>This CNIC Is Also a Guarantor For</h4>
+                  {existingAccountData.guarantor_records.map((g, idx) => (
+                    <div key={idx} style={{ fontSize: '13px', padding: '6px 0' }}>
+                      • {g.customer_name} ({g.customer_cnic})
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className="status-modal-footer">
+              <button className="status-btn-cancel" onClick={() => setShowExistingAccountModal(false)} style={{ fontWeight: 700 }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="page-header">
         <div className="header-title-group">
           <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Create New Account</h3>
@@ -1094,7 +1121,9 @@ const AddAccount = () => {
                   <input type="text" name="cnic" className="form-input" placeholder="XXXXX-XXXXXXX-X" value={formData.cnic} onChange={handleChange} onBlur={handleCnicBlur} style={{ fontWeight: 500 }} />
                 </div>
                 {errors.cnic && <span className="error-text" style={{ fontWeight: 600 }}>{errors.cnic}</span>}
-                <small className="field-hint" style={{ fontWeight: 500 }}>System will check if this CNIC already exists or is a guarantor</small>
+                <small className="field-hint" style={{ fontWeight: 500 }}>
+                  {cnicCheckLoading ? 'Checking CNIC...' : 'System will check if this CNIC already exists or is a guarantor'}
+                </small>
               </div>
               <div className="form-group">
                 <label style={{ fontWeight: 700 }}>Phone Number *</label>
@@ -1352,6 +1381,20 @@ const AddAccount = () => {
               <div className="step-title" style={{ fontSize: '1.1rem', fontWeight: 700 }}>Product & Installment Details</div>
               <span className="step-badge" style={{ fontWeight: 600 }}>Required</span>
             </div>
+
+            {existingAccountData && existingAccountData.exists_as_customer && (
+              <div style={{
+                padding: '12px 16px',
+                background: '#fef3c7',
+                border: '1px solid #fde68a',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontWeight: 600,
+                fontSize: '13px'
+              }}>
+                ℹ️ Combined amount so far: {formatCurrency(existingAccountData.total_combined_amount)} — Remaining limit: {formatCurrency(existingAccountData.remaining_limit)}
+              </div>
+            )}
 
             <div className="form-grid">
               <div className="form-group">

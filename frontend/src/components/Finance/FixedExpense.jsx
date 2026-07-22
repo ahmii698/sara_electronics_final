@@ -14,6 +14,7 @@ const FixedExpense = () => {
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -24,112 +25,64 @@ const FixedExpense = () => {
     }
   }, []);
 
-  const [expenses, setExpenses] = useState([
-    { 
-      id: 1, 
-      name: 'Rent', 
-      amount: 50000, 
-      branch: 1, 
-      dueDate: '1st of every month',
-      paid: true,
-      lastPaid: '2026-06-01',
-      history: [
-        { date: '2026-06-01 10:00 AM', amount: 50000, status: 'Paid' },
-        { date: '2026-05-01 09:30 AM', amount: 50000, status: 'Paid' },
-        { date: '2026-04-01 11:00 AM', amount: 50000, status: 'Paid' },
-      ]
-    },
-    { 
-      id: 2, 
-      name: 'Electricity Bill', 
-      amount: 15000, 
-      branch: 1, 
-      dueDate: '15th of every month',
-      paid: false,
-      lastPaid: '2026-05-15',
-      history: [
-        { date: '2026-05-15 02:30 PM', amount: 15000, status: 'Paid' },
-        { date: '2026-04-15 10:15 AM', amount: 15000, status: 'Paid' },
-      ]
-    },
-    { 
-      id: 3, 
-      name: 'Internet', 
-      amount: 5000, 
-      branch: 1, 
-      dueDate: '20th of every month',
-      paid: true,
-      lastPaid: '2026-06-20',
-      history: [
-        { date: '2026-06-20 09:00 AM', amount: 5000, status: 'Paid' },
-        { date: '2026-05-20 08:45 AM', amount: 5000, status: 'Paid' },
-        { date: '2026-04-20 10:30 AM', amount: 5000, status: 'Paid' },
-      ]
-    },
-    { 
-      id: 4, 
-      name: 'Rent', 
-      amount: 35000, 
-      branch: 2, 
-      dueDate: '1st of every month',
-      paid: true,
-      lastPaid: '2026-06-01',
-      history: [
-        { date: '2026-06-01 09:00 AM', amount: 35000, status: 'Paid' },
-        { date: '2026-05-01 10:00 AM', amount: 35000, status: 'Paid' },
-      ]
-    },
-    { 
-      id: 5, 
-      name: 'Electricity Bill', 
-      amount: 12000, 
-      branch: 2, 
-      dueDate: '15th of every month',
-      paid: false,
-      lastPaid: '2026-05-15',
-      history: [
-        { date: '2026-05-15 11:30 AM', amount: 12000, status: 'Paid' },
-        { date: '2026-04-15 09:45 AM', amount: 12000, status: 'Paid' },
-      ]
-    },
-    { 
-      id: 6, 
-      name: 'Internet', 
-      amount: 4000, 
-      branch: 2, 
-      dueDate: '20th of every month',
-      paid: false,
-      lastPaid: '2026-05-20',
-      history: [
-        { date: '2026-05-20 10:15 AM', amount: 4000, status: 'Paid' },
-        { date: '2026-04-20 11:30 AM', amount: 4000, status: 'Paid' },
-      ]
-    },
-    { 
-      id: 7, 
-      name: 'Security', 
-      amount: 8000, 
-      branch: 1, 
-      dueDate: '30th of every month',
-      paid: false,
-      lastPaid: '2026-05-30',
-      history: [
-        { date: '2026-05-30 05:00 PM', amount: 8000, status: 'Paid' },
-      ]
-    },
-    { 
-      id: 8, 
-      name: 'Cleaning', 
-      amount: 6000, 
-      branch: 2, 
-      dueDate: '25th of every month',
-      paid: false,
-      lastPaid: '2026-05-25',
-      history: [
-        { date: '2026-05-25 08:00 AM', amount: 6000, status: 'Paid' },
-      ]
-    },
-  ]);
+  // ✅ Jab userBranch pata chal jaye (ya null confirm ho jaye), tabhi data fetch karo
+  useEffect(() => {
+    fetchExpenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userBranch]);
+
+  const [expenses, setExpenses] = useState([]);
+
+  // ============================================
+  // ✅ FETCH REAL DATA FROM BACKEND
+  // Pehle yahan hardcoded demo array tha jo kabhi refresh hi nahi hota tha.
+  // Ab yeh GET /expenses/fixed?branch_id=... call karta hai — jo backend mein
+  // pehle se maujood hai — aur asal database ka data laata hai.
+  // ============================================
+  const fetchExpenses = async () => {
+    setFetching(true);
+    try {
+      const token = localStorage.getItem('token');
+      let url = `${API_URL}/expenses/fixed`;
+      if (userBranch) {
+        url += `?branch_id=${userBranch}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const mapped = (data.data || []).map(exp => ({
+          id: exp.id,
+          name: exp.name,
+          amount: parseFloat(exp.amount) || 0,
+          branch: exp.branch_id,
+          dueDate: exp.due_date || '',
+          paid: !!exp.paid,
+          lastPaid: exp.last_paid || 'Never',
+          // ✅ Note: database sirf "last_paid" (ek hi date) store karta hai,
+          // poori payment history ki table nahi hai — isliye yahan sirf
+          // aakhri payment ek entry ke roop mein dikhayi ja rahi hai.
+          history: exp.last_paid
+            ? [{ date: exp.last_paid, amount: parseFloat(exp.amount) || 0, status: 'Paid' }]
+            : []
+        }));
+        setExpenses(mapped);
+      } else {
+        setExpenses([]);
+      }
+    } catch (error) {
+      console.error('Error fetching fixed expenses:', error);
+      setExpenses([]);
+    }
+    setFetching(false);
+  };
 
   const [newExpense, setNewExpense] = useState({
     name: '',
@@ -210,18 +163,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        const newId = expenses.length > 0 ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
-        setExpenses([...expenses, {
-          id: newId,
-          name: newExpense.name,
-          amount: parseInt(newExpense.amount),
-          branch: branch,
-          dueDate: newExpense.dueDate,
-          paid: false,
-          lastPaid: 'Never',
-          history: []
-        }]);
-
+        await fetchExpenses();
         setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
         setShowModal(false);
         alert('✅ Fixed expense added successfully!');
@@ -275,19 +217,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        setExpenses(expenses.map(e => {
-          if (e.id === editingExpense.id) {
-            return {
-              ...e,
-              name: newExpense.name,
-              amount: parseInt(newExpense.amount),
-              branch: branch,
-              dueDate: newExpense.dueDate,
-            };
-          }
-          return e;
-        }));
-
+        await fetchExpenses();
         setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
         setShowModal(false);
         setEditingExpense(null);
@@ -312,7 +242,6 @@ const FixedExpense = () => {
       return;
     }
 
-    const dateTime = getCurrentDateTime();
     const amount = parseInt(payAmount);
     
     setLoading(true);
@@ -340,24 +269,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        const newHistory = [
-          { date: dateTime, amount: amount, status: 'Paid' },
-          ...selectedExpense.history
-        ];
-
-        setExpenses(expenses.map(e => {
-          if (e.id === selectedExpense.id) {
-            return {
-              ...e,
-              paid: true,
-              lastPaid: dateTime,
-              history: newHistory,
-              amount: amount
-            };
-          }
-          return e;
-        }));
-
+        await fetchExpenses();
         setPayAmount('');
         setShowPayModal(false);
         setSelectedExpense(null);
@@ -402,7 +314,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        setExpenses(expenses.filter(e => e.id !== id));
+        await fetchExpenses();
         alert('✅ Fixed expense deleted successfully!');
       } else {
         alert(data.message || 'Failed to delete expense');
@@ -521,6 +433,17 @@ const FixedExpense = () => {
       className: 'stat-total'
     },
   ];
+
+  if (fetching) {
+    return (
+      <div className="fixed-expense-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading fixed expenses...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed-expense-container">
