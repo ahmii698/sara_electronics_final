@@ -1,0 +1,999 @@
+<?php
+// app/Http/Controllers/Api/ReportController.php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\Customer;
+use App\Models\Account;
+use App\Models\Installment;
+use App\Models\EmployeeAccount;
+use App\Models\Recovery;
+use App\Models\Branch;
+use App\Models\EmployeeLeave;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+class ReportController extends Controller
+{
+    /**
+     * Send success response
+     */
+    public function sendResponse($data, $message = 'Success', $code = 200)
+    {
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data
+        ], $code);
+    }
+
+    /**
+     * Send error response
+     */
+    public function sendError($message, $code = 400)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $message
+        ], $code);
+    }
+
+    // ============================================
+    // ✅ TEST METHOD - NO AUTH REQUIRED
+    // ============================================
+    public function test()
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'API is working!',
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    }
+
+    // ============================================
+    // ✅ DASHBOARD - DYNAMIC DATA
+    // ============================================
+    public function dashboard(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            $branchId = $request->get('branch_id');
+            
+            if ($user && $user->role !== 'admin' && $user->branch_id) {
+                $branchId = $user->branch_id;
+            }
+            
+            $isAdmin = $user && $user->role === 'admin';
+            
+            $totalCustomers = Customer::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                return $q->where('branch_id', $branchId);
+            })->count();
+            
+            $newAccounts = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                return $q->where('branch_id', $branchId);
+            })->whereMonth('created_at', now()->month)
+              ->whereYear('created_at', now()->year)
+              ->count();
+            
+            $totalSales = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                return $q->where('branch_id', $branchId);
+            })->sum('total_amount');
+            
+            $monthlyRecovery = Installment::whereMonth('payment_date', now()->month)
+                ->whereYear('payment_date', now()->year)
+                ->when($branchId && !$isAdmin, function($q) use ($branchId) {
+                    return $q->whereHas('account', function($sub) use ($branchId) {
+                        $sub->where('branch_id', $branchId);
+                    });
+                })
+                ->sum('paid_amount');
+            
+            $performanceData = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $month = now()->subMonths($i);
+                $monthName = $month->format('M');
+                
+                $monthAccounts = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                    return $q->where('branch_id', $branchId);
+                })->whereMonth('created_at', $month->month)
+                  ->whereYear('created_at', $month->year)
+                  ->count();
+                
+                $monthSales = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                    return $q->where('branch_id', $branchId);
+                })->whereMonth('created_at', $month->month)
+                  ->whereYear('created_at', $month->year)
+                  ->sum('total_amount');
+                
+                $monthRecovery = Installment::whereMonth('payment_date', $month->month)
+                    ->whereYear('payment_date', $month->year)
+                    ->when($branchId && !$isAdmin, function($q) use ($branchId) {
+                        return $q->whereHas('account', function($sub) use ($branchId) {
+                            $sub->where('branch_id', $branchId);
+                        });
+                    })
+                    ->sum('paid_amount');
+                
+                $performanceData[] = [
+                    'month' => $monthName,
+                    'accounts' => $monthAccounts,
+                    'sales' => $monthSales,
+                    'recovery' => $monthRecovery,
+                ];
+            }
+            
+            $topPerformers = DB::table('employee_accounts')
+                ->join('users', 'employee_accounts.employee_id', '=', 'users.id')
+                ->select(
+                    'users.id as user_id',
+                    'users.name as name',
+                    DB::raw('COUNT(employee_accounts.id) as total_accounts')
+                )
+                ->whereMonth('employee_accounts.account_opened_date', now()->month)
+                ->whereYear('employee_accounts.account_opened_date', now()->year)
+                ->when($branchId && !$isAdmin, function($q) use ($branchId) {
+                    return $q->where('employee_accounts.branch_id', $branchId);
+                })
+                ->groupBy('users.id', 'users.name')
+                ->orderBy('total_accounts', 'desc')
+                ->limit(3)
+                ->get()
+                ->map(function($item) {
+                    return [
+                        'name' => $item->name,
+                        'accounts' => $item->total_accounts,
+                        'branch' => null,
+                    ];
+                });
+            
+            $branchOverview = $this->getBranchOverview($branchId, $isAdmin);
+            
+            $totalRevenue = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                return $q->where('branch_id', $branchId);
+            })->sum('total_amount');
+            
+            $branchName = 'All Branches';
+            if ($branchId) {
+                $branch = Branch::find($branchId);
+                $branchName = $branch ? $branch->name : "Branch $branchId";
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_customers' => $totalCustomers,
+                    'new_accounts' => $newAccounts,
+                    'total_sales' => $totalSales,
+                    'monthly_recovery' => $monthlyRecovery,
+                    'performance_data' => $performanceData,
+                    'top_performers' => $topPerformers,
+                    'branch_overview' => $branchOverview,
+                    'total_revenue' => $totalRevenue,
+                    'branch_name' => $branchName,
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ], 500);
+        }
+    }
+
+    // ============================================
+    // ✅ PRIVATE: GET BRANCH OVERVIEW
+    // ============================================
+    private function getBranchOverview($branchId, $isAdmin)
+    {
+        $fixedQuery = DB::table('fixed_expenses');
+        if ($branchId && !$isAdmin) {
+            $fixedQuery->where('branch_id', $branchId);
+        }
+        $totalFixed = $fixedQuery->sum('amount');
+        
+        $extraQuery = DB::table('extra_expenses');
+        if ($branchId && !$isAdmin) {
+            $extraQuery->where('branch_id', $branchId);
+        }
+        $totalExtra = $extraQuery->sum('amount');
+        
+        $salaryQuery = DB::table('salary');
+        if ($branchId && !$isAdmin) {
+            $salaryQuery->join('users', 'salary.user_id', '=', 'users.id')
+                        ->where('users.branch_id', $branchId);
+        }
+        $totalSalaries = $salaryQuery->sum('salary_amount');
+        
+        $totalExpenses = $totalFixed + $totalExtra + $totalSalaries;
+        
+        $totalRevenue = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+            return $q->where('branch_id', $branchId);
+        })->sum('total_amount');
+        
+        $profit = $totalRevenue - $totalExpenses;
+        
+        return [
+            'fixed_expenses' => floatval($totalFixed),
+            'extra_expenses' => floatval($totalExtra),
+            'salaries' => floatval($totalSalaries),
+            'total_expenses' => floatval($totalExpenses),
+            'profit' => floatval($profit > 0 ? $profit : 0),
+            'total_revenue' => floatval($totalRevenue),
+        ];
+    }
+
+    // ============================================
+    // ✅ EMPLOYEE REPORT PUBLIC - WITH OVERDUE FIXED
+    // ============================================
+    public function getEmployeeReportPublic(Request $request)
+    {
+        try {
+            $month = $request->get('month', now()->format('Y-m'));
+            $branchId = $request->get('branch_id');
+
+            $query = User::whereIn('role', ['employee', 'manager']);
+
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+
+            $employees = $query->get();
+
+            if ($employees->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'data' => [],
+                        'summary' => [
+                            'total_employees' => 0,
+                            'total_accounts' => 0,
+                            'total_recovery' => 0,
+                            'total_commission' => 0,
+                            'total_overdue' => 0,
+                            'month' => $month
+                        ]
+                    ]
+                ]);
+            }
+
+            $result = [];
+            $summaryTotalOverdue = 0;
+
+            foreach ($employees as $employee) {
+                $totalAccounts = EmployeeAccount::where('employee_id', $employee->id)->count();
+                $currentMonthAccounts = EmployeeAccount::where('employee_id', $employee->id)
+                    ->where('month', $month)
+                    ->count();
+
+                $accountIds = EmployeeAccount::where('employee_id', $employee->id)
+                    ->pluck('customer_id')
+                    ->toArray();
+
+                $accountRecords = Account::whereIn('customer_id', $accountIds)
+                    ->pluck('id')
+                    ->toArray();
+
+                $totalRecovery = Installment::whereIn('account_id', $accountRecords)
+                    ->sum('paid_amount');
+
+                $totalCommission = DB::table('salary')
+                    ->where('user_id', $employee->id)
+                    ->sum('commission');
+
+                $totalLeaves = EmployeeLeave::where('user_id', $employee->id)
+                    ->where('status', 'approved')
+                    ->count();
+
+                // ✅ FIXED: Total Overdue - use month + account created_at day
+                // instead of virtual due_date column
+                $today = now()->format('Y-m-d');
+                $todayMonth = now()->format('Y-m');
+
+                $totalOverdue = 0;
+                $installments = Installment::with('account')
+                    ->whereIn('account_id', $accountRecords)
+                    ->whereIn('status', ['unpaid', 'partial'])
+                    ->where('balance', '>', 0)
+                    ->get();
+
+                foreach ($installments as $inst) {
+                    if (!$inst->account || !$inst->account->created_at) {
+                        continue;
+                    }
+                    $openingDay = (int) $inst->account->created_at->format('j');
+                    [$year, $monthNum] = array_map('intval', explode('-', $inst->month));
+                    $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $year);
+                    $day = min($openingDay, $daysInMonth);
+                    $dueDate = sprintf('%04d-%02d-%02d', $year, $monthNum, $day);
+                    
+                    if ($dueDate <= $today) {
+                        $totalOverdue += floatval($inst->balance);
+                    }
+                }
+
+                $summaryTotalOverdue += $totalOverdue;
+
+                $monthlyData = $this->getEmployeeMonthlyData($employee->id);
+
+                $result[] = [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'email' => $employee->email,
+                    'phone' => $employee->phone,
+                    'branch_id' => $employee->branch_id,
+                    'role' => $employee->role,
+                    'salary' => floatval($employee->salary ?? 0),
+                    'totalAccounts' => $totalAccounts,
+                    'totalRecovery' => floatval($totalRecovery),
+                    'totalCommission' => floatval($totalCommission),
+                    'totalLeaves' => $totalLeaves,
+                    'totalOverdue' => floatval($totalOverdue),
+                    'monthlyData' => $monthlyData,
+                    'created_at' => $employee->created_at,
+                ];
+            }
+
+            $summary = [
+                'total_employees' => count($result),
+                'total_accounts' => collect($result)->sum('totalAccounts'),
+                'total_recovery' => collect($result)->sum('totalRecovery'),
+                'total_commission' => collect($result)->sum('totalCommission'),
+                'total_leaves' => collect($result)->sum('totalLeaves'),
+                'total_overdue' => floatval($summaryTotalOverdue),
+                'month' => $month,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'data' => $result,
+                    'summary' => $summary
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    // ============================================
+    // ✅ EMPLOYEE REPORT - AUTH REQUIRED
+    // ============================================
+    public function getEmployeeReport(Request $request)
+    {
+        return $this->getEmployeeReportPublic($request);
+    }
+
+    // ============================================
+    // ✅ PRIVATE: GET EMPLOYEE MONTHLY DATA - WITH OVERDUE
+    // ============================================
+    private function getEmployeeMonthlyData($employeeId)
+    {
+        $months = [];
+        $currentMonth = now()->format('Y-m');
+        $today = now()->format('Y-m-d');
+
+        $accounts = EmployeeAccount::where('employee_id', $employeeId)
+            ->select('month', DB::raw('count(*) as total'))
+            ->groupBy('month')
+            ->orderBy('month', 'desc')
+            ->limit(12)
+            ->get();
+
+        foreach ($accounts as $account) {
+            $monthKey = $account->month;
+            $months[$monthKey] = [
+                'accountsOpened' => $account->total,
+                'recoveryAmount' => 0,
+                'commission' => 0,
+                'leaves' => 0,
+                'salary' => 0,
+                'advances' => 0,
+                'overdue' => 0,
+                'status' => 'active'
+            ];
+        }
+
+        $accountIds = EmployeeAccount::where('employee_id', $employeeId)
+            ->pluck('customer_id')
+            ->toArray();
+
+        $accountRecords = Account::whereIn('customer_id', $accountIds)
+            ->pluck('id')
+            ->toArray();
+
+        $recoveries = Installment::whereIn('account_id', $accountRecords)
+            ->select('month', DB::raw('sum(paid_amount) as total'))
+            ->groupBy('month')
+            ->get();
+
+        foreach ($recoveries as $recovery) {
+            $monthKey = $recovery->month;
+            if (!isset($months[$monthKey])) {
+                $months[$monthKey] = [
+                    'accountsOpened' => 0,
+                    'recoveryAmount' => 0,
+                    'commission' => 0,
+                    'leaves' => 0,
+                    'salary' => 0,
+                    'advances' => 0,
+                    'overdue' => 0,
+                    'status' => 'active'
+                ];
+            }
+            $months[$monthKey]['recoveryAmount'] = floatval($recovery->total);
+        }
+
+        // ✅ FIXED: Overdue by month - calculate using month + account created_at day
+        $overdueInstallments = Installment::with('account')
+            ->whereIn('account_id', $accountRecords)
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->where('balance', '>', 0)
+            ->get();
+
+        foreach ($overdueInstallments as $overdue) {
+            if (!$overdue->account || !$overdue->account->created_at) {
+                continue;
+            }
+            $openingDay = (int) $overdue->account->created_at->format('j');
+            [$year, $monthNum] = array_map('intval', explode('-', $overdue->month));
+            $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $year);
+            $day = min($openingDay, $daysInMonth);
+            $dueDate = sprintf('%04d-%02d-%02d', $year, $monthNum, $day);
+            
+            if ($dueDate <= $today) {
+                $monthKey = $overdue->month;
+                if (!isset($months[$monthKey])) {
+                    $months[$monthKey] = [
+                        'accountsOpened' => 0,
+                        'recoveryAmount' => 0,
+                        'commission' => 0,
+                        'leaves' => 0,
+                        'salary' => 0,
+                        'advances' => 0,
+                        'overdue' => 0,
+                        'status' => 'active'
+                    ];
+                }
+                $months[$monthKey]['overdue'] += floatval($overdue->balance);
+            }
+        }
+
+        $salaryRows = DB::table('salary')
+            ->where('user_id', $employeeId)
+            ->select('month', DB::raw('sum(commission) as total'))
+            ->groupBy('month')
+            ->get();
+
+        foreach ($salaryRows as $row) {
+            $monthKey = $row->month;
+            if (!isset($months[$monthKey])) {
+                $months[$monthKey] = [
+                    'accountsOpened' => 0,
+                    'recoveryAmount' => 0,
+                    'commission' => 0,
+                    'leaves' => 0,
+                    'salary' => 0,
+                    'advances' => 0,
+                    'overdue' => 0,
+                    'status' => 'active'
+                ];
+            }
+            $months[$monthKey]['commission'] = floatval($row->total);
+        }
+
+        $leaves = EmployeeLeave::where('user_id', $employeeId)
+            ->where('status', 'approved')
+            ->select('month', DB::raw('count(*) as total'))
+            ->groupBy('month')
+            ->get();
+
+        foreach ($leaves as $leave) {
+            $monthKey = $leave->month;
+            if (!isset($months[$monthKey])) {
+                $months[$monthKey] = [
+                    'accountsOpened' => 0,
+                    'recoveryAmount' => 0,
+                    'commission' => 0,
+                    'leaves' => 0,
+                    'salary' => 0,
+                    'advances' => 0,
+                    'overdue' => 0,
+                    'status' => 'active'
+                ];
+            }
+            $months[$monthKey]['leaves'] = $leave->total;
+        }
+
+        if (!isset($months[$currentMonth])) {
+            $months[$currentMonth] = [
+                'accountsOpened' => 0,
+                'recoveryAmount' => 0,
+                'commission' => 0,
+                'leaves' => 0,
+                'salary' => 0,
+                'advances' => 0,
+                'overdue' => 0,
+                'status' => 'active'
+            ];
+        }
+
+        return $months;
+    }
+
+    // ============================================
+    // ✅ OTHER EXISTING METHODS
+    // ============================================
+
+    public function branchWiseRecovery(Request $request)
+    {
+        try {
+            $data = Branch::withCount(['recoveries' => function($q) {
+                $q->where('status', 'paid');
+            }])->withSum('recoveries', 'amount')->get();
+
+            return $this->sendResponse($data, 'Branch wise recovery retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    public function monthlyInstallmentStatus(Request $request)
+    {
+        try {
+            $month = $request->get('month', now()->format('Y-m'));
+
+            $data = Installment::where('month', $month)
+                ->select('status', DB::raw('count(*) as total'), DB::raw('sum(due_amount) as total_due'))
+                ->groupBy('status')
+                ->get();
+
+            return $this->sendResponse($data, 'Monthly installment status retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    public function topPerformers(Request $request)
+    {
+        try {
+            $month = $request->get('month', now()->format('Y-m'));
+            $limit = $request->get('limit', 10);
+
+            $data = EmployeeAccount::where('month', $month)
+                ->select('employee_id', DB::raw('count(*) as total_accounts'))
+                ->groupBy('employee_id')
+                ->orderBy('total_accounts', 'desc')
+                ->limit($limit)
+                ->get()
+                ->map(function($item) {
+                    $user = User::find($item->employee_id);
+                    return [
+                        'employee_id' => $item->employee_id,
+                        'name' => $user->name ?? 'Unknown',
+                        'total_accounts' => $item->total_accounts,
+                        'branch' => $user->branch->name ?? 'N/A',
+                    ];
+                });
+
+            return $this->sendResponse($data, 'Top performers retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    public function employeePerformance(Request $request)
+    {
+        try {
+            $month = $request->get('month', now()->format('Y-m'));
+            $branchId = $request->get('branch_id');
+
+            $query = User::whereIn('role', ['employee', 'manager']);
+
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+
+            $employees = $query->get();
+            $data = [];
+
+            foreach ($employees as $employee) {
+                $accounts = EmployeeAccount::where('employee_id', $employee->id)
+                    ->where('month', $month)
+                    ->count();
+
+                $totalAccounts = EmployeeAccount::where('employee_id', $employee->id)->count();
+
+                $data[] = [
+                    'employee_id' => $employee->id,
+                    'name' => $employee->name,
+                    'current_month_accounts' => $accounts,
+                    'total_accounts' => $totalAccounts,
+                    'branch' => $employee->branch->name ?? 'N/A',
+                ];
+            }
+
+            return $this->sendResponse($data, 'Employee performance retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    public function accountStatusSummary(Request $request)
+    {
+        try {
+            $branchId = $request->get('branch_id');
+
+            $query = Account::query();
+
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+
+            $data = [
+                'total' => $query->count(),
+                'active' => (clone $query)->where('status', 'active')->count(),
+                'hold' => (clone $query)->where('status', 'hold')->count(),
+                'paid' => (clone $query)->where('status', 'paid')->count(),
+                'closed' => (clone $query)->where('status', 'closed')->count(),
+            ];
+
+            return $this->sendResponse($data, 'Account status summary retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    public function getEmployeeStats(Request $request)
+    {
+        try {
+            $month = $request->get('month', now()->format('Y-m'));
+            $branchId = $request->get('branch_id');
+            $employeeId = $request->get('employee_id');
+
+            $query = User::whereIn('role', ['employee', 'manager']);
+
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+
+            if ($employeeId) {
+                $query->where('id', $employeeId);
+            }
+
+            $employees = $query->get();
+            $data = [];
+
+            foreach ($employees as $employee) {
+                $accountsOpened = EmployeeAccount::where('employee_id', $employee->id)
+                    ->where('month', $month)
+                    ->count();
+
+                $totalAccounts = EmployeeAccount::where('employee_id', $employee->id)->count();
+
+                $accountIds = EmployeeAccount::where('employee_id', $employee->id)
+                    ->pluck('customer_id')
+                    ->toArray();
+
+                $accountRecords = Account::whereIn('customer_id', $accountIds)->pluck('id')->toArray();
+
+                $monthlyRecovery = Installment::whereIn('account_id', $accountRecords)
+                    ->where('month', $month)
+                    ->sum('paid_amount');
+
+                $totalRecovery = Installment::whereIn('account_id', $accountRecords)
+                    ->sum('paid_amount');
+
+                $commissionRate = 0.05;
+                $monthlyCommission = $monthlyRecovery * $commissionRate;
+                $totalCommission = $totalRecovery * $commissionRate;
+
+                $monthlyLeaves = EmployeeLeave::where('user_id', $employee->id)
+                    ->where('month', $month)
+                    ->where('status', 'approved')
+                    ->count();
+
+                $totalLeaves = EmployeeLeave::where('user_id', $employee->id)
+                    ->where('status', 'approved')
+                    ->count();
+
+                $monthlyData = $this->getEmployeeMonthlyData($employee->id);
+
+                $data[] = [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'email' => $employee->email,
+                    'phone' => $employee->phone,
+                    'branch_id' => $employee->branch_id,
+                    'role' => $employee->role,
+                    'salary' => $employee->salary ?? 0,
+                    'joining_date' => $employee->created_at ? $employee->created_at->format('Y-m-d') : null,
+                    'accounts_opened' => $accountsOpened,
+                    'total_accounts' => $totalAccounts,
+                    'monthly_recovery' => $monthlyRecovery,
+                    'total_recovery' => $totalRecovery,
+                    'monthly_commission' => $monthlyCommission,
+                    'total_commission' => $totalCommission,
+                    'monthly_leaves' => $monthlyLeaves,
+                    'total_leaves' => $totalLeaves,
+                    'monthly_data' => $monthlyData,
+                ];
+            }
+
+            $summary = [
+                'total_employees' => count($data),
+                'total_accounts' => array_sum(array_column($data, 'total_accounts')),
+                'total_recovery' => array_sum(array_column($data, 'total_recovery')),
+                'total_commission' => array_sum(array_column($data, 'total_commission')),
+                'total_leaves' => array_sum(array_column($data, 'total_leaves')),
+                'month' => $month,
+            ];
+
+            return $this->sendResponse([
+                'data' => $data,
+                'summary' => $summary
+            ], 'Employee stats retrieved successfully');
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ], 500);
+        }
+    }
+
+    public function getEmployeeDetail(Request $request, $id)
+    {
+        try {
+            $employee = User::with(['branch'])->whereIn('role', ['employee', 'manager'])->find($id);
+
+            if (!$employee) {
+                return $this->sendError('Employee not found', 404);
+            }
+
+            $month = $request->get('month', now()->format('Y-m'));
+
+            $accountsOpened = EmployeeAccount::where('employee_id', $employee->id)
+                ->where('month', $month)
+                ->count();
+
+            $totalAccounts = EmployeeAccount::where('employee_id', $employee->id)->count();
+
+            $accountIds = EmployeeAccount::where('employee_id', $employee->id)
+                ->pluck('customer_id')
+                ->toArray();
+
+            $accountRecords = Account::whereIn('customer_id', $accountIds)->pluck('id')->toArray();
+
+            $monthlyRecovery = Installment::whereIn('account_id', $accountRecords)
+                ->where('month', $month)
+                ->sum('paid_amount');
+
+            $totalRecovery = Installment::whereIn('account_id', $accountRecords)
+                ->sum('paid_amount');
+
+            $commissionRate = 0.05;
+            $monthlyCommission = $monthlyRecovery * $commissionRate;
+            $totalCommission = $totalRecovery * $commissionRate;
+
+            $monthlyLeaves = EmployeeLeave::where('user_id', $employee->id)
+                ->where('month', $month)
+                ->where('status', 'approved')
+                ->count();
+
+            $totalLeaves = EmployeeLeave::where('user_id', $employee->id)
+                ->where('status', 'approved')
+                ->count();
+
+            $monthlyData = $this->getEmployeeMonthlyData($employee->id);
+
+            $accounts = EmployeeAccount::with(['customer'])
+                ->where('employee_id', $employee->id)
+                ->orderBy('account_opened_date', 'desc')
+                ->get();
+
+            return $this->sendResponse([
+                'employee' => [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'email' => $employee->email,
+                    'phone' => $employee->phone,
+                    'branch' => $employee->branch->name ?? 'N/A',
+                    'salary' => $employee->salary,
+                    'total_accounts' => $totalAccounts,
+                    'current_month_accounts' => $accountsOpened,
+                ],
+                'stats' => [
+                    'monthly_recovery' => $monthlyRecovery,
+                    'total_recovery' => $totalRecovery,
+                    'monthly_commission' => $monthlyCommission,
+                    'total_commission' => $totalCommission,
+                    'monthly_leaves' => $monthlyLeaves,
+                    'total_leaves' => $totalLeaves,
+                ],
+                'accounts_list' => $accounts->map(function($account) {
+                    return [
+                        'id' => $account->id,
+                        'customer_name' => $account->customer->name ?? 'N/A',
+                        'account_opened_date' => $account->account_opened_date->format('Y-m-d'),
+                        'month' => $account->month,
+                        'status' => $account->status,
+                    ];
+                }),
+                'monthly_data' => $monthlyData,
+            ], 'Employee details retrieved successfully');
+
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    public function getBranchPerformance(Request $request)
+    {
+        try {
+            $month = $request->get('month', now()->format('Y-m'));
+
+            $branches = Branch::all();
+            $data = [];
+
+            foreach ($branches as $branch) {
+                $employeeIds = User::where('branch_id', $branch->id)
+                    ->whereIn('role', ['employee', 'manager'])
+                    ->pluck('id')
+                    ->toArray();
+
+                $accountsOpened = EmployeeAccount::whereIn('employee_id', $employeeIds)
+                    ->where('month', $month)
+                    ->count();
+
+                $totalAccounts = EmployeeAccount::whereIn('employee_id', $employeeIds)->count();
+
+                $accountIds = EmployeeAccount::whereIn('employee_id', $employeeIds)
+                    ->pluck('customer_id')
+                    ->toArray();
+
+                $accountRecords = Account::whereIn('customer_id', $accountIds)->pluck('id')->toArray();
+
+                $recovery = Installment::whereIn('account_id', $accountRecords)
+                    ->where('month', $month)
+                    ->sum('paid_amount');
+
+                $totalRecovery = Installment::whereIn('account_id', $accountRecords)
+                    ->sum('paid_amount');
+
+                $topPerformer = EmployeeAccount::whereIn('employee_id', $employeeIds)
+                    ->where('month', $month)
+                    ->select('employee_id', DB::raw('count(*) as total'))
+                    ->groupBy('employee_id')
+                    ->orderBy('total', 'desc')
+                    ->first();
+
+                $topPerformerName = null;
+                if ($topPerformer) {
+                    $user = User::find($topPerformer->employee_id);
+                    $topPerformerName = $user ? $user->name : null;
+                }
+
+                $data[] = [
+                    'branch_id' => $branch->id,
+                    'branch_name' => $branch->name,
+                    'employees' => count($employeeIds),
+                    'accounts_opened' => $accountsOpened,
+                    'total_accounts' => $totalAccounts,
+                    'monthly_recovery' => $recovery,
+                    'total_recovery' => $totalRecovery,
+                    'top_performer' => $topPerformerName,
+                    'top_performer_count' => $topPerformer->total ?? 0,
+                ];
+            }
+
+            return $this->sendResponse($data, 'Branch performance retrieved successfully');
+
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    public function getMonthlyReport(Request $request)
+    {
+        try {
+            $month = $request->get('month', now()->format('Y-m'));
+            $branchId = $request->get('branch_id');
+
+            $query = User::whereIn('role', ['employee', 'manager']);
+
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+
+            $employees = $query->get();
+            $data = [];
+
+            foreach ($employees as $employee) {
+                $accountsOpened = EmployeeAccount::where('employee_id', $employee->id)
+                    ->where('month', $month)
+                    ->count();
+
+                $accountIds = EmployeeAccount::where('employee_id', $employee->id)
+                    ->pluck('customer_id')
+                    ->toArray();
+
+                $accountRecords = Account::whereIn('customer_id', $accountIds)->pluck('id')->toArray();
+
+                $recovery = Installment::whereIn('account_id', $accountRecords)
+                    ->where('month', $month)
+                    ->sum('paid_amount');
+
+                $commission = $recovery * 0.05;
+
+                $leaves = EmployeeLeave::where('user_id', $employee->id)
+                    ->where('month', $month)
+                    ->where('status', 'approved')
+                    ->count();
+
+                $data[] = [
+                    'employee_id' => $employee->id,
+                    'employee_name' => $employee->name,
+                    'branch_id' => $employee->branch_id,
+                    'accounts_opened' => $accountsOpened,
+                    'recovery' => $recovery,
+                    'commission' => $commission,
+                    'leaves' => $leaves,
+                ];
+            }
+
+            $summary = [
+                'total_employees' => count($data),
+                'total_accounts' => array_sum(array_column($data, 'accounts_opened')),
+                'total_recovery' => array_sum(array_column($data, 'recovery')),
+                'total_commission' => array_sum(array_column($data, 'commission')),
+                'total_leaves' => array_sum(array_column($data, 'leaves')),
+                'month' => $month,
+            ];
+
+            return $this->sendResponse([
+                'data' => $data,
+                'summary' => $summary
+            ], 'Monthly report retrieved successfully');
+
+        } catch (\Exception $e) {
+            return $this->sendError($e->getMessage(), 500);
+        }
+    }
+
+    // ============================================
+    // ✅ PRIVATE: CALCULATE PERFORMANCE
+    // ============================================
+    private function calculatePerformance($employeeId, $month)
+    {
+        $thisMonth = EmployeeAccount::where('employee_id', $employeeId)
+            ->where('month', $month)
+            ->count();
+
+        $avg = EmployeeAccount::where('month', $month)
+            ->select('employee_id', DB::raw('count(*) as total'))
+            ->groupBy('employee_id')
+            ->get()
+            ->avg('total') ?? 1;
+
+        if ($avg > 0) {
+            $score = ($thisMonth / $avg) * 100;
+        } else {
+            $score = 0;
+        }
+
+        return round(min($score, 100), 2);
+    }
+}
