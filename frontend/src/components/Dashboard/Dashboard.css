@@ -1,5 +1,6 @@
 /* ============================================ */
 /* ===== DASHBOARD.CSS - FINAL (Desktop + Mobile) ===== */
+/* ===== VIP / Premium polish pass ===== */
 /* ============================================ */
 
 .dashboard-container {
@@ -20,13 +21,25 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-  background: white;
+  background: linear-gradient(135deg, #ffffff 0%, #fbfbfe 100%);
   padding: 1.5rem 2rem;
   border-radius: 1rem;
   border: 1px solid #f3f4f6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background: linear-gradient(180deg, #1E1B4B, #C9A84C);
 }
 
 .header-left {
@@ -47,6 +60,7 @@
   font-weight: 800;
   color: #0A1628;
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .live-badge {
@@ -61,6 +75,13 @@
   border-radius: 9999px;
   border: 1px solid #bbf7d0;
   white-space: nowrap;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08);
+  animation: livePulse 2.4s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08); }
+  50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.14); }
 }
 
 .live-badge svg {
@@ -131,30 +152,32 @@
   align-items: center;
   gap: 1.25rem;
   padding: 1.5rem 1.75rem;
-  background: white;
-  border-radius: 0.75rem;
+  background: linear-gradient(155deg, #ffffff 0%, #fafafe 100%);
+  border-radius: 0.9rem;
   border: 1px solid #f3f4f6;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
   border-left: 4px solid #1E1B4B;
+  position: relative;
 }
 
 .stat-card-4:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-5px);
+  box-shadow: 0 12px 28px rgba(10, 22, 40, 0.12);
 }
 
 .stat-card-4-icon {
   width: 54px;
   height: 54px;
-  border-radius: 0.75rem;
+  border-radius: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
 }
 
 .stat-card-4-icon svg {
@@ -185,6 +208,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .stat-card-4-sub {
@@ -199,28 +223,28 @@
   border-left-color: #1E1B4B;
 }
 .stat-card-4:nth-child(1) .stat-card-4-icon {
-  background: #e0e7ff;
+  background: linear-gradient(140deg, #e0e7ff, #c7d2fe);
   color: #1E1B4B;
 }
 .stat-card-4:nth-child(2) {
   border-left-color: #C9A84C;
 }
 .stat-card-4:nth-child(2) .stat-card-4-icon {
-  background: #fef3c7;
+  background: linear-gradient(140deg, #fef3c7, #fde68a);
   color: #C9A84C;
 }
 .stat-card-4:nth-child(3) {
   border-left-color: #4A3520;
 }
 .stat-card-4:nth-child(3) .stat-card-4-icon {
-  background: #fef3c7;
+  background: linear-gradient(140deg, #fef3c7, #fcd9a8);
   color: #4A3520;
 }
 .stat-card-4:nth-child(4) {
   border-left-color: #22c55e;
 }
 .stat-card-4:nth-child(4) .stat-card-4-icon {
-  background: #dcfce7;
+  background: linear-gradient(140deg, #dcfce7, #bbf7d0);
   color: #22c55e;
 }
 
@@ -249,12 +273,23 @@
   color: #0A1628;
   margin: 0;
   font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-header-icon {
+  color: #C9A84C;
 }
 
 .chart-type-selector {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  background: #f8f9fc;
+  padding: 0.35rem;
+  border-radius: 0.75rem;
+  border: 1px solid #f0f1f5;
 }
 
 .chart-type-btn {
@@ -263,24 +298,26 @@
   gap: 0.4rem;
   padding: 0.5rem 1.2rem;
   border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
-  background: white;
+  border: 1px solid transparent;
+  background: transparent;
   color: #6b7280;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.25s ease;
   white-space: nowrap;
 }
 
 .chart-type-btn:hover {
-  background: #f3f4f6;
+  background: white;
+  color: #1E1B4B;
 }
 
 .chart-type-btn.active {
-  background: #1E1B4B;
+  background: linear-gradient(135deg, #1E1B4B, #312e81);
   color: white;
   border-color: #1E1B4B;
+  box-shadow: 0 4px 10px rgba(30, 27, 75, 0.25);
 }
 
 .chart-type-btn svg {
@@ -363,13 +400,18 @@
 
 .chart-bar {
   min-width: 32px;
-  border-radius: 4px 4px 0 0;
+  border-radius: 6px 6px 2px 2px;
   position: relative;
-  transition: height 0.3s ease;
+  transition: height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   align-items: flex-start;
   justify-content: center;
   padding-top: 4px;
+}
+
+.chart-bar:hover {
+  transform: translateY(-3px) scaleY(1.01);
+  filter: brightness(1.06);
 }
 
 .chart-bar .bar-value {
@@ -381,23 +423,26 @@
 }
 
 .chart-bar.accounts-bar {
-  background: #1E1B4B;
+  background: linear-gradient(180deg, #322d78, #1E1B4B);
+  box-shadow: 0 6px 14px rgba(30, 27, 75, 0.28);
 }
 .chart-bar.sales-bar {
-  background: #C9A84C;
+  background: linear-gradient(180deg, #e2c46f, #C9A84C);
+  box-shadow: 0 6px 14px rgba(201, 168, 76, 0.28);
 }
 .chart-bar.recovery-bar {
-  background: #22c55e;
+  background: linear-gradient(180deg, #4ade80, #22c55e);
+  box-shadow: 0 6px 14px rgba(34, 197, 94, 0.28);
 }
 
 .chart-bar-group-multi .bar-label {
   margin-top: 0.75rem;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #6b7280;
 }
 
-/* ===== CHART BAR - DESKTOP ===== */
+/* ===== CHART BAR - DESKTOP (legacy single-series) ===== */
 .chart-bar-container {
   display: flex;
   justify-content: space-around;
@@ -432,23 +477,12 @@
   gap: 0.15rem;
 }
 
-.chart-bar {
-  width: 32px;
-  border-radius: 4px 4px 0 0;
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  transition: height 0.6s ease;
-  min-height: 10px;
-}
-
 .chart-bar.bar-gold {
-  background: #C9A84C;
+  background: linear-gradient(180deg, #e2c46f, #C9A84C);
 }
 
 .chart-bar.bar-dark {
-  background: #1E1B4B;
+  background: linear-gradient(180deg, #322d78, #1E1B4B);
 }
 
 .bar-value {
@@ -524,6 +558,7 @@
   width: 220px;
   height: 220px;
   max-width: 100%;
+  filter: drop-shadow(0 6px 14px rgba(10, 22, 40, 0.12));
 }
 
 .chart-area-container {
@@ -566,6 +601,7 @@
 .performers-section h3 svg {
   width: 22px;
   height: 22px;
+  color: #C9A84C;
 }
 
 .performer-card h4 {
@@ -598,15 +634,49 @@
   border-bottom: 1px solid #f3f4f6;
 }
 
+.performer-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.performer-table tbody tr:hover {
+  background: #fafafe;
+}
+
 .performer-table tbody tr:last-child td {
   border-bottom: none;
 }
 
 .performer-table .rank-col {
-  font-weight: 800;
-  color: #1E1B4B;
   width: 40px;
-  font-size: 1rem;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 0.85rem;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.rank-badge.rank-gold {
+  background: linear-gradient(140deg, #fde68a, #C9A84C);
+  color: #4A3520;
+  box-shadow: 0 3px 8px rgba(201, 168, 76, 0.4);
+}
+
+.rank-badge.rank-silver {
+  background: linear-gradient(140deg, #e5e7eb, #cbd5e1);
+  color: #374151;
+}
+
+.rank-badge.rank-bronze {
+  background: linear-gradient(140deg, #fcd9a8, #d99a5b);
+  color: #4A3520;
 }
 
 .performer-table .count-col {
@@ -656,6 +726,7 @@
 .revenue-header h3 svg {
   width: 22px;
   height: 22px;
+  color: #22c55e;
 }
 
 .expand-btn {
@@ -715,11 +786,11 @@
 }
 
 .branch-row .bar-fill.gold {
-  background: #C9A84C;
+  background: linear-gradient(90deg, #e2c46f, #C9A84C);
 }
 
 .branch-row .bar-fill.dark {
-  background: #1E1B4B;
+  background: linear-gradient(90deg, #322d78, #1E1B4B);
 }
 
 /* ===== BRANCH OVERVIEW EXPANDED - DESKTOP ===== */
@@ -1520,7 +1591,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1.2rem;
-  background: #1E1B4B;
+  background: linear-gradient(135deg, #1E1B4B, #312e81);
   color: white;
   border: none;
   border-radius: 0.75rem;
@@ -1529,12 +1600,13 @@
   cursor: pointer;
   transition: all 0.3s;
   white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(30, 27, 75, 0.2);
 }
 
 .btn-refresh:hover {
-  background: #312e81;
+  background: linear-gradient(135deg, #312e81, #1E1B4B);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(30, 27, 75, 0.3);
+  box-shadow: 0 8px 18px rgba(30, 27, 75, 0.32);
 }
 
 .btn-refresh:active {

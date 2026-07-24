@@ -31,7 +31,10 @@ const OverdueInstallments = () => {
 
     if (user) {
       role = user.role;
-      branch = user.branch;
+      // ✅ FIX: field ka naam 'branch' nahi, 'branch_id' hai
+      // Pehle "user.branch" hamesha undefined tha isliye userBranch/branchFilter
+      // kabhi set hi nahi hote the aur branch-wise filtering kaam nahi karti thi.
+      branch = user.branch_id;
       setUserRole(role);
       setUserBranch(branch);
       if (branch) {
@@ -200,7 +203,7 @@ const OverdueInstallments = () => {
       icon: DollarSign,
       color: '#C9A84C',
       bg: 'rgba(201, 168, 76, 0.15)',
-      className: 'balance-card'
+      className: 'oi-balance-card'
     },
     {
       label: 'Total Overdue',
@@ -208,7 +211,7 @@ const OverdueInstallments = () => {
       icon: Clock,
       color: '#dc2626',
       bg: 'rgba(220, 38, 38, 0.12)',
-      className: 'overdue-card'
+      className: 'oi-overdue-card'
     },
   ];
 
@@ -265,7 +268,7 @@ const OverdueInstallments = () => {
         setShowEditModal(false);
         setSelectedRecord(null);
         const user = JSON.parse(localStorage.getItem('user'));
-        fetchOverdueAccounts(user?.branch || null, user?.role || null);
+        fetchOverdueAccounts(user?.branch_id || null, user?.role || null);
       } else {
         alert('❌ Failed to record payment: ' + (data.message || 'Unknown error'));
       }
@@ -278,43 +281,43 @@ const OverdueInstallments = () => {
   };
 
   return (
-    <div className="overdue-container">
-      <div className="overdue-header">
-        <div className="header-left">
-          <div className="header-title-group">
+    <div className="oi-container">
+      <div className="oi-header">
+        <div className="oi-header-left">
+          <div className="oi-header-title-group">
             <h2>Overdue Installments</h2>
-            <span className="live-badge">
+            <span className="oi-live-badge">
               <Clock size={12} /> Live
             </span>
           </div>
-          <p className="subtitle">Accounts whose oldest due installment is 1-3 months overdue</p>
+          <p className="oi-subtitle">Accounts whose oldest due installment is 1-3 months overdue</p>
         </div>
       </div>
 
-      <div className="stats-grid-2">
+      <div className="oi-stats-grid-2">
         {statCards.map((card, index) => (
           <div 
             key={index} 
-            className={`stat-card ${card.className}`}
+            className={`oi-stat-card ${card.className}`}
             style={{ 
               borderLeft: `5px solid ${card.color}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
             }}
           >
-            <div className="stat-icon" style={{ background: card.bg, color: card.color }}>
+            <div className="oi-stat-icon" style={{ background: card.bg, color: card.color }}>
               <card.icon size={22} />
             </div>
-            <div className="stat-info">
-              <span className="stat-label" style={{ fontWeight: 700 }}>{card.label}</span>
-              <span className="stat-value" style={{ fontWeight: 800, color: card.color, fontSize: '1.3rem' }}>{card.value}</span>
+            <div className="oi-stat-info">
+              <span className="oi-stat-label" style={{ fontWeight: 700 }}>{card.label}</span>
+              <span className="oi-stat-value" style={{ fontWeight: 800, color: card.color, fontSize: '1.3rem' }}>{card.value}</span>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="overdue-controls">
-        <div className="search-wrapper">
-          <Search size={18} className="search-icon" />
+      <div className="oi-controls">
+        <div className="oi-search-wrapper">
+          <Search size={18} className="oi-search-icon" />
           <input
             type="text"
             placeholder="Search by customer or case..."
@@ -324,30 +327,30 @@ const OverdueInstallments = () => {
           />
         </div>
 
-        <div className="branch-filters">
+        <div className="oi-branch-filters">
           <button
-            className={`filter-btn ${monthFilter === 'all' ? 'active' : ''}`}
+            className={`oi-filter-btn ${monthFilter === 'all' ? 'active' : ''}`}
             onClick={() => setMonthFilter('all')}
             style={{ fontWeight: 600 }}
           >
             All Overdue
           </button>
           <button
-            className={`filter-btn ${monthFilter === '1' ? 'active' : ''}`}
+            className={`oi-filter-btn ${monthFilter === '1' ? 'active' : ''}`}
             onClick={() => setMonthFilter('1')}
             style={{ fontWeight: 600 }}
           >
             1 Month
           </button>
           <button
-            className={`filter-btn ${monthFilter === '2' ? 'active' : ''}`}
+            className={`oi-filter-btn ${monthFilter === '2' ? 'active' : ''}`}
             onClick={() => setMonthFilter('2')}
             style={{ fontWeight: 600 }}
           >
             2 Months
           </button>
           <button
-            className={`filter-btn ${monthFilter === '3' ? 'active' : ''}`}
+            className={`oi-filter-btn ${monthFilter === '3' ? 'active' : ''}`}
             onClick={() => setMonthFilter('3')}
             style={{ fontWeight: 600 }}
           >
@@ -356,23 +359,23 @@ const OverdueInstallments = () => {
         </div>
 
         {!userBranch && (
-          <div className="branch-filters">
+          <div className="oi-branch-filters">
             <button 
-              className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`}
+              className={`oi-filter-btn ${branchFilter === 'all' ? 'active' : ''}`}
               onClick={() => setBranchFilter('all')}
               style={{ fontWeight: 600 }}
             >
               All
             </button>
             <button 
-              className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`}
+              className={`oi-filter-btn oi-branch-1 ${branchFilter === '1' ? 'active' : ''}`}
               onClick={() => setBranchFilter('1')}
               style={{ fontWeight: 600 }}
             >
               Branch 1
             </button>
             <button 
-              className={`filter-btn branch-2 ${branchFilter === '2' ? 'active' : ''}`}
+              className={`oi-filter-btn oi-branch-2 ${branchFilter === '2' ? 'active' : ''}`}
               onClick={() => setBranchFilter('2')}
               style={{ fontWeight: 600 }}
             >
@@ -382,9 +385,9 @@ const OverdueInstallments = () => {
         )}
       </div>
 
-      <div className="table-container">
-        <div className="table-scroll">
-          <table className="overdue-table">
+      <div className="oi-table-container">
+        <div className="oi-table-scroll">
+          <table className="oi-table">
             <thead>
               <tr>
                 <th style={{ fontWeight: 800 }}>Case #</th>
@@ -399,16 +402,16 @@ const OverdueInstallments = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="8" className="no-data">Loading overdue accounts...</td></tr>
+                <tr><td colSpan="8" className="oi-no-data">Loading overdue accounts...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan="8" className="no-data">No overdue records found for {branchLabel}</td></tr>
+                <tr><td colSpan="8" className="oi-no-data">No overdue records found for {branchLabel}</td></tr>
               ) : (
                 filtered.map((item, index) => (
-                  <tr key={item.accountId} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                    <td className="case-number">{item.caseNo}</td>
+                  <tr key={item.accountId} className={`oi-row ${index % 2 === 0 ? 'oi-even-row' : 'oi-odd-row'}`}>
+                    <td className="oi-case-number">{item.caseNo}</td>
                     <td>
-                      <div className="customer-info">
-                        <div className="customer-avatar" style={{ 
+                      <div className="oi-customer-info">
+                        <div className="oi-customer-avatar" style={{ 
                           background: '#fee2e2',
                           color: '#991b1b'
                         }}>
@@ -418,27 +421,27 @@ const OverdueInstallments = () => {
                       </div>
                     </td>
                     <td>
-                      <div className="date-info">
+                      <div className="oi-date-info">
                         <Calendar size={12} />
                         {formatMonth(item.nextDueMonth)}
                       </div>
                     </td>
-                    <td className="amount" style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
-                    <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
+                    <td className="oi-amount" style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
+                    <td className={item.balance > 0 ? 'oi-balance-amount' : 'oi-paid-amount'} style={{ fontWeight: 700 }}>
                       PKR {item.balance.toLocaleString()}
                     </td>
-                    <td className="overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>
+                    <td className="oi-overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>
                       PKR {item.totalOverdue.toLocaleString()}
                     </td>
                     <td>
-                      <span className="status-badge overdue" style={{ fontWeight: 700 }}>
+                      <span className="oi-status-badge oi-overdue-badge" style={{ fontWeight: 700 }}>
                         {getOverdueLabel(item.overdueMonths)}
                       </span>
                     </td>
                     <td>
-                      <div className="action-group">
+                      <div className="oi-action-group">
                         <button 
-                          className={`btn-action ${canEdit ? 'btn-edit' : 'btn-view'}`}
+                          className={`oi-btn-action ${canEdit ? 'oi-btn-edit' : 'oi-btn-view'}`}
                           onClick={() => openEditModal(item)}
                           title={canEdit ? "Edit Record" : "View Record"}
                           style={{ fontWeight: 700 }}
@@ -456,7 +459,7 @@ const OverdueInstallments = () => {
       </div>
 
       {filtered.length > 0 && (
-        <div className="pagination">
+        <div className="oi-pagination">
           <button style={{ fontWeight: 600 }} disabled>Previous</button>
           <span style={{ fontWeight: 600 }}>Page 1 of 1</span>
           <button style={{ fontWeight: 600 }} disabled>Next</button>
@@ -464,53 +467,53 @@ const OverdueInstallments = () => {
       )}
 
       {showEditModal && selectedRecord && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-left">
-                {canEdit ? <Edit size={20} className="modal-icon" /> : <Eye size={20} className="modal-icon" />}
+        <div className="oi-modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="oi-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="oi-modal-header">
+              <div className="oi-modal-header-left">
+                {canEdit ? <Edit size={20} className="oi-modal-icon" /> : <Eye size={20} className="oi-modal-icon" />}
                 <h3 style={{ fontSize: '1.3rem', fontWeight: 800 }}>{canEdit ? 'Edit' : 'View'} Record - {selectedRecord.caseNo}</h3>
               </div>
-              <button className="modal-close" onClick={() => setShowEditModal(false)}>
+              <button className="oi-modal-close" onClick={() => setShowEditModal(false)}>
                 <X size={24} />
               </button>
             </div>
 
-            <div className="modal-body">
-              <div className="employee-detail-header">
-                <div className="emp-detail-avatar" style={{ background: '#991b1b', fontSize: '1.1rem', fontWeight: 800 }}>
+            <div className="oi-modal-body">
+              <div className="oi-employee-detail-header">
+                <div className="oi-emp-detail-avatar" style={{ background: '#991b1b', fontSize: '1.1rem', fontWeight: 800 }}>
                   {selectedRecord.customerName.charAt(0)}
                 </div>
-                <div className="emp-detail-info">
+                <div className="oi-emp-detail-info">
                   <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{selectedRecord.customerName}</h4>
-                  <span className="emp-detail-branch" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Case: {selectedRecord.caseNo}</span>
+                  <span className="oi-emp-detail-branch" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Case: {selectedRecord.caseNo}</span>
                 </div>
               </div>
 
-              <div className="detail-grid">
-                <div className="detail-item">
+              <div className="oi-detail-grid">
+                <div className="oi-detail-item">
                   <span style={{ fontWeight: 700 }}>Case Number</span>
-                  <strong className="case-number" style={{ fontWeight: 700 }}>{selectedRecord.caseNo}</strong>
+                  <strong className="oi-case-number" style={{ fontWeight: 700 }}>{selectedRecord.caseNo}</strong>
                 </div>
-                <div className="detail-item">
+                <div className="oi-detail-item">
                   <span style={{ fontWeight: 700 }}>Customer</span>
                   <strong style={{ fontWeight: 700 }}>{selectedRecord.customerName}</strong>
                 </div>
-                <div className="detail-item">
+                <div className="oi-detail-item">
                   <span style={{ fontWeight: 700 }}>Next Due Month</span>
                   <strong style={{ fontWeight: 600 }}>{formatMonth(selectedRecord.nextDueMonth)}</strong>
                 </div>
-                <div className="detail-item">
+                <div className="oi-detail-item">
                   <span style={{ fontWeight: 700 }}>Monthly Installment</span>
                   <strong style={{ fontWeight: 700 }}>PKR {selectedRecord.monthlyInstallment.toLocaleString()}</strong>
                 </div>
-                <div className="detail-item">
+                <div className="oi-detail-item">
                   <span style={{ fontWeight: 700 }}>Total Overdue</span>
-                  <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>
+                  <strong className="oi-overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>
                     PKR {selectedRecord.totalOverdue.toLocaleString()}
                   </strong>
                 </div>
-                <div className="detail-item">
+                <div className="oi-detail-item">
                   <span style={{ fontWeight: 700 }}>Overdue Since</span>
                   <strong style={{ fontWeight: 700, color: '#dc2626' }}>
                     {getOverdueLabel(selectedRecord.overdueMonths)}
@@ -518,13 +521,13 @@ const OverdueInstallments = () => {
                 </div>
               </div>
 
-              <div className="installment-history">
-                <div className="history-header">
+              <div className="oi-installment-history">
+                <div className="oi-history-header">
                   <h4 style={{ fontWeight: 700 }}>Installment History</h4>
-                  <span className="history-badge" style={{ fontWeight: 600 }}>{selectedRecord.installments.length} Months</span>
+                  <span className="oi-history-badge" style={{ fontWeight: 600 }}>{selectedRecord.installments.length} Months</span>
                 </div>
-                <div className="history-scroll">
-                  <table className="history-table">
+                <div className="oi-history-scroll">
+                  <table className="oi-history-table">
                     <thead>
                       <tr>
                         <th style={{ fontWeight: 800 }}>Month</th>
@@ -537,11 +540,11 @@ const OverdueInstallments = () => {
                       {selectedRecord.installments.map((inst, index) => {
                         const rowStatus = getInstallmentRowStatus(inst);
                         return (
-                          <tr key={inst.id || index} className={`${rowStatus === 'unpaid' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                            <td className="month-cell" style={{ fontWeight: 600 }}>{formatMonth(inst.month)}</td>
+                          <tr key={inst.id || index} className={`${rowStatus === 'unpaid' ? 'oi-row-overdue' : ''} ${index % 2 === 0 ? 'oi-even-row' : 'oi-odd-row'}`}>
+                            <td className="oi-month-cell" style={{ fontWeight: 600 }}>{formatMonth(inst.month)}</td>
                             <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
-                            <td className="paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
-                            <td className="overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {parseFloat(inst.balance || 0).toLocaleString()}</td>
+                            <td className="oi-paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
+                            <td className="oi-overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {parseFloat(inst.balance || 0).toLocaleString()}</td>
                           </tr>
                         );
                       })}
@@ -550,16 +553,16 @@ const OverdueInstallments = () => {
                 </div>
               </div>
 
-              <div className="edit-fields">
+              <div className="oi-edit-fields">
                 {canEdit ? (
                   <>
-                    <div className="form-group">
+                    <div className="oi-form-group">
                       <label style={{ fontWeight: 700 }}>
                         Pay Installment — {formatMonth(selectedRecord.nextPayableInstallment?.month)}
                       </label>
                       <input
                         type="number"
-                        className="form-input"
+                        className="oi-form-input"
                         value={editingData.paidAmount}
                         onChange={(e) => setEditingData({ ...editingData, paidAmount: e.target.value })}
                         min="0"
@@ -568,17 +571,17 @@ const OverdueInstallments = () => {
                         style={{ fontWeight: 600 }}
                         disabled={!selectedRecord.nextPayableInstallment}
                       />
-                      <small className="field-hint" style={{ fontWeight: 600 }}>
+                      <small className="oi-field-hint" style={{ fontWeight: 600 }}>
                         {selectedRecord.nextPayableInstallment
                           ? `Max payable: PKR ${editingData.maxPayable.toLocaleString()}`
                           : 'No payable installment found for this account'}
                       </small>
                     </div>
 
-                    <div className="form-group">
+                    <div className="oi-form-group">
                       <label style={{ fontWeight: 700 }}>Remarks</label>
                       <textarea
-                        className="form-input form-textarea"
+                        className="oi-form-input oi-form-textarea"
                         value={editingData.remarks}
                         onChange={(e) => setEditingData({ ...editingData, remarks: e.target.value })}
                         placeholder="Add remarks or notes..."
@@ -588,14 +591,14 @@ const OverdueInstallments = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="view-only">
-                    <div className="view-item">
+                  <div className="oi-view-only">
+                    <div className="oi-view-item">
                       <span style={{ fontWeight: 700 }}>Paid Amount</span>
                       <strong style={{ fontWeight: 700 }}>PKR {selectedRecord.paidAmount.toLocaleString()}</strong>
                     </div>
-                    <div className="view-item">
+                    <div className="oi-view-item">
                       <span style={{ fontWeight: 700 }}>Balance</span>
-                      <strong className={selectedRecord.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
+                      <strong className={selectedRecord.balance > 0 ? 'oi-balance-amount' : 'oi-paid-amount'} style={{ fontWeight: 700 }}>
                         PKR {selectedRecord.balance.toLocaleString()}
                       </strong>
                     </div>
@@ -604,15 +607,15 @@ const OverdueInstallments = () => {
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="btn-cancel" onClick={() => setShowEditModal(false)} style={{ fontWeight: 700 }}>
+            <div className="oi-modal-footer">
+              <button className="oi-btn-cancel" onClick={() => setShowEditModal(false)} style={{ fontWeight: 700 }}>
                 {canEdit ? 'Cancel' : 'Close'}
               </button>
               {canEdit && (
-                <button className="btn-save" onClick={handleSaveEdit} style={{ fontWeight: 700 }} disabled={saving || !selectedRecord.nextPayableInstallment}>
+                <button className="oi-btn-save" onClick={handleSaveEdit} style={{ fontWeight: 700 }} disabled={saving || !selectedRecord.nextPayableInstallment}>
                   {saving ? (
                     <>
-                      <RefreshCw size={16} className="spinning" />
+                      <RefreshCw size={16} className="oi-spinning" />
                       Saving...
                     </>
                   ) : (

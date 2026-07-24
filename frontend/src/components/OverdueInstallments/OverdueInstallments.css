@@ -1,13 +1,43 @@
 /* src/components/OverdueInstallments/OverdueInstallments.css */
+/* NOTE: Har class ko 'oi-' prefix diya gaya hai taake kisi bhi
+   global/shared CSS file (dashboard-wide .balance-amount, .paid-amount,
+   .status-badge, .modal-content, wagera) ke saath naam na takraye.
+   Isi wajah se pehle Balance column ka box "floating card" jaisa
+   ajeeb dikh raha tha — koi global rule usi class name par
+   position/shadow/background laga raha tha. */
 
-.overdue-container {
+.oi-container {
   padding: 20px;
   background: #f4f7fc;
   min-height: 100vh;
 }
 
+/* ===== HARD RESET FOR TABLE CELLS =====
+   Kisi bhi global/shared CSS rule ko is table ke andar position/shadow/
+   transform/float lagane se forcefully roka gaya hai — bina flex/badge/
+   button layouts ko todhe (display/padding/margin ko chhoo nahi raha,
+   sirf position/shadow ko). Ye sabse aakhri "safety net" hai — agar
+   phir bhi floating box nazar aaye to bug is table ki apni CSS mein
+   nahi, balki kisi aur JS component/portal mein hai (dev tools se
+   us box ka class name check karo). */
+.oi-table-container {
+  position: relative;
+}
+
+.oi-table td,
+.oi-table td *:not(.oi-status-badge):not(.oi-btn-action) {
+  position: static !important;
+  transform: none !important;
+  float: none !important;
+}
+
+.oi-table td {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 /* ===== HEADER ===== */
-.overdue-header {
+.oi-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -21,26 +51,26 @@
   box-shadow: 0 1px 3px rgba(30, 64, 175, 0.08);
 }
 
-.header-left {
+.oi-header-left {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.header-title-group {
+.oi-header-title-group {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.overdue-header h2 {
+.oi-header h2 {
   font-size: 24px;
   font-weight: 700;
   color: #1e3a8a;
   margin: 0;
 }
 
-.live-badge {
+.oi-live-badge {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -52,7 +82,7 @@
   font-weight: 600;
 }
 
-.subtitle {
+.oi-subtitle {
   color: #64748b;
   font-size: 14px;
   font-weight: 500;
@@ -60,14 +90,14 @@
 }
 
 /* ===== STATS - 2 CARDS ===== */
-.stats-grid-2 {
+.oi-stats-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.stat-card {
+.oi-stat-card {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -79,20 +109,20 @@
   transition: all 0.3s;
 }
 
-.stat-card:hover {
+.oi-stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(30, 64, 175, 0.12);
 }
 
-.balance-card {
+.oi-balance-card {
   border-left: 4px solid #C9A84C;
 }
 
-.overdue-card {
+.oi-overdue-card {
   border-left: 4px solid #dc2626;
 }
 
-.stat-icon {
+.oi-stat-icon {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -102,12 +132,12 @@
   flex-shrink: 0;
 }
 
-.stat-info {
+.oi-stat-info {
   display: flex;
   flex-direction: column;
 }
 
-.stat-label {
+.oi-stat-label {
   font-size: 12px;
   font-weight: 600;
   color: #64748b;
@@ -115,14 +145,14 @@
   letter-spacing: 0.5px;
 }
 
-.stat-value {
+.oi-stat-value {
   font-size: 20px;
   font-weight: 700;
   color: #1e3a8a;
 }
 
 /* ===== CONTROLS ===== */
-.overdue-controls {
+.oi-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -134,7 +164,7 @@
   border: 1px solid #e2e8f0;
 }
 
-.search-wrapper {
+.oi-search-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -147,17 +177,17 @@
   transition: all 0.3s;
 }
 
-.search-wrapper:focus-within {
+.oi-search-wrapper:focus-within {
   border-color: #2563eb;
   background: white;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-.search-wrapper .search-icon {
+.oi-search-wrapper .oi-search-icon {
   color: #2563eb;
 }
 
-.search-wrapper input {
+.oi-search-wrapper input {
   border: none;
   background: transparent;
   outline: none;
@@ -167,17 +197,17 @@
   color: #1e293b;
 }
 
-.search-wrapper input::placeholder {
+.oi-search-wrapper input::placeholder {
   color: #94a3b8;
 }
 
-.branch-filters {
+.oi-branch-filters {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
 }
 
-.filter-btn {
+.oi-filter-btn {
   padding: 4px 14px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
@@ -189,29 +219,29 @@
   transition: all 0.2s;
 }
 
-.filter-btn:hover {
+.oi-filter-btn:hover {
   background: #f1f5f9;
 }
 
-.filter-btn.active {
+.oi-filter-btn.active {
   background: #2563eb;
   color: white;
   border-color: #2563eb;
 }
 
-.filter-btn.branch-1.active {
+.oi-filter-btn.oi-branch-1.active {
   background: #1e3a8a;
   border-color: #1e3a8a;
 }
 
-.filter-btn.branch-2.active {
+.oi-filter-btn.oi-branch-2.active {
   background: #C9A84C;
   border-color: #C9A84C;
   color: white;
 }
 
 /* ===== TABLE ===== */
-.table-container {
+.oi-table-container {
   background: white;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -219,22 +249,22 @@
   min-height: 300px;
 }
 
-.table-scroll {
+.oi-table-scroll {
   overflow-x: auto;
 }
 
-.overdue-table {
+.oi-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
   min-width: 800px;
 }
 
-.overdue-table thead {
+.oi-table thead {
   background: #eff6ff;
 }
 
-.overdue-table th {
+.oi-table th {
   padding: 14px 16px;
   text-align: left;
   font-weight: 600;
@@ -246,41 +276,46 @@
   white-space: nowrap;
 }
 
-.overdue-table td {
+.oi-table td {
   padding: 14px 16px;
   border-bottom: 1px solid #edf2f7;
   color: #1e293b;
   vertical-align: middle;
+  /* Explicitly reset in case a global rule targets bare <td> with
+     position/box-shadow/background — keeps every cell flat & inline. */
+  position: static;
+  box-shadow: none;
+  background-clip: border-box;
 }
 
-.overdue-table tbody tr {
+.oi-table tbody tr {
   transition: background 0.2s;
 }
 
-.overdue-table tbody tr:hover td {
+.oi-table tbody tr:hover td {
   background: #f8fafc;
 }
 
-.overdue-table .even-row td {
+.oi-table .oi-even-row td {
   background: #fafbfc;
 }
 
-.overdue-table .odd-row td {
+.oi-table .oi-odd-row td {
   background: white;
 }
 
-.overdue-table .even-row:hover td,
-.overdue-table .odd-row:hover td {
+.oi-table .oi-even-row:hover td,
+.oi-table .oi-odd-row:hover td {
   background: #f0f0f5;
 }
 
 /* ✅ Overdue row with red left border */
-.overdue-row td:first-child {
+.oi-row td:first-child {
   border-left: 4px solid #dc2626;
   padding-left: 12px;
 }
 
-.no-data {
+.oi-no-data {
   text-align: center;
   padding: 40px 20px !important;
   color: #94a3b8 !important;
@@ -289,21 +324,20 @@
 }
 
 /* ===== COLUMN STYLES ===== */
-.case-number {
+.oi-case-number {
   font-weight: 700;
   color: #1d4ed8;
   font-size: 13px;
 }
 
-/* ✅ FIX - Customer info ek line mein */
-.customer-info {
+.oi-customer-info {
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 600;
 }
 
-.customer-avatar {
+.oi-customer-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -315,12 +349,7 @@
   flex-shrink: 0;
 }
 
-.customer-name {
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.date-info {
+.oi-date-info {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -329,32 +358,48 @@
   color: #4b5563;
 }
 
-.date-info svg {
+.oi-date-info svg {
   color: #94a3b8;
   width: 14px;
   height: 14px;
 }
 
-.amount {
+.oi-amount {
   font-weight: 600;
 }
 
-.paid-amount {
+/* Balance / Paid amount — used both directly on a <td> (main table) and
+   on a <strong> (modal's view-only section), so this class must NOT set
+   `display` at all — that's what let the <td> stop behaving like a table
+   cell (turning it into an inline element detached from the row's layout
+   and vertical centering). Leaving display unset means each tag just
+   keeps its own correct native default (table-cell for <td>, inline for
+   <strong>), and only the color/weight is applied here. That was the
+   actual cause of the "floating box" bug. */
+.oi-paid-amount {
   color: #065f46;
   font-weight: 700;
+  position: static;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
-.balance-amount {
+.oi-balance-amount {
+  color: #dc2626;
+  font-weight: 700;
+  position: static;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.oi-overdue-amount {
   color: #dc2626;
   font-weight: 700;
 }
 
-.overdue-amount {
-  color: #dc2626;
-  font-weight: 700;
-}
-
-.status-badge {
+.oi-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -365,33 +410,33 @@
   white-space: nowrap;
 }
 
-.status-badge.overdue {
+.oi-overdue-badge {
   background: #fee2e2;
   color: #b91c1c;
 }
 
-.status-badge.paid {
+.oi-status-badge.oi-paid-badge {
   background: #dcfce7;
   color: #166534;
 }
 
-.status-badge.partial {
+.oi-status-badge.oi-partial-badge {
   background: #fef3c7;
   color: #92400e;
 }
 
-.status-badge.unpaid {
+.oi-status-badge.oi-unpaid-badge {
   background: #dbeafe;
   color: #1e40af;
 }
 
 /* ===== ACTION BUTTONS ===== */
-.action-group {
+.oi-action-group {
   display: flex;
   gap: 6px;
 }
 
-.btn-action {
+.oi-btn-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -404,28 +449,28 @@
   height: 32px;
 }
 
-.btn-view {
+.oi-btn-view {
   background: #dbeafe;
   color: #1e40af;
 }
 
-.btn-view:hover {
+.oi-btn-view:hover {
   background: #bfdbfe;
   transform: scale(1.05);
 }
 
-.btn-edit {
+.oi-btn-edit {
   background: #fef3c7;
   color: #92400e;
 }
 
-.btn-edit:hover {
+.oi-btn-edit:hover {
   background: #fde68a;
   transform: scale(1.05);
 }
 
 /* ===== PAGINATION ===== */
-.pagination {
+.oi-pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -436,7 +481,7 @@
   gap: 12px;
 }
 
-.pagination button {
+.oi-pagination button {
   padding: 6px 16px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
@@ -448,20 +493,252 @@
   transition: all 0.2s;
 }
 
-.pagination button:hover:not(:disabled) {
+.oi-pagination button:hover:not(:disabled) {
   background: #eff6ff;
   border-color: #60a5fa;
 }
 
-.pagination button:disabled {
+.oi-pagination button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.pagination span {
+.oi-pagination span {
   font-size: 13px;
   font-weight: 600;
   color: #64748b;
+}
+
+/* ===== MODAL ===== */
+.oi-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.oi-modal-content {
+  background: white;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.oi-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.oi-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e293b;
+}
+
+.oi-modal-icon {
+  color: #1e40af;
+}
+
+.oi-modal-close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #64748b;
+}
+
+.oi-modal-body {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.oi-employee-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.oi-emp-detail-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oi-emp-detail-branch {
+  color: #64748b;
+}
+
+.oi-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.oi-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.oi-detail-item span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.oi-installment-history {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.oi-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #eff6ff;
+}
+
+.oi-history-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.oi-history-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.oi-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.oi-history-table th {
+  position: sticky;
+  top: 0;
+  background: white;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.oi-history-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.oi-row-overdue td {
+  background: #fff1f2;
+}
+
+.oi-edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.oi-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.oi-form-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.oi-form-textarea {
+  resize: vertical;
+}
+
+.oi-field-hint {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.oi-view-only {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.oi-view-item {
+  display: flex;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.oi-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.oi-btn-cancel {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+}
+
+.oi-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.oi-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.oi-spinning {
+  animation: oi-spin 1s linear infinite;
+}
+
+@keyframes oi-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ============================================ */
@@ -469,113 +746,113 @@
 /* ============================================ */
 
 @media (max-width: 1024px) {
-  .stats-grid-2 {
+  .oi-stats-grid-2 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .overdue-container {
+  .oi-container {
     padding: 12px;
   }
 
-  .overdue-header {
+  .oi-header {
     padding: 14px 16px;
   }
 
-  .overdue-header h2 {
+  .oi-header h2 {
     font-size: 18px;
   }
 
-  .stats-grid-2 {
+  .oi-stats-grid-2 {
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
 
-  .stat-card {
+  .oi-stat-card {
     padding: 14px 16px;
   }
 
-  .stat-value {
+  .oi-stat-value {
     font-size: 16px;
   }
 
-  .overdue-controls {
+  .oi-controls {
     flex-direction: column;
     align-items: stretch;
     padding: 12px 16px;
   }
 
-  .search-wrapper {
+  .oi-search-wrapper {
     max-width: 100%;
   }
 
-  .branch-filters {
+  .oi-branch-filters {
     justify-content: center;
   }
 
-  .overdue-table {
+  .oi-table {
     min-width: 650px;
     font-size: 12px;
   }
 
-  .overdue-table th,
-  .overdue-table td {
+  .oi-table th,
+  .oi-table td {
     padding: 10px 12px;
   }
 }
 
 @media (max-width: 480px) {
-  .overdue-container {
+  .oi-container {
     padding: 8px;
   }
 
-  .stats-grid-2 {
+  .oi-stats-grid-2 {
     grid-template-columns: 1fr;
     gap: 8px;
   }
 
-  .stat-card {
+  .oi-stat-card {
     padding: 12px 14px;
   }
 
-  .stat-icon {
+  .oi-stat-icon {
     width: 40px;
     height: 40px;
   }
 
-  .stat-value {
+  .oi-stat-value {
     font-size: 14px;
   }
 
-  .stat-label {
+  .oi-stat-label {
     font-size: 10px;
   }
 
-  .overdue-header h2 {
+  .oi-header h2 {
     font-size: 16px;
   }
 
-  .subtitle {
+  .oi-subtitle {
     font-size: 12px;
   }
 
-  .overdue-table {
+  .oi-table {
     min-width: 500px;
     font-size: 11px;
   }
 
-  .overdue-table th,
-  .overdue-table td {
+  .oi-table th,
+  .oi-table td {
     padding: 8px 10px;
   }
 
-  .pagination {
+  .oi-pagination {
     flex-direction: column;
     align-items: center;
   }
 
-  .pagination button {
+  .oi-pagination button {
     width: 100%;
     justify-content: center;
   }

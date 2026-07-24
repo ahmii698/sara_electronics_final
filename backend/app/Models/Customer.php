@@ -22,7 +22,12 @@ class Customer extends Model
         'cnic_front', 'cnic_back', 'voice_consent',
         'additional_image_1',
         'additional_image_2',
-        'status', 'created_by'
+        'status', 'created_by',
+        'is_unlimited', // ✅ Special/VIP flag — dono limits (2-account, 1-lakh) skip
+    ];
+
+    protected $casts = [
+        'is_unlimited' => 'boolean',
     ];
 
     // Relations

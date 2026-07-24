@@ -5,7 +5,7 @@ import {
   Users, Package, DollarSign, TrendingUp, BarChart, 
   LineChart, PieChart, Activity, Award, AlertTriangle, 
   Building, Home, UserCheck, Calendar, Clock, 
-  ChevronDown, ChevronUp, RefreshCw 
+  ChevronDown, ChevronUp, RefreshCw, Sparkles
 } from 'lucide-react';
 import './Dashboard.css';
 import { API_URL } from '../../../config';
@@ -86,11 +86,16 @@ const Dashboard = () => {
     if (data.length === 0) {
       return <div className="chart-empty">No performance data available</div>;
     }
-    
+
+    // FIX: each metric is scaled against its OWN max, not a shared/guessed max.
+    // Previously sales (in the thousands/lakhs) was divided by 1000 and compared
+    // directly against accounts (small integers) using one shared maxValue —
+    // that made accounts + recovery bars disappear whenever sales spiked.
     const maxAccounts = Math.max(...data.map(d => d.accounts || 0), 1);
     const maxSales = Math.max(...data.map(d => d.sales || 0), 1);
     const maxRecovery = Math.max(...data.map(d => d.recovery || 0), 1);
-    const maxValue = Math.max(maxAccounts, maxSales / 1000, maxRecovery / 1000, 1);
+    const BAR_MAX_HEIGHT = 140;
+    const LINE_MAX_HEIGHT = 180;
 
     if (selectedChart === 'bar') {
       return (
@@ -106,21 +111,21 @@ const Dashboard = () => {
                 <div className="chart-bars-stacked">
                   <div 
                     className="chart-bar accounts-bar" 
-                    style={{ height: `${(item.accounts / maxValue) * 140}px` }}
+                    style={{ height: `${Math.max((item.accounts / maxAccounts) * BAR_MAX_HEIGHT, 4)}px` }}
                     title={`Accounts: ${item.accounts}`}
                   >
                     <span className="bar-value">{item.accounts}</span>
                   </div>
                   <div 
                     className="chart-bar sales-bar" 
-                    style={{ height: `${(item.sales / (maxValue * 1000)) * 140}px` }}
+                    style={{ height: `${Math.max((item.sales / maxSales) * BAR_MAX_HEIGHT, 4)}px` }}
                     title={`Sales: ${formatCurrency(item.sales)}`}
                   >
                     <span className="bar-value">{formatCurrency(item.sales)}</span>
                   </div>
                   <div 
                     className="chart-bar recovery-bar" 
-                    style={{ height: `${(item.recovery / (maxValue * 1000)) * 140}px` }}
+                    style={{ height: `${Math.max((item.recovery / maxRecovery) * BAR_MAX_HEIGHT, 4)}px` }}
                     title={`Recovery: ${formatCurrency(item.recovery)}`}
                   >
                     <span className="bar-value">{formatCurrency(item.recovery)}</span>
@@ -143,33 +148,45 @@ const Dashboard = () => {
             <span><span className="legend-dot recovery"></span> Monthly Recovery</span>
           </div>
           <svg viewBox="0 0 600 220" className="chart-svg">
+            <defs>
+              <linearGradient id="accountsLineGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#2e2a6b" />
+                <stop offset="100%" stopColor="#1E1B4B" />
+              </linearGradient>
+            </defs>
             {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={220 - y} x2="600" y2={220 - y} stroke="#e5e7eb" strokeWidth="1" />
+              <line key={y} x1="0" y1={220 - y} x2="600" y2={220 - y} stroke="#eef0f4" strokeWidth="1" />
             ))}
             <polyline
               points={data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.accounts / maxValue) * 180}`
+                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.accounts / maxAccounts) * LINE_MAX_HEIGHT}`
               ).join(' ')}
               fill="none"
-              stroke="#1E1B4B"
+              stroke="url(#accountsLineGrad)"
               strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
             <polyline
               points={data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.sales / (maxValue * 1000)) * 180}`
+                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.sales / maxSales) * LINE_MAX_HEIGHT}`
               ).join(' ')}
               fill="none"
               stroke="#C9A84C"
               strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               strokeDasharray="8 4"
             />
             <polyline
               points={data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.recovery / (maxValue * 1000)) * 180}`
+                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.recovery / maxRecovery) * LINE_MAX_HEIGHT}`
               ).join(' ')}
               fill="none"
               stroke="#22c55e"
               strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               strokeDasharray="4 4"
             />
             {data.map((item, i) => (
@@ -212,10 +229,12 @@ const Dashboard = () => {
                     strokeWidth="45"
                     strokeDasharray={`${dashArray} 534.07`}
                     strokeDashoffset={`-${offset}`}
+                    strokeLinecap="butt"
                     transform="rotate(-90 110 110)"
                   />
                 );
               })}
+              <circle cx="110" cy="110" r="62" fill="white" />
               <text x="110" y="105" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#0A1628">
                 Total
               </text>
@@ -245,27 +264,41 @@ const Dashboard = () => {
             <span><span className="legend-dot recovery"></span> Monthly Recovery</span>
           </div>
           <svg viewBox="0 0 600 220" className="chart-svg">
+            <defs>
+              <linearGradient id="accountsAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(30,27,75,0.35)" />
+                <stop offset="100%" stopColor="rgba(30,27,75,0.02)" />
+              </linearGradient>
+              <linearGradient id="salesAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(201,168,76,0.35)" />
+                <stop offset="100%" stopColor="rgba(201,168,76,0.02)" />
+              </linearGradient>
+              <linearGradient id="recoveryAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(34,197,94,0.35)" />
+                <stop offset="100%" stopColor="rgba(34,197,94,0.02)" />
+              </linearGradient>
+            </defs>
             <polygon
               points={`0,220 ${data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.accounts / maxValue) * 180}`
+                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.accounts / maxAccounts) * LINE_MAX_HEIGHT}`
               ).join(' ')} 600,220`}
-              fill="rgba(30, 27, 75, 0.2)"
+              fill="url(#accountsAreaGrad)"
               stroke="#1E1B4B"
               strokeWidth="2"
             />
             <polygon
               points={`0,220 ${data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.sales / (maxValue * 1000)) * 180}`
+                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.sales / maxSales) * LINE_MAX_HEIGHT}`
               ).join(' ')} 600,220`}
-              fill="rgba(201, 168, 76, 0.2)"
+              fill="url(#salesAreaGrad)"
               stroke="#C9A84C"
               strokeWidth="2"
             />
             <polygon
               points={`0,220 ${data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.recovery / (maxValue * 1000)) * 180}`
+                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.recovery / maxRecovery) * LINE_MAX_HEIGHT}`
               ).join(' ')} 600,220`}
-              fill="rgba(34, 197, 94, 0.2)"
+              fill="url(#recoveryAreaGrad)"
               stroke="#22c55e"
               strokeWidth="2"
             />
@@ -394,7 +427,10 @@ const Dashboard = () => {
 
       <div className="chart-section">
         <div className="chart-header">
-          <h3>Performance Overview (Last 6 Months)</h3>
+          <h3>
+            <Sparkles size={18} className="chart-header-icon" />
+            Performance Overview (Last 6 Months)
+          </h3>
           <div className="chart-type-selector">
             {chartTypes.map((type) => (
               <button
@@ -433,7 +469,11 @@ const Dashboard = () => {
                 {data.top_performers && data.top_performers.length > 0 ? (
                   data.top_performers.map((emp, index) => (
                     <tr key={index}>
-                      <td className="rank-col">{index + 1}</td>
+                      <td className="rank-col">
+                        <span className={`rank-badge ${index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : ''}`}>
+                          {index + 1}
+                        </span>
+                      </td>
                       <td>{emp.name}</td>
                       <td className="count-col">{emp.accounts}</td>
                     </tr>

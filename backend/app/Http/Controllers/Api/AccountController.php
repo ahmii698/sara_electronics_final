@@ -16,7 +16,11 @@ class AccountController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Account::with(['customer', 'branch', 'creator', 'employeeAccount', 'employeeAccount.employee']);
+        // ✅ FIX: 'installments' relation add ki — pehle ye missing thi, isliye
+        // /api/accounts list call pe har account ki installments khaali aati thi
+        // aur frontend (UsersManagement.jsx) mein overdue/aging status ki jagah
+        // hamesha "Active" dikhta tha (empty-list fallback chal jata tha).
+        $query = Account::with(['customer', 'branch', 'creator', 'employeeAccount', 'employeeAccount.employee', 'installments']);
 
         if ($request->search) {
             $query->where('case_no', 'LIKE', "%{$request->search}%")

@@ -24,7 +24,11 @@ const EmployeePerformanceReport = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
-      setUserBranch(user.branch);
+      // ✅ FIX: users login-time se branch_id use karte hain (jaisa Overdue
+      // Installments / UsersManagement mein bhi hai). Pehle sirf `user.branch`
+      // read hota tha jo hamesha undefined hota — is wajah se userBranch kabhi
+      // set hi nahi hota tha aur branch-scoping silently bypass ho jaati thi.
+      setUserBranch(user.branch_id || user.branch);
       setUserId(user.id);
       // Employee khud apna hi data dekhta hai
       if (user.role === 'employee') {
@@ -238,69 +242,69 @@ const EmployeePerformanceReport = () => {
 
   // ===== COLORFUL CARDS =====
   const cards = isEmployee ? [
-    { 
-      key: 'new', 
-      label: 'New Accounts (This Month)', 
+    {
+      key: 'new',
+      label: 'New Accounts (This Month)',
       value: selectedEmployeeData.newAccountsList.length,
       icon: TrendingUp,
       color: '#2563eb',
       bg: 'rgba(37, 99, 235, 0.12)',
-      className: 'new-accounts-card'
+      className: 'epr-new-accounts-card'
     },
-    { 
-      key: 'recovery', 
-      label: 'Recovery Due (This Month)', 
+    {
+      key: 'recovery',
+      label: 'Recovery Due (This Month)',
       value: `PKR ${selectedEmployeeData.recoveryDue.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
       bg: 'rgba(201, 168, 76, 0.15)',
-      className: 'recovery-card'
+      className: 'epr-recovery-card'
     },
-    { 
-      key: 'overdue', 
-      label: 'Overdue', 
+    {
+      key: 'overdue',
+      label: 'Overdue',
       value: selectedEmployeeData.overdueList.length,
       icon: AlertTriangle,
       color: '#dc2626',
       bg: 'rgba(220, 38, 38, 0.12)',
-      className: 'overdue-card-main'
+      className: 'epr-overdue-card-main'
     },
   ] : [
-    { 
-      key: 'total', 
-      label: 'Total Accounts', 
+    {
+      key: 'total',
+      label: 'Total Accounts',
       value: selectedEmployeeData.totalAccounts,
       icon: Users,
       color: '#1E1B4B',
       bg: 'rgba(30, 27, 75, 0.08)',
-      className: 'total-accounts-card'
+      className: 'epr-total-accounts-card'
     },
-    { 
-      key: 'new', 
-      label: 'New Accounts (This Month)', 
+    {
+      key: 'new',
+      label: 'New Accounts (This Month)',
       value: selectedEmployeeData.newAccountsList.length,
       icon: TrendingUp,
       color: '#2563eb',
       bg: 'rgba(37, 99, 235, 0.12)',
-      className: 'new-accounts-card'
+      className: 'epr-new-accounts-card'
     },
-    { 
-      key: 'recovery', 
-      label: 'Recovery Due (This Month)', 
+    {
+      key: 'recovery',
+      label: 'Recovery Due (This Month)',
       value: `PKR ${selectedEmployeeData.recoveryDue.toLocaleString()}`,
       icon: DollarSign,
       color: '#C9A84C',
       bg: 'rgba(201, 168, 76, 0.15)',
-      className: 'recovery-card'
+      className: 'epr-recovery-card'
     },
-    { 
-      key: 'overdue', 
-      label: 'Overdue', 
+    {
+      key: 'overdue',
+      label: 'Overdue',
       value: selectedEmployeeData.overdueList.length,
       icon: AlertTriangle,
       color: '#dc2626',
       bg: 'rgba(220, 38, 38, 0.12)',
-      className: 'overdue-card-main'
+      className: 'epr-overdue-card-main'
     },
   ];
 
@@ -313,16 +317,16 @@ const EmployeePerformanceReport = () => {
   const renderTable = () => {
     if (activeTab === 'total' && !isEmployee) {
       return (
-        <div className="table-container">
-          <div className="table-header">
-            <div className="table-header-left">
+        <div className="epr-table-container">
+          <div className="epr-table-header">
+            <div className="epr-table-header-left">
               <FileText size={18} style={{ color: '#1E1B4B' }} />
               <h3>All Accounts</h3>
-              <span className="record-count">{filteredAccounts.length} accounts</span>
+              <span className="epr-record-count">{filteredAccounts.length} accounts</span>
             </div>
           </div>
-          <div className="table-scroll">
-            <table className="accounts-table">
+          <div className="epr-table-scroll">
+            <table className="epr-accounts-table">
               <thead>
                 <tr>
                   <th>Case #</th>
@@ -338,41 +342,41 @@ const EmployeePerformanceReport = () => {
               </thead>
               <tbody>
                 {filteredAccounts.length === 0 ? (
-                  <tr><td colSpan="9" className="no-data">No accounts found</td></tr>
+                  <tr><td colSpan="9" className="epr-no-data">No accounts found</td></tr>
                 ) : (
                   filteredAccounts.map((item, index) => {
                     const status = getStatusForAccount(item);
                     return (
-                      <tr key={item.id} className={`${status === 'overdue' ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                        <td className="case-number">{item.caseNo}</td>
+                      <tr key={item.id} className={`${status === 'overdue' ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
+                        <td className="epr-case-number">{item.caseNo}</td>
                         <td>
-                          <div className="customer-info">
-                            <div className="customer-avatar" style={{ background: status === 'paid' ? '#d1fae5' : status === 'overdue' ? '#fee2e2' : '#fef3c7', color: status === 'paid' ? '#065f46' : status === 'overdue' ? '#991b1b' : '#92400e' }}>
+                          <div className="epr-customer-info">
+                            <div className="epr-customer-avatar" style={{ background: status === 'paid' ? '#d1fae5' : status === 'overdue' ? '#fee2e2' : '#fef3c7', color: status === 'paid' ? '#065f46' : status === 'overdue' ? '#991b1b' : '#92400e' }}>
                               {item.customer.charAt(0)}
                             </div>
                             {item.customer}
                           </div>
                         </td>
                         <td>{item.product}</td>
-                        <td className="amount">PKR {item.amount.toLocaleString()}</td>
-                        <td className="paid-amount">PKR {item.paid.toLocaleString()}</td>
-                        <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'}>
+                        <td className="epr-amount">PKR {item.amount.toLocaleString()}</td>
+                        <td className="epr-paid-amount">PKR {item.paid.toLocaleString()}</td>
+                        <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
                           PKR {item.balance.toLocaleString()}
                         </td>
                         <td>
-                          <div className="date-info">
+                          <div className="epr-date-info">
                             <Calendar size={12} />
                             {item.date || '-'}
                           </div>
                         </td>
                         <td>
-                          <span className={`status-badge ${status}`}>
+                          <span className={`epr-status-badge epr-${status}`}>
                             {status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue'}
                           </span>
                         </td>
                         <td>
-                          <div className="action-group">
-                            <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
+                          <div className="epr-action-group">
+                            <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
                               <Eye size={15} />
                             </button>
                           </div>
@@ -391,16 +395,16 @@ const EmployeePerformanceReport = () => {
     if (activeTab === 'new') {
       const list = selectedEmployeeData.newAccountsList;
       return (
-        <div className="table-container">
-          <div className="table-header">
-            <div className="table-header-left">
+        <div className="epr-table-container">
+          <div className="epr-table-header">
+            <div className="epr-table-header-left">
               <FileText size={18} style={{ color: '#2563eb' }} />
               <h3>New Accounts (This Month)</h3>
-              <span className="record-count">{list.length} accounts</span>
+              <span className="epr-record-count">{list.length} accounts</span>
             </div>
           </div>
-          <div className="table-scroll">
-            <table className="accounts-table">
+          <div className="epr-table-scroll">
+            <table className="epr-accounts-table">
               <thead>
                 <tr>
                   <th>Case #</th>
@@ -414,35 +418,35 @@ const EmployeePerformanceReport = () => {
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="7" className="no-data">No new accounts this month</td></tr>
+                  <tr><td colSpan="7" className="epr-no-data">No new accounts this month</td></tr>
                 ) : (
                   list.map((item, index) => {
                     const status = getStatusForAccount(item);
                     return (
-                      <tr key={item.id} className={index % 2 === 0 ? 'even-row' : 'odd-row'}>
-                        <td className="case-number">{item.caseNo}</td>
+                      <tr key={item.id} className={index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}>
+                        <td className="epr-case-number">{item.caseNo}</td>
                         <td>
-                          <div className="customer-info">
-                            <div className="customer-avatar">{item.customer.charAt(0)}</div>
+                          <div className="epr-customer-info">
+                            <div className="epr-customer-avatar">{item.customer.charAt(0)}</div>
                             {item.customer}
                           </div>
                         </td>
                         <td>{item.product}</td>
-                        <td className="amount">PKR {item.amount.toLocaleString()}</td>
+                        <td className="epr-amount">PKR {item.amount.toLocaleString()}</td>
                         <td>
-                          <div className="date-info">
+                          <div className="epr-date-info">
                             <Calendar size={12} />
                             {item.date || '-'}
                           </div>
                         </td>
                         <td>
-                          <span className={`status-badge ${status}`}>
+                          <span className={`epr-status-badge epr-${status}`}>
                             {status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue'}
                           </span>
                         </td>
                         <td>
-                          <div className="action-group">
-                            <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
+                          <div className="epr-action-group">
+                            <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
                               <Eye size={15} />
                             </button>
                           </div>
@@ -462,16 +466,16 @@ const EmployeePerformanceReport = () => {
       // ✅ Sirf wo accounts jinka is mahine ka due amount abhi bhi baaki hai
       const list = selectedEmployeeData.accounts.filter(acc => getThisMonthDue(acc) > 0);
       return (
-        <div className="table-container">
-          <div className="table-header">
-            <div className="table-header-left">
+        <div className="epr-table-container">
+          <div className="epr-table-header">
+            <div className="epr-table-header-left">
               <FileText size={18} style={{ color: '#C9A84C' }} />
               <h3>Recovery Due (This Month)</h3>
-              <span className="record-count">{list.length} customers</span>
+              <span className="epr-record-count">{list.length} customers</span>
             </div>
           </div>
-          <div className="table-scroll">
-            <table className="accounts-table">
+          <div className="epr-table-scroll">
+            <table className="epr-accounts-table">
               <thead>
                 <tr>
                   <th>Customer</th>
@@ -484,23 +488,23 @@ const EmployeePerformanceReport = () => {
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="6" className="no-data">No recovery due this month</td></tr>
+                  <tr><td colSpan="6" className="epr-no-data">No recovery due this month</td></tr>
                 ) : (
                   list.map((item, index) => (
-                    <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                    <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
                       <td>
-                        <div className="customer-info">
-                          <div className="customer-avatar">{item.customer.charAt(0)}</div>
+                        <div className="epr-customer-info">
+                          <div className="epr-customer-avatar">{item.customer.charAt(0)}</div>
                           {item.customer}
                         </div>
                       </td>
-                      <td className="case-number">{item.caseNo}</td>
+                      <td className="epr-case-number">{item.caseNo}</td>
                       <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
-                      <td className="balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
-                      <td className={item.balance > 0 ? 'balance-amount' : 'paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                      <td className="epr-balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
+                      <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
                       <td>
-                        <div className="action-group">
-                          <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
+                        <div className="epr-action-group">
+                          <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
                             <Eye size={15} />
                           </button>
                         </div>
@@ -518,16 +522,16 @@ const EmployeePerformanceReport = () => {
     if (activeTab === 'overdue') {
       const list = selectedEmployeeData.overdueList;
       return (
-        <div className="table-container">
-          <div className="table-header">
-            <div className="table-header-left">
+        <div className="epr-table-container">
+          <div className="epr-table-header">
+            <div className="epr-table-header-left">
               <FileText size={18} style={{ color: '#dc2626' }} />
               <h3>Overdue Accounts</h3>
-              <span className="record-count">{list.length} customers</span>
+              <span className="epr-record-count">{list.length} customers</span>
             </div>
           </div>
-          <div className="table-scroll">
-            <table className="accounts-table">
+          <div className="epr-table-scroll">
+            <table className="epr-accounts-table">
               <thead>
                 <tr>
                   <th>Customer</th>
@@ -539,22 +543,22 @@ const EmployeePerformanceReport = () => {
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="5" className="no-data">No overdue accounts</td></tr>
+                  <tr><td colSpan="5" className="epr-no-data">No overdue accounts</td></tr>
                 ) : (
                   list.map((item, index) => (
-                    <tr key={item.id} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                    <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
                       <td>
-                        <div className="customer-info">
-                          <div className="customer-avatar">{item.customer.charAt(0)}</div>
+                        <div className="epr-customer-info">
+                          <div className="epr-customer-avatar">{item.customer.charAt(0)}</div>
                           {item.customer}
                         </div>
                       </td>
-                      <td className="case-number">{item.caseNo}</td>
+                      <td className="epr-case-number">{item.caseNo}</td>
                       <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
-                      <td className="balance-amount">PKR {item.balance.toLocaleString()}</td>
+                      <td className="epr-balance-amount">PKR {item.balance.toLocaleString()}</td>
                       <td>
-                        <div className="action-group">
-                          <button className="btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
+                        <div className="epr-action-group">
+                          <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
                             <Eye size={15} />
                           </button>
                         </div>
@@ -582,9 +586,9 @@ const EmployeePerformanceReport = () => {
 
   if (loading) {
     return (
-      <div className="employee-performance-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
+      <div className="epr-container">
+        <div className="epr-loading-state">
+          <div className="epr-spinner"></div>
           <p>Loading performance data...</p>
         </div>
       </div>
@@ -592,101 +596,97 @@ const EmployeePerformanceReport = () => {
   }
 
   return (
-    <div className="employee-performance-container">
+    <div className="epr-container">
       {/* HEADER */}
-      <div className="performance-header">
-        <div className="header-left">
-          <div className="header-title-group">
+      <div className="epr-header">
+        <div className="epr-header-left">
+          <div className="epr-header-title-group">
             <h2>{isEmployee ? 'My Performance' : 'Employee Performance'}</h2>
-            <span className="live-badge">
+            <span className="epr-live-badge">
               <Clock size={12} /> Live
             </span>
           </div>
-          <p className="subtitle">
+          <p className="epr-subtitle">
             {isEmployee ? 'Your performance overview' : 'Employee performance overview'}
           </p>
         </div>
 
         {!isEmployee && (
-          <div className="employee-dropdown-wrapper">
-            <div 
-              className="employee-dropdown-toggle"
-              onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
-            >
-              <span>{selectedEmployee ? selectedEmployee.name : 'All Employees'}</span>
-              <ChevronDown size={18} />
-            </div>
-            {showEmployeeDropdown && (
-              <div className="employee-dropdown-list">
-                <div 
-                  className={`dropdown-item ${!selectedEmployeeId ? 'active' : ''}`}
-                  onClick={() => {
-                    setSelectedEmployeeId(null);
-                    setShowEmployeeDropdown(false);
-                    setActiveTab('total');
-                  }}
-                >
-                  All Employees
-                </div>
-                {filteredEmployees.map(emp => (
-                  <div 
-                    key={emp.id}
-                    className={`dropdown-item ${selectedEmployeeId === emp.id ? 'active' : ''}`}
+          <div className="epr-header-actions">
+            <div className="epr-employee-dropdown-wrapper">
+              <div
+                className={`epr-employee-dropdown-toggle ${showEmployeeDropdown ? 'epr-open' : ''}`}
+                onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
+              >
+                <span>{selectedEmployee ? selectedEmployee.name : 'All Employees'}</span>
+                <ChevronDown size={18} className="epr-chevron" />
+              </div>
+              {showEmployeeDropdown && (
+                <div className="epr-employee-dropdown-list">
+                  <div
+                    className={`epr-dropdown-item ${!selectedEmployeeId ? 'epr-active' : ''}`}
                     onClick={() => {
-                      setSelectedEmployeeId(emp.id);
+                      setSelectedEmployeeId(null);
                       setShowEmployeeDropdown(false);
                       setActiveTab('total');
                     }}
                   >
-                    {emp.name}
-                    <span className="dropdown-role">{emp.role}</span>
+                    All Employees
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                  {filteredEmployees.map(emp => (
+                    <div
+                      key={emp.id}
+                      className={`epr-dropdown-item ${selectedEmployeeId === emp.id ? 'epr-active' : ''}`}
+                      onClick={() => {
+                        setSelectedEmployeeId(emp.id);
+                        setShowEmployeeDropdown(false);
+                        setActiveTab('total');
+                      }}
+                    >
+                      {emp.name}
+                      <span className="epr-dropdown-role">{emp.role}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-        {!isEmployee && (
-          <div className="search-wrapper">
-            <Search size={18} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search by customer, case or product..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="epr-search-wrapper">
+              <Search size={18} className="epr-search-icon" />
+              <input
+                type="text"
+                placeholder="Search by customer, case or product..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
         )}
       </div>
 
       {!isEmployee && selectedEmployee && (
-        <div className="selected-employee-info">
-          <div className="selected-employee-avatar">{selectedEmployee.name.charAt(0)}</div>
-          <div className="selected-employee-details">
-            <span className="selected-employee-name">{selectedEmployee.name}</span>
-            <span className="selected-employee-role">{selectedEmployee.role} • Branch {selectedEmployee.branch_id || selectedEmployee.branch}</span>
+        <div className="epr-selected-employee-info">
+          <div className="epr-selected-employee-avatar">{selectedEmployee.name.charAt(0)}</div>
+          <div className="epr-selected-employee-details">
+            <span className="epr-selected-employee-name">{selectedEmployee.name}</span>
+            <span className="epr-selected-employee-role">{selectedEmployee.role} • Branch {selectedEmployee.branch_id || selectedEmployee.branch}</span>
           </div>
         </div>
       )}
 
-      <div className={`stats-grid-4 ${isEmployee ? 'employee-stats' : ''}`}>
+      <div className={`epr-stats-grid-4 ${isEmployee ? 'epr-employee-stats' : ''}`}>
         {cards.map((card) => (
-          <div 
+          <div
             key={card.key}
-            className={`stat-card ${card.className} ${activeTab === card.key ? 'active' : ''}`}
+            className={`epr-stat-card ${card.className} ${activeTab === card.key ? 'epr-active' : ''}`}
             onClick={() => setActiveTab(card.key)}
-            style={{ 
-              borderLeft: `5px solid ${card.color}`,
-              boxShadow: activeTab === card.key ? `0 4px 15px ${card.color}30` : '0 2px 4px rgba(0,0,0,0.04)'
-            }}
           >
-            <div className="stat-icon" style={{ background: card.bg, color: card.color }}>
+            <div className="epr-stat-icon" style={{ background: card.bg, color: card.color }}>
               <card.icon size={20} />
             </div>
-            <div className="stat-info">
-              <span className="stat-label" style={{ fontWeight: 700 }}>{card.label}</span>
-              <span className="stat-value" style={{ fontWeight: 800, color: card.color }}>{card.value}</span>
+            <div className="epr-stat-info">
+              <span className="epr-stat-label">{card.label}</span>
+              <span className="epr-stat-value">{card.value}</span>
             </div>
           </div>
         ))}
@@ -709,58 +709,58 @@ const EmployeePerformanceReport = () => {
             </div>
 
             <div className="epr-modal-body">
-              <div className="account-detail-header">
-                <div className="account-detail-avatar" style={{ background: '#1E1B4B' }}>
+              <div className="epr-account-detail-header">
+                <div className="epr-account-detail-avatar" style={{ background: '#1E1B4B' }}>
                   {selectedAccount.customer.charAt(0)}
                 </div>
-                <div className="account-detail-info">
+                <div className="epr-account-detail-info">
                   <h4 style={{ fontWeight: 700 }}>{selectedAccount.customer}</h4>
-                  <span className="account-detail-case" style={{ fontWeight: 600 }}>Case: {selectedAccount.caseNo}</span>
-                  <span className="account-detail-product" style={{ fontWeight: 500 }}>Product: {selectedAccount.product}</span>
+                  <span className="epr-account-detail-case" style={{ fontWeight: 600 }}>Case: {selectedAccount.caseNo}</span>
+                  <span className="epr-account-detail-product" style={{ fontWeight: 500 }}>Product: {selectedAccount.product}</span>
                 </div>
-                <div className="account-detail-status">
-                  <span className={`status-badge ${getStatusForAccount(selectedAccount)}`}>
+                <div className="epr-account-detail-status">
+                  <span className={`epr-status-badge epr-${getStatusForAccount(selectedAccount)}`}>
                     {getStatusForAccount(selectedAccount) === 'paid' ? 'Paid' :
                      getStatusForAccount(selectedAccount) === 'pending' ? 'Pending' : 'Overdue'}
                   </span>
                 </div>
               </div>
 
-              <div className="account-detail-grid">
-                <div className="account-detail-item">
+              <div className="epr-account-detail-grid">
+                <div className="epr-account-detail-item">
                   <span style={{ fontWeight: 700 }}>CNIC</span>
                   <strong style={{ fontWeight: 700 }}>{selectedAccount.cnic}</strong>
                 </div>
-                <div className="account-detail-item">
+                <div className="epr-account-detail-item">
                   <span style={{ fontWeight: 700 }}>Phone</span>
                   <strong style={{ fontWeight: 700 }}>{selectedAccount.phone}</strong>
                 </div>
-                <div className="account-detail-item">
+                <div className="epr-account-detail-item">
                   <span style={{ fontWeight: 700 }}>Address</span>
                   <strong style={{ fontWeight: 700 }}>{selectedAccount.address}</strong>
                 </div>
-                <div className="account-detail-item">
+                <div className="epr-account-detail-item">
                   <span style={{ fontWeight: 700 }}>Total Amount</span>
                   <strong style={{ fontWeight: 800, color: '#1E1B4B' }}>PKR {selectedAccount.amount.toLocaleString()}</strong>
                 </div>
-                <div className="account-detail-item">
+                <div className="epr-account-detail-item">
                   <span style={{ fontWeight: 700 }}>Paid Amount</span>
-                  <strong className="paid-amount" style={{ fontWeight: 800 }}>PKR {selectedAccount.paid.toLocaleString()}</strong>
+                  <strong className="epr-paid-amount" style={{ fontWeight: 800 }}>PKR {selectedAccount.paid.toLocaleString()}</strong>
                 </div>
-                <div className="account-detail-item">
+                <div className="epr-account-detail-item">
                   <span style={{ fontWeight: 700 }}>Balance</span>
-                  <strong className={selectedAccount.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 800 }}>
+                  <strong className={selectedAccount.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'} style={{ fontWeight: 800 }}>
                     PKR {selectedAccount.balance.toLocaleString()}
                   </strong>
                 </div>
               </div>
 
               {selectedAccount.guarantors && selectedAccount.guarantors.length > 0 && (
-                <div className="guarantors-section">
+                <div className="epr-guarantors-section">
                   <h4 style={{ fontWeight: 700 }}>Guarantors</h4>
                   {selectedAccount.guarantors.map((g, index) => (
-                    <div key={index} className="guarantor-item">
-                      <div className="guarantor-info">
+                    <div key={index} className="epr-guarantor-item">
+                      <div className="epr-guarantor-info">
                         <span style={{ fontWeight: 600 }}>Name: {g.name}</span>
                         <span style={{ fontWeight: 600 }}>CNIC: {g.cnic}</span>
                         <span style={{ fontWeight: 600 }}>Phone: {g.phone}</span>
@@ -771,13 +771,13 @@ const EmployeePerformanceReport = () => {
                 </div>
               )}
 
-              <div className="installment-details-section">
-                <div className="section-header">
+              <div className="epr-installment-details-section">
+                <div className="epr-section-header">
                   <h4 style={{ fontWeight: 700 }}>Installment Payment History</h4>
                 </div>
 
-                <div className="table-scroll">
-                  <table className="installment-history-table">
+                <div className="epr-table-scroll">
+                  <table className="epr-installment-history-table">
                     <thead>
                       <tr>
                         <th style={{ fontWeight: 800 }}>#</th>
@@ -790,18 +790,18 @@ const EmployeePerformanceReport = () => {
                     <tbody>
                       {selectedAccount.installments && selectedAccount.installments.length > 0 ? (
                         selectedAccount.installments.map((inst, index) => (
-                          <tr key={inst.id} className={`${parseFloat(inst.balance || 0) > 0 ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
+                          <tr key={inst.id} className={`${parseFloat(inst.balance || 0) > 0 ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
                             <td style={{ fontWeight: 700 }}>{index + 1}</td>
                             <td style={{ fontWeight: 600 }}>{inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}</td>
                             <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
-                            <td className="paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
-                            <td className={parseFloat(inst.balance || 0) > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
+                            <td className="epr-paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
+                            <td className={parseFloat(inst.balance || 0) > 0 ? 'epr-balance-amount' : 'epr-paid-amount'} style={{ fontWeight: 700 }}>
                               PKR {parseFloat(inst.balance || 0).toLocaleString()}
                             </td>
                           </tr>
                         ))
                       ) : (
-                        <tr><td colSpan="5" className="no-data">No installment records found</td></tr>
+                        <tr><td colSpan="5" className="epr-no-data">No installment records found</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -810,7 +810,7 @@ const EmployeePerformanceReport = () => {
             </div>
 
             <div className="epr-modal-footer">
-              <button className="btn-cancel" onClick={() => setShowAccountModal(false)} style={{ fontWeight: 700 }}>Close</button>
+              <button className="epr-btn-cancel" onClick={() => setShowAccountModal(false)} style={{ fontWeight: 700 }}>Close</button>
             </div>
           </div>
         </div>

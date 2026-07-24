@@ -91,6 +91,14 @@ class CustomerController extends Controller
         $existsAsCustomer = $customer !== null;
         $existsAsGuarantor = $guarantorRecords->isNotEmpty();
 
+        // ✅ Special / VIP CNIC check — is CNIC ke kisi bhi existing
+        // record pe is_unlimited = true hai tou dono limits (account-count
+        // aur combined-amount) bilkul skip ho jayengi.
+        $isUnlimited = Customer::where('cnic', $cnic)
+            ->orWhere('cnic', $cleanCnic)
+            ->where('is_unlimited', true)
+            ->exists();
+
         $accountsData = [];
         $accountsCount = 0;
         $totalCombinedAmount = 0;
@@ -99,12 +107,27 @@ class CustomerController extends Controller
 
         if ($customer) {
             $accounts = $customer->accounts;
-            $accountsCount = $accounts->count();
-            $totalCombinedAmount = (float) $accounts->sum('total_amount');
-            $canOpenMore = $accountsCount < self::MAX_ACCOUNTS_PER_CNIC
-                && $totalCombinedAmount < self::MAX_COMBINED_AMOUNT;
-            $remainingLimit = max(0, self::MAX_COMBINED_AMOUNT - $totalCombinedAmount);
 
+            // ✅ Option B: sirf woh accounts count/limit mein shamil hote hain
+            // jinka balance ab bhi > 0 hai. Jo account clear (fully paid) ho
+            // chuka hai, uska balance 0 ho jata hai — isliye wo na account-count
+            // ki limit rokega, na combined-amount limit mein add hoga.
+            $openAccounts = $accounts->where('balance', '>', 0);
+            $accountsCount = $openAccounts->count();
+            $totalCombinedAmount = (float) $openAccounts->sum('total_amount');
+
+            if ($isUnlimited) {
+                // ✅ Special customer — limits hi apply nahi hoti
+                $canOpenMore = true;
+                $remainingLimit = null; // frontend ke liye signal ke "no limit"
+            } else {
+                $canOpenMore = $accountsCount < self::MAX_ACCOUNTS_PER_CNIC
+                    && $totalCombinedAmount < self::MAX_COMBINED_AMOUNT;
+                $remainingLimit = max(0, self::MAX_COMBINED_AMOUNT - $totalCombinedAmount);
+            }
+
+            // Note: accountsData poori history (open + cleared) dikhata hai —
+            // sirf upar wala limit-check calculation open accounts pe based hai.
             $accountsData = $accounts->map(function ($acc) {
                 return [
                     'id' => $acc->id,
@@ -156,6 +179,7 @@ class CustomerController extends Controller
             'total_combined_amount' => $totalCombinedAmount,
             'can_open_more' => $canOpenMore,
             'remaining_limit' => $remainingLimit,
+            'is_unlimited' => $isUnlimited,
 
             // ✅ agar ye CNIC khud kisi ka guarantor hai
             'guarantor_records' => $guarantorRecords->map(function ($g) {
@@ -185,6 +209,7 @@ class CustomerController extends Controller
             // ============================================
             // ✅ HARD LIMIT CHECK: max 2 accounts per CNIC,
             // combined total_amount max PKR 100,000
+            // (Option B: sirf open/balance>0 accounts count hote hain)
             // ============================================
             $cleanCnic = preg_replace('/[^0-9]/', '', $request->cnic ?? '');
 
@@ -193,9 +218,20 @@ class CustomerController extends Controller
                 ->with('accounts')
                 ->first();
 
-            if ($existingCustomer) {
-                $existingAccountsCount = $existingCustomer->accounts->count();
-                $existingTotal = (float) $existingCustomer->accounts->sum('total_amount');
+            // ✅ Special / VIP CNIC — is CNIC ke kisi bhi existing record pe
+            // is_unlimited = true hai tou 2-account limit aur 1-lakh combined
+            // limit dono bilkul skip ho jayengi.
+            $isUnlimitedCnic = Customer::where('cnic', $request->cnic)
+                ->orWhere('cnic', $cleanCnic)
+                ->where('is_unlimited', true)
+                ->exists();
+
+            if ($existingCustomer && !$isUnlimitedCnic) {
+                // ✅ Option B: sirf open (balance > 0) accounts count/limit mein
+                // shamil hote hain — cleared/paid account naya slot free kar deta hai.
+                $openAccounts = $existingCustomer->accounts->where('balance', '>', 0);
+                $existingAccountsCount = $openAccounts->count();
+                $existingTotal = (float) $openAccounts->sum('total_amount');
 
                 // Naye account ka amount — invoice_price hi total_amount ban ke jayega
                 $newAccountAmount = (float) $request->input('invoice_price', 0);
@@ -213,6 +249,8 @@ class CustomerController extends Controller
                         'message' => 'Combined account amount cannot exceed PKR ' . number_format(self::MAX_COMBINED_AMOUNT) . '. Remaining limit: PKR ' . number_format(self::MAX_COMBINED_AMOUNT - $existingTotal)
                     ], 422);
                 }
+            } elseif ($isUnlimitedCnic) {
+                Log::info('✅ Special/unlimited CNIC — skipping account-count and combined-amount limit checks', ['cnic' => $request->cnic]);
             }
             // ============================================
 
@@ -513,7 +551,10 @@ class CustomerController extends Controller
             'address' => 'nullable|string',
             'work' => 'nullable|string|max:100',
             'product_name' => 'nullable|string|max:255',
-            'status' => 'nullable|in:active,hold,closed'
+            'status' => 'nullable|in:active,hold,closed',
+            // ✅ Special / VIP flag — jab true, is CNIC ke tamam accounts pe
+            // 2-account aur 1-lakh combined-amount limits skip ho jati hain.
+            'is_unlimited' => 'sometimes|boolean',
         ]);
 
         $customer->update($request->all());

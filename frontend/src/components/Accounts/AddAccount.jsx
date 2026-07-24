@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck
+  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star
 } from 'lucide-react';
 import './AddAccount.css';
 import { API_URL } from '../../../config';
@@ -37,6 +37,10 @@ const AddAccount = () => {
   const [showExistingAccountModal, setShowExistingAccountModal] = useState(false);
   const [cnicCheckLoading, setCnicCheckLoading] = useState(false);
 
+  // ✅ NAYA: Special Customer toggle — jab ON ho, 2-account aur 1-lakh
+  // dono client-side limits bypass ho jati hain, aur backend ko is_unlimited=1 bhejta hai.
+  const [isSpecialCustomer, setIsSpecialCustomer] = useState(false);
+
   const showToast = (message, type = 'warning', details = null) => {
     setToast({ message, type, details });
   };
@@ -68,7 +72,18 @@ const AddAccount = () => {
         setExistingAccountData(custData);
         setShowExistingAccountModal(true);
 
-        if (!custData.can_open_more) {
+        // ✅ Agar backend ne is CNIC ko already special/unlimited mark kar rakha hai,
+        // to toggle ko bhi auto-ON kar do taake UI consistent rahe.
+        if (custData.is_unlimited) {
+          setIsSpecialCustomer(true);
+        }
+
+        if (custData.is_unlimited) {
+          showToast(
+            `⭐ ${custData.customer.name} is marked as a Special Customer — account/amount limits do not apply.`,
+            'info'
+          );
+        } else if (!custData.can_open_more) {
           showToast(
             `🚫 ${custData.customer.name} already has ${custData.accounts_count} account(s) — maximum limit reached. No more accounts can be opened.`,
             'warning'
@@ -483,7 +498,8 @@ const AddAccount = () => {
     }
 
     // ✅ HARD STOP — agar CNIC ki limit khatam ho chuki hai to Next hi na hone do
-    if (existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
+    // (Special Customer toggle ON ho tou ye hard-stop bilkul skip ho jata hai)
+    if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
       newErrors.cnic = `This CNIC already has ${existingAccountData.accounts_count} accounts. Maximum limit reached.`;
     }
 
@@ -496,6 +512,7 @@ const AddAccount = () => {
   // account bhi MAX_COMBINED_AMOUNT se upar nahi ja sakta (pehle yeh check
   // sirf existingAccountData.exists_as_customer true hone par chalta tha,
   // isliye naye customer ka pehla account limit bypass kar sakta tha).
+  // ✅ Special Customer toggle ON ho tou ye amount-limit check bhi skip hota hai.
   const validateStep2 = () => {
     const newErrors = {};
     if (!formData.productName) newErrors.productName = 'Product name is required';
@@ -508,15 +525,17 @@ const AddAccount = () => {
       newErrors.chalanFront = 'Chalan Front image is required';
     }
 
-    // ✅ HARD STOP — combined amount 1 lakh se upar na jaye (naya ya existing, dono)
-    const newAmount = parseFloat(formData.invoicePrice) || 0;
-    const existingTotal = (existingAccountData && existingAccountData.exists_as_customer)
-      ? (existingAccountData.total_combined_amount || 0)
-      : 0;
-    const projectedTotal = existingTotal + newAmount;
+    if (!isSpecialCustomer) {
+      // ✅ HARD STOP — combined amount 1 lakh se upar na jaye (naya ya existing, dono)
+      const newAmount = parseFloat(formData.invoicePrice) || 0;
+      const existingTotal = (existingAccountData && existingAccountData.exists_as_customer)
+        ? (existingAccountData.total_combined_amount || 0)
+        : 0;
+      const projectedTotal = existingTotal + newAmount;
 
-    if (projectedTotal > MAX_COMBINED_AMOUNT) {
-      newErrors.invoicePrice = `Combined amount cannot exceed PKR ${MAX_COMBINED_AMOUNT.toLocaleString()}. Remaining limit: PKR ${Math.max(0, MAX_COMBINED_AMOUNT - existingTotal).toLocaleString()}`;
+      if (projectedTotal > MAX_COMBINED_AMOUNT) {
+        newErrors.invoicePrice = `Combined amount cannot exceed PKR ${MAX_COMBINED_AMOUNT.toLocaleString()}. Remaining limit: PKR ${Math.max(0, MAX_COMBINED_AMOUNT - existingTotal).toLocaleString()}`;
+      }
     }
     
     setErrors(newErrors);
@@ -524,7 +543,8 @@ const AddAccount = () => {
   };
 
   const handleNext = () => {
-    if (existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
+    // ✅ Special Customer toggle ON ho tou account-count limit block bhi skip
+    if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
       showToast('🚫 This CNIC already has the maximum number of accounts. Cannot proceed further.', 'warning');
       return;
     }
@@ -579,6 +599,8 @@ const AddAccount = () => {
       customerFormData.append('product_name', formData.productName);
       // ✅ backend limit-check ke liye invoice_price bhi bhej rahe hain customer store call mein
       customerFormData.append('invoice_price', parseFloat(formData.invoicePrice) || 0);
+      // ✅ NAYA: Special Customer flag — backend isse dekh kar dono limits skip karta hai
+      customerFormData.append('is_unlimited', isSpecialCustomer ? 1 : 0);
       
       if (formData.cnicFront) {
         customerFormData.append('cnic_front', formData.cnicFront);
@@ -819,6 +841,7 @@ const AddAccount = () => {
           });
           setVoiceFiles([]);
           setExistingAccountData(null);
+          setIsSpecialCustomer(false);
           setStep(1);
         } else {
           setErrors({ form: accountData.message || 'Failed to create account' });
@@ -1074,6 +1097,66 @@ const AddAccount = () => {
             <span>{branchLabel}</span>
           </div>
         )}
+      </div>
+
+      {/* ============================================ */}
+      {/* ✅ NAYA: Special Customer Toggle */}
+      {/* ============================================ */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          padding: '14px 18px',
+          borderRadius: '10px',
+          marginBottom: '20px',
+          border: isSpecialCustomer ? '2px solid #C9A84C' : '1px solid #e5e7eb',
+          background: isSpecialCustomer ? '#fdf8ec' : '#f9fafb',
+          transition: 'all 0.2s ease'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Star size={20} style={{ color: isSpecialCustomer ? '#C9A84C' : '#9ca3af' }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '14px' }}>Special Customer</div>
+            <div style={{ fontWeight: 500, fontSize: '12px', color: '#6b7280' }}>
+              {isSpecialCustomer
+                ? 'ON — 2-account limit aur PKR 100,000 combined-amount limit is CNIC pe apply nahi hongi'
+                : 'Enable karne par is CNIC pe koi bhi account/amount limit apply nahi hogi'}
+            </div>
+          </div>
+        </div>
+        <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '26px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={isSpecialCustomer}
+            onChange={(e) => setIsSpecialCustomer(e.target.checked)}
+            style={{ opacity: 0, width: 0, height: 0 }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: isSpecialCustomer ? '#C9A84C' : '#d1d5db',
+              borderRadius: '999px',
+              transition: '0.2s'
+            }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              height: '20px',
+              width: '20px',
+              left: isSpecialCustomer ? '23px' : '3px',
+              bottom: '3px',
+              background: 'white',
+              borderRadius: '50%',
+              transition: '0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+            }}
+          />
+        </label>
       </div>
 
       <div className="cnic-search-section">
@@ -1389,7 +1472,25 @@ const AddAccount = () => {
               <span className="step-badge" style={{ fontWeight: 600 }}>Required</span>
             </div>
 
-            {existingAccountData && existingAccountData.exists_as_customer && (
+            {isSpecialCustomer && (
+              <div style={{
+                padding: '12px 16px',
+                background: '#fdf8ec',
+                border: '1px solid #C9A84C',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontWeight: 700,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <Star size={16} style={{ color: '#C9A84C' }} />
+                Special Customer — account count aur combined-amount limits is CNIC pe apply nahi ho rahi.
+              </div>
+            )}
+
+            {!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && (
               <div style={{
                 padding: '12px 16px',
                 background: '#fef3c7',

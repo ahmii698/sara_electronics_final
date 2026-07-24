@@ -101,11 +101,12 @@ const SystemAccess = () => {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
-      // ✅ FIX: field ka naam 'branch' nahi, 'branch_id' hai
-      // Pehle "user.branch" padha ja raha tha jo hamesha undefined tha,
-      // isliye userBranch state kabhi set hi nahi hoti thi aur branch-wise
-      // filtering (filterUsers mein "user.branch_id === userBranch") kaam nahi karti thi.
-      setUserBranch(user.branch_id);
+      // ✅ FIX: Login.jsx mein session object ka key "branch" hai, "branch_id" nahi.
+      // Pehle "user.branch_id" padha ja raha tha jo hamesha undefined tha
+      // (chahe admin ho, manager ho ya employee), isliye userBranch state
+      // kabhi set hi nahi hoti thi aur branch-wise filtering kaam nahi kar rahi thi
+      // — dono branches ka data mix ho ke dikh raha tha.
+      setUserBranch(user.branch);
       setUserRole(user.role);
     }
     fetchUsers();
