@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import './SystemAccess.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 const SystemAccess = () => {
   const [loading, setLoading] = useState(true);
@@ -256,6 +257,17 @@ const SystemAccess = () => {
         )}
       </span>
     );
+  };
+
+  // ✅ NAYA: export ke liye plain text (React element nahi) - "Created By" field ka
+  const getCreatedByText = (user) => {
+    const creator = user.created_by;
+    if (!creator || typeof creator !== 'object') return 'System / N/A';
+    const roleLabel = creator.role
+      ? creator.role.charAt(0).toUpperCase() + creator.role.slice(1)
+      : '';
+    const branchLabel = creator.branch_id ? ` - Branch ${creator.branch_id}` : '';
+    return `${creator.name || ''}${roleLabel ? ` (${roleLabel}${branchLabel})` : ''}`.trim();
   };
 
   const openUserModal = (user) => {
@@ -609,11 +621,60 @@ const SystemAccess = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
-  const filteredAdminsCount = filterUsers(users.admin, false).length;
-  const filteredManagersCount = filterUsers(users.manager, true).length;
-  const filteredEmployeesCount = filterUsers(users.employee, true).length;
+  const filteredAdmins = filterUsers(users.admin, false);
+  const filteredManagers = filterUsers(users.manager, true);
+  const filteredEmployees = filterUsers(users.employee, true);
+  const filteredAdminsCount = filteredAdmins.length;
+  const filteredManagersCount = filteredManagers.length;
+  const filteredEmployeesCount = filteredEmployees.length;
   const filteredSystemAccessCount = filterUsers(users.systemAccess, true).length;
   const filteredTotalUsers = filteredAdminsCount + filteredManagersCount + filteredEmployeesCount;
+
+  // ✅ NAYA: export ke liye teeno lists ko ek flat array mein combine karna,
+  // plain strings ke sath (koi React element nahi jaata Excel/PDF mein)
+  const exportData = [
+    ...filteredAdmins.map(u => ({
+      name: u.name || 'N/A',
+      email: u.email || 'N/A',
+      phone: u.phone || 'N/A',
+      role: 'Admin',
+      branch: 'N/A',
+      systemAccess: '-',
+      status: u.is_active ? 'Active' : 'Inactive',
+      createdBy: getCreatedByText(u)
+    })),
+    ...filteredManagers.map(u => ({
+      name: u.name || 'N/A',
+      email: u.email || 'N/A',
+      phone: u.phone || 'N/A',
+      role: 'Manager',
+      branch: u.branch_name || (u.branch_id ? `Branch ${u.branch_id}` : 'N/A'),
+      systemAccess: '-',
+      status: u.is_active ? 'Active' : 'Inactive',
+      createdBy: getCreatedByText(u)
+    })),
+    ...filteredEmployees.map(u => ({
+      name: u.name || 'N/A',
+      email: u.email || 'N/A',
+      phone: u.phone || 'N/A',
+      role: 'Employee',
+      branch: u.branch_name || (u.branch_id ? `Branch ${u.branch_id}` : 'N/A'),
+      systemAccess: u.has_system_access ? 'Granted' : 'No Access',
+      status: u.is_active ? 'Active' : 'Inactive',
+      createdBy: getCreatedByText(u)
+    }))
+  ];
+
+  const exportColumns = [
+    { header: 'Name', key: 'name' },
+    { header: 'Email', key: 'email' },
+    { header: 'Phone', key: 'phone' },
+    { header: 'Role', key: 'role' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'System Access', key: 'systemAccess' },
+    { header: 'Status', key: 'status' },
+    { header: 'Created By', key: 'createdBy' },
+  ];
 
   return (
     <div className="system-access-container">
@@ -649,10 +710,18 @@ const SystemAccess = () => {
               : 'Manage and view all system users'}
           </p>
         </div>
-        <button className="btn-refresh" onClick={fetchUsers}>
-          <RefreshCw size={18} />
-          Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportButton
+            data={exportData}
+            columns={exportColumns}
+            filename="system-access-report"
+            title="System Access Report"
+          />
+          <button className="btn-refresh" onClick={fetchUsers}>
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="summary-cards">

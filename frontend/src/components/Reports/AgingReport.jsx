@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Calendar, DollarSign, User, Building, AlertTriangle, Clock, Eye, FileText, Download, Filter, X, Users } from 'lucide-react';
 import './AgingReport.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 const AgingReport = () => {
   const [search, setSearch] = useState('');
@@ -260,11 +261,6 @@ const AgingReport = () => {
     setSelectedCustomer(null);
   };
 
-  // ===== EXPORT =====
-  const exportReport = () => {
-    alert('Aging Report exported successfully!');
-  };
-
   const formatDate = (date) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('en-PK', {
@@ -312,6 +308,31 @@ const AgingReport = () => {
     },
   ];
 
+  // ✅ NAYA: export ke liye filtered aging list ko flat rows mein convert karna
+  const exportData = filtered.map(item => ({
+    caseNo: item.caseNo,
+    customerName: item.customerName,
+    customerCnic: item.customerCnic,
+    description: item.description,
+    balance: item.balance,
+    monthlyInstallment: item.monthlyInstallment,
+    overdueMonths: item.overdueMonths,
+    lastPaymentDate: item.lastPaymentDate ? formatDate(item.lastPaymentDate) : '-',
+    status: 'Aging'
+  }));
+
+  const exportColumns = [
+    { header: 'Case No', key: 'caseNo' },
+    { header: 'Customer', key: 'customerName' },
+    { header: 'CNIC', key: 'customerCnic' },
+    { header: 'Description', key: 'description' },
+    { header: 'Balance', key: 'balance' },
+    { header: 'Monthly', key: 'monthlyInstallment' },
+    { header: 'Months Overdue', key: 'overdueMonths' },
+    { header: 'Last Payment', key: 'lastPaymentDate' },
+    { header: 'Status', key: 'status' },
+  ];
+
   return (
     <div className="aging-container">
       {/* ===== HEADER ===== */}
@@ -330,10 +351,12 @@ const AgingReport = () => {
           {/* ✅ FIXED text: 3+ -> 4+ */}
           <p className="subtitle">Customers whose oldest due installment is 4+ months overdue</p>
         </div>
-        <button className="btn-export" onClick={exportReport}>
-          <Download size={18} />
-          Export Report
-        </button>
+        <ExportButton
+          data={exportData}
+          columns={exportColumns}
+          filename="aging-report"
+          title="Aging Report"
+        />
       </div>
 
       {/* ===== STATS - AGING ONLY ===== */}

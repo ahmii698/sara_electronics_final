@@ -4,7 +4,7 @@
   right: 0 !important;
   left: 16rem !important;
   width: auto !important;
-  height: 4rem !important;
+  height: 4.25rem !important;
   margin: 0 !important;
   background: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -13,9 +13,21 @@
   align-items: center !important;
   justify-content: space-between !important;
   text-align: left !important;
-  padding: 0 1.5rem;
+  padding: 0 1.75rem;
   transition: left 0.3s ease;
   box-sizing: border-box !important;
+  border-bottom: 1px solid #f1f2f6;
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, #1E1B4B, #C9A84C, #1E1B4B);
+  opacity: 0.7;
 }
 
 /* ===== EMPLOYEE HEADER ===== */
@@ -78,37 +90,40 @@
 .header-user {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .user-avatar {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
-  background: #C9A84C;
+  background: linear-gradient(140deg, #e2c46f, #C9A84C);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-weight: 600;
-  font-size: 0.8rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.18), 0 4px 10px rgba(201, 168, 76, 0.3);
 }
 
 .user-info {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
 .user-info .user-name {
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
 }
 
 .user-info .user-role {
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.3px;
 }
 
 /* Employee ke liye white text */
@@ -126,7 +141,7 @@
 }
 
 .header:not(.employee-header) .user-info .user-role {
-  color: #6b7280;
+  color: #C9A84C;
 }
 
 /* ===== LOGOUT BUTTON IN HEADER ===== */
@@ -134,13 +149,13 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 1rem;
-  border-radius: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 0.65rem;
   border: none;
   cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: all 0.3s;
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: all 0.25s ease;
 }
 
 .header.employee-header .logout-btn-header {
@@ -153,12 +168,14 @@
 }
 
 .header:not(.employee-header) .logout-btn-header {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: #fef2f2;
+  color: #dc2626;
 }
 
 .header:not(.employee-header) .logout-btn-header:hover {
-  background: #e5e7eb;
+  background: #fee2e2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.15);
 }
 
 /* ===== ADMIN/MANAGER HEADER ===== */
@@ -166,40 +183,31 @@
   display: flex !important;
   flex-direction: column !important;
   align-items: flex-start !important;
-  line-height: 1.2;
+  line-height: 1.15;
   text-align: left !important;
   margin: 0 !important;
   width: auto !important;
 }
 
 .header-brand .brand-name {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: #0A1628;
-  letter-spacing: 1px;
+  letter-spacing: 0.3px;
 }
 
 .header-brand .brand-name span {
-  color: #C9A84C;
+  background: linear-gradient(120deg, #C9A84C, #e8c877);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .header-brand .brand-panel {
-  font-size: 0.5rem;
-  color: #6b7280;
+  font-size: 0.55rem;
+  color: #9ca3af;
   letter-spacing: 3px;
-  font-weight: 500;
-}
-
-.header-branch {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.75rem;
-  color: #1E1B4B;
-  background: #ede9fe;
-  padding: 0.2rem 0.8rem;
-  border-radius: 9999px;
-  margin-left: 0.5rem;
+  font-weight: 700;
 }
 
 .header-left {
@@ -276,7 +284,7 @@
   }
 
   .header-brand .brand-name {
-    font-size: 0.9rem;
+    font-size: 1.2rem;
   }
 }
 
@@ -304,20 +312,14 @@
   }
 
   .header-brand .brand-name {
-    font-size: 0.8rem;
+    font-size: 1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .header-brand .brand-panel {
-    font-size: 0.4rem;
-  }
-
-  .header-branch {
-    font-size: 0.6rem;
-    padding: 0.1rem 0.5rem;
-    white-space: nowrap;
+    font-size: 0.42rem;
   }
 
   .employee-brand .brand-panel {

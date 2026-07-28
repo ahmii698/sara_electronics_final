@@ -1065,7 +1065,7 @@ const Installments = () => {
             <AlertCircle size={22} />
           </div>
           <div className="stat-card-4-info">
-            <span className="stat-card-4-label">Total Due</span>
+            <span className="stat-card-4-label">Total Mirror</span>
             <span className="stat-card-4-value">{formatCurrency(totalData.total_due - totalData.total_paid)}</span>
           </div>
         </div>
@@ -1141,8 +1141,9 @@ const Installments = () => {
                   <th>Case No</th>
                   <th>Account Opening</th>
                   <th>Due Date</th>
-                  <th>Due Amount</th>
+                  <th>Installments</th>
                   <th>Paid</th>
+                  <th>Mirror</th>
                   <th>Balance</th>
                   <th>Status</th>
                   <th>Created By</th>
@@ -1181,6 +1182,10 @@ const Installments = () => {
                   const creatorRole = creator.role || '';
                   const employeeName = employee.name || accountData.employee_name || 'N/A';
 
+                  // ✅ Account ka total balance calculate karo
+                  // Agar account data available hai to us se lo, warna item ke account se
+                  const accountTotalBalance = accountData.balance || item.balance || 0;
+
                   return (
                     <tr key={item.id} className="installment-row">
                       <td className="text-center">{actualIndex}</td>
@@ -1217,6 +1222,10 @@ const Installments = () => {
                       </td>
                       <td className="text-right" style={{color: item.balance > 0 ? '#ef4444' : '#10b981'}}>
                         {formatCurrency(item.balance)}
+                      </td>
+                      {/* ✅ NEW BALANCE COLUMN - Account ka total remaining balance */}
+                      <td className="text-right" style={{fontWeight: 'bold', color: '#dc2626', fontSize: '14px'}}>
+                        {formatCurrency(accountTotalBalance)}
                       </td>
                       <td>{getStatusBadge(item)}</td>
 

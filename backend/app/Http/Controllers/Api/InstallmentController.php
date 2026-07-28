@@ -14,7 +14,6 @@ class InstallmentController extends Controller
 {
     public function index(Request $request)
     {
-        // ✅ Load all relations
         $query = Installment::with([
             'account.customer', 
             'account.branch',
@@ -27,7 +26,6 @@ class InstallmentController extends Controller
             $query->where('account_id', $request->account_id);
         }
 
-        // ✅ FIX: Agar status 'all' hai toh filter mat lagao, warna status filter lagao
         if ($request->status && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
@@ -60,7 +58,6 @@ class InstallmentController extends Controller
             });
         }
 
-        // ✅ Date filters
         if ($request->date_from) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
@@ -68,18 +65,6 @@ class InstallmentController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // ✅ FIX: paginate(50) hata diya gaya hai.
-        // Pehle: orderBy('month','desc') + paginate(50) — jab ek branch ke
-        // accounts ki combined installments 50 se zyada ho jaati thi, toh
-        // sabse PURANE (earliest) months wale records page 1 se hi cut ho
-        // jaate the (kyunke sort DESC tha aur limit 50 thi). Isi wajah se
-        // Recovery table mein kisi account ki asal pehli/agli due installment
-        // (jaise Jul 2026) ki jagah kahin aagay ka mahina (jaise Dec 2026)
-        // dikh raha tha — woh record simply response mein aaya hi nahi tha.
-        // Frontend (Installments.jsx) apna client-side pagination khud
-        // sambhalta hai (10 per page table mein), isliye yahan backend se
-        // MATCHING FILTERS ki poori list bhejna zaroori hai, warna
-        // per-account status/next-due calculation ghalat ho jaati hai.
         $installments = $query->orderBy('month', 'desc')
             ->orderBy('id', 'desc')
             ->get();
@@ -160,7 +145,6 @@ class InstallmentController extends Controller
                 $status = 'unpaid';
             }
 
-            // ✅ FIX: payment_date save karo
             $paymentDate = $request->payment_date ?? date('Y-m-d');
 
             $installment->update([
@@ -170,18 +154,27 @@ class InstallmentController extends Controller
                 'payment_date' => $paymentDate
             ]);
 
+            // ============================================
+            // ✅ FIX: Account ka paid_amount ab RECALCULATE (sum se
+            // dobara banana) nahi hota — kyunki agar koi purani payment
+            // (advance/down-payment) installments table mein reflect nahi
+            // hui thi, to sum() usay hamesha nazar-andaz kar deta tha aur
+            // balance ulta barh jata tha. Ab hum sirf itna paisa JAMA
+            // (increment) karte hain jitna abhi is transaction mein pay
+            // hua — purana data hamesha mehfooz rehta hai.
+            // ============================================
             $account = Account::find($installment->account_id);
             if ($account) {
-                $totalPaid = Installment::where('account_id', $account->id)->sum('paid_amount');
-                $accountBalance = $account->total_amount - $totalPaid;
+                $newAccountPaid = $account->paid_amount + $amount;
+                $newAccountBalance = $account->total_amount - $newAccountPaid;
 
                 $account->update([
-                    'paid_amount' => $totalPaid,
-                    'balance' => $accountBalance,
+                    'paid_amount' => $newAccountPaid,
+                    'balance' => $newAccountBalance,
                     'installments_paid' => Installment::where('account_id', $account->id)
                         ->where('paid_amount', '>', 0)->count(),
                     'last_payment_date' => $paymentDate,
-                    'status' => $accountBalance <= 0 ? 'paid' : 'active'
+                    'status' => $newAccountBalance <= 0 ? 'paid' : 'active'
                 ]);
             }
 
@@ -264,7 +257,6 @@ class InstallmentController extends Controller
                 $status = 'unpaid';
             }
 
-            // ✅ FIX: payment_date save karo
             $paymentDate = $request->payment_date ?? date('Y-m-d');
 
             $installment->update([
@@ -293,18 +285,24 @@ class InstallmentController extends Controller
                 }
             }
 
+            // ============================================
+            // ✅ FIX: yahan bhi ab account ka paid_amount sirf
+            // increment hota hai (purani sum-based recalculation
+            // hata di gayi hai) — takay purana paid amount kabhi
+            // gayab na ho.
+            // ============================================
             $account = Account::find($installment->account_id);
             if ($account) {
-                $totalPaid = Installment::where('account_id', $account->id)->sum('paid_amount');
-                $accountBalance = $account->total_amount - $totalPaid;
+                $newAccountPaid = $account->paid_amount + $amount;
+                $newAccountBalance = $account->total_amount - $newAccountPaid;
 
                 $account->update([
-                    'paid_amount' => $totalPaid,
-                    'balance' => $accountBalance,
+                    'paid_amount' => $newAccountPaid,
+                    'balance' => $newAccountBalance,
                     'installments_paid' => Installment::where('account_id', $account->id)
                         ->where('paid_amount', '>', 0)->count(),
                     'last_payment_date' => $paymentDate,
-                    'status' => $accountBalance <= 0 ? 'paid' : 'active'
+                    'status' => $newAccountBalance <= 0 ? 'paid' : 'active'
                 ]);
             }
 

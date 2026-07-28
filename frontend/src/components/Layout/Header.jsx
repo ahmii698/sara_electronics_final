@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { User, Bell, Building, LogOut } from 'lucide-react';
+import { User, Bell, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './Header.css';
 
 const Header = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [userBranch, setUserBranch] = useState(null);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
     if (userData) {
       setUser(userData);
-      setUserBranch(userData.branch);
     }
   }, []);
 
@@ -59,12 +57,6 @@ const Header = () => {
           <span className="brand-name">SARA <span>Electronics</span></span>
           <span className="brand-panel">{user?.role === 'admin' ? 'ADMIN PANEL' : 'MANAGER PANEL'}</span>
         </div>
-        {userBranch && (
-          <span className="header-branch">
-            <Building size={14} />
-            Branch {userBranch}
-          </span>
-        )}
       </div>
       <div className="header-right">
         <div className="header-user">

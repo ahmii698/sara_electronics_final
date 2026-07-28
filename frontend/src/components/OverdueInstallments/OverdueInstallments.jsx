@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Eye, Edit, Save, X, DollarSign, Calendar, User, Building, AlertTriangle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import './OverdueInstallments.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 const OverdueInstallments = () => {
   const [search, setSearch] = useState('');
@@ -31,9 +32,6 @@ const OverdueInstallments = () => {
 
     if (user) {
       role = user.role;
-      // ✅ FIX: field ka naam 'branch' nahi, 'branch_id' hai
-      // Pehle "user.branch" hamesha undefined tha isliye userBranch/branchFilter
-      // kabhi set hi nahi hote the aur branch-wise filtering kaam nahi karti thi.
       branch = user.branch_id;
       setUserRole(role);
       setUserBranch(branch);
@@ -137,7 +135,8 @@ const OverdueInstallments = () => {
             totalOverdue,
             overdueMonths,
             nextPayableInstallment: nextPayable,
-            installments: sortedInstallments
+            installments: sortedInstallments,
+            remarks: account.remarks || customer.remarks || ''
           });
         });
 
@@ -221,7 +220,7 @@ const OverdueInstallments = () => {
     setEditingData({
       installmentId: nextInst?.id || null,
       paidAmount: '',
-      remarks: '',
+      remarks: record.remarks || '',
       maxPayable: nextInst ? parseFloat(nextInst.balance || 0) : 0,
     });
     setShowEditModal(true);
@@ -258,7 +257,8 @@ const OverdueInstallments = () => {
         },
         body: JSON.stringify({
           installment_id: editingData.installmentId,
-          paid_amount: amount
+          paid_amount: amount,
+          remarks: editingData.remarks || ''
         })
       });
 
@@ -280,6 +280,30 @@ const OverdueInstallments = () => {
     }
   };
 
+  const exportData = filtered.map(item => ({
+    customerName: item.customerName,
+    caseNo: item.caseNo,
+    customerCnic: item.customerCnic,
+    nextDueMonth: formatMonth(item.nextDueMonth),
+    monthlyInstallment: item.monthlyInstallment,
+    balance: item.balance,
+    totalOverdue: item.totalOverdue,
+    status: getOverdueLabel(item.overdueMonths),
+    remarks: item.remarks || ''
+  }));
+
+  const exportColumns = [
+    { header: 'Customer', key: 'customerName' },
+    { header: 'Case No', key: 'caseNo' },
+    { header: 'CNIC', key: 'customerCnic' },
+    { header: 'Next Due Month', key: 'nextDueMonth' },
+    { header: 'Monthly', key: 'monthlyInstallment' },
+    { header: 'Balance', key: 'balance' },
+    { header: 'Total Overdue', key: 'totalOverdue' },
+    { header: 'Status', key: 'status' },
+    { header: 'Remarks', key: 'remarks' },
+  ];
+
   return (
     <div className="oi-container">
       <div className="oi-header">
@@ -292,6 +316,12 @@ const OverdueInstallments = () => {
           </div>
           <p className="oi-subtitle">Accounts whose oldest due installment is 1-3 months overdue</p>
         </div>
+        <ExportButton
+          data={exportData}
+          columns={exportColumns}
+          filename="overdue-installments"
+          title="Overdue Installments Report"
+        />
       </div>
 
       <div className="oi-stats-grid-2">
@@ -390,25 +420,27 @@ const OverdueInstallments = () => {
           <table className="oi-table">
             <thead>
               <tr>
-                <th style={{ fontWeight: 800 }}>Case #</th>
+                <th style={{ fontWeight: 800 }}>ID</th>
                 <th style={{ fontWeight: 800 }}>Customer</th>
+                <th style={{ fontWeight: 800 }}>Case #</th>
                 <th style={{ fontWeight: 800 }}>Next Due Month</th>
-                <th style={{ fontWeight: 800 }}>Monthly (PKR)</th>
+                <th style={{ fontWeight: 800 }}>Installments</th>
                 <th style={{ fontWeight: 800 }}>Balance (PKR)</th>
-                <th style={{ fontWeight: 800 }}>Total Overdue</th>
+                <th style={{ fontWeight: 800 }}>Mirror</th>
+                <th style={{ fontWeight: 800 }}>Remarks</th>
                 <th style={{ fontWeight: 800 }}>Status</th>
                 <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="8" className="oi-no-data">Loading overdue accounts...</td></tr>
+                <tr><td colSpan="10" className="oi-no-data">Loading overdue accounts...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan="8" className="oi-no-data">No overdue records found for {branchLabel}</td></tr>
+                <tr><td colSpan="10" className="oi-no-data">No overdue records found for {branchLabel}</td></tr>
               ) : (
                 filtered.map((item, index) => (
                   <tr key={item.accountId} className={`oi-row ${index % 2 === 0 ? 'oi-even-row' : 'oi-odd-row'}`}>
-                    <td className="oi-case-number">{item.caseNo}</td>
+                    <td className="oi-serial">{index + 1}</td>
                     <td>
                       <div className="oi-customer-info">
                         <div className="oi-customer-avatar" style={{ 
@@ -420,6 +452,7 @@ const OverdueInstallments = () => {
                         {item.customerName}
                       </div>
                     </td>
+                    <td className="oi-case-number">{item.caseNo}</td>
                     <td>
                       <div className="oi-date-info">
                         <Calendar size={12} />
@@ -432,6 +465,9 @@ const OverdueInstallments = () => {
                     </td>
                     <td className="oi-overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>
                       PKR {item.totalOverdue.toLocaleString()}
+                    </td>
+                    <td className="oi-remarks-cell" style={{ fontSize: '0.85rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.remarks || '-'}
                     </td>
                     <td>
                       <span className="oi-status-badge oi-overdue-badge" style={{ fontWeight: 700 }}>
@@ -601,6 +637,10 @@ const OverdueInstallments = () => {
                       <strong className={selectedRecord.balance > 0 ? 'oi-balance-amount' : 'oi-paid-amount'} style={{ fontWeight: 700 }}>
                         PKR {selectedRecord.balance.toLocaleString()}
                       </strong>
+                    </div>
+                    <div className="oi-view-item">
+                      <span style={{ fontWeight: 700 }}>Remarks</span>
+                      <strong style={{ fontWeight: 600 }}>{selectedRecord.remarks || 'No remarks'}</strong>
                     </div>
                   </div>
                 )}

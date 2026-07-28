@@ -96,30 +96,31 @@
   box-shadow: 0 4px 15px rgba(30, 27, 75, 0.3);
 }
 
-/* ===== STATS - ONLY 2 CARDS ===== */
+/* ===== STATS CARDS — redesigned for a cleaner, more premium look ===== */
 .stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  max-width: 500px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  max-width: 100%;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.25rem 1.5rem;
+  gap: 1.1rem;
+  padding: 1.5rem 1.75rem;
   background: white;
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   border: 1px solid #f3f4f6;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  transition: all 0.25s ease;
   border-left: 5px solid #1E1B4B;
+  min-width: 0; /* allow flex children to shrink properly */
 }
 
 .stat-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.09);
 }
 
 .balance-card {
@@ -130,9 +131,9 @@
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 0.75rem;
+  width: 54px;
+  height: 54px;
+  border-radius: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,20 +143,28 @@
 .stat-info {
   display: flex;
   flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .stat-label {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-value {
-  font-size: 1.3rem;
+  font-size: 1.55rem;
   font-weight: 800;
   color: #0A1628;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* ===== CONTROLS ===== */
@@ -812,9 +821,9 @@
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .stats-grid {
-    max-width: 100%;
+    grid-template-columns: 1fr;
   }
-  
+
   .aging-table {
     min-width: 700px;
   }
@@ -849,10 +858,6 @@
 }
 
 @media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-  
   .detail-summary {
     grid-template-columns: 1fr;
   }

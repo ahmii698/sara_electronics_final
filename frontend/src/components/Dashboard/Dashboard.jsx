@@ -4,9 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Package, DollarSign, TrendingUp, BarChart, 
   LineChart, PieChart, Activity, Award, AlertTriangle, 
-  Building, Home, UserCheck, Calendar, Clock, 
-  ChevronDown, ChevronUp, RefreshCw, Sparkles
+  Calendar, ChevronDown, ChevronUp, RefreshCw, Sparkles
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart as ReLineChart, Line,
+  AreaChart as ReAreaChart, Area,
+  PieChart as RePieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip
+} from 'recharts';
 import './Dashboard.css';
 import { API_URL } from '../../../config';
 
@@ -72,6 +78,13 @@ const Dashboard = () => {
     }).format(amount || 0);
   };
 
+  const formatCompactCurrency = (amount) => {
+    const value = amount || 0;
+    if (value >= 1000000) return `Rs ${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `Rs ${(value / 1000).toFixed(0)}K`;
+    return `Rs ${value}`;
+  };
+
   const chartTypes = [
     { id: 'bar', label: 'Bar Chart', icon: BarChart },
     { id: 'line', label: 'Line Chart', icon: LineChart },
@@ -79,62 +92,112 @@ const Dashboard = () => {
     { id: 'area', label: 'Area Chart', icon: Activity },
   ];
 
+  // Tooltip shows currency for sales/recovery but a plain number for accounts
+  const tooltipFormatter = (value, name) => {
+    if (name === 'Monthly Sales' || name === 'Monthly Recovery') {
+      return [formatCurrency(value), name];
+    }
+    return [value, name];
+  };
+
+  const tooltipStyle = {
+    borderRadius: 12,
+    border: '1px solid #eef0f4',
+    boxShadow: '0 10px 24px rgba(10, 22, 40, 0.14)',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+  };
+
+  const axisTick = { fontSize: 12, fill: '#6b7280', fontWeight: 600 };
+
+  const ChartLegend = () => (
+    <div className="chart-legend-horizontal">
+      <span><span className="legend-dot accounts"></span> New Accounts</span>
+      <span><span className="legend-dot sales"></span> Monthly Sales</span>
+      <span><span className="legend-dot recovery"></span> Monthly Recovery</span>
+    </div>
+  );
+
   const renderChart = () => {
     if (!dashboardData) return null;
-    
+
     const data = dashboardData.performance_data || [];
     if (data.length === 0) {
       return <div className="chart-empty">No performance data available</div>;
     }
 
-    // FIX: each metric is scaled against its OWN max, not a shared/guessed max.
-    // Previously sales (in the thousands/lakhs) was divided by 1000 and compared
-    // directly against accounts (small integers) using one shared maxValue —
-    // that made accounts + recovery bars disappear whenever sales spiked.
-    const maxAccounts = Math.max(...data.map(d => d.accounts || 0), 1);
-    const maxSales = Math.max(...data.map(d => d.sales || 0), 1);
-    const maxRecovery = Math.max(...data.map(d => d.recovery || 0), 1);
-    const BAR_MAX_HEIGHT = 140;
-    const LINE_MAX_HEIGHT = 180;
-
+    // Each metric gets its own hidden Y axis so it is scaled against its OWN
+    // max, not a shared/guessed max — this keeps small-value bars (accounts,
+    // recovery) visible even when sales spikes into the thousands/lakhs.
     if (selectedChart === 'bar') {
       return (
         <div className="chart-bar-container-multi">
-          <div className="chart-legend-horizontal">
-            <span><span className="legend-dot accounts"></span> New Accounts</span>
-            <span><span className="legend-dot sales"></span> Monthly Sales</span>
-            <span><span className="legend-dot recovery"></span> Monthly Recovery</span>
-          </div>
-          <div className="chart-bars-multi">
-            {data.map((item, index) => (
-              <div key={index} className="chart-bar-group-multi">
-                <div className="chart-bars-stacked">
-                  <div 
-                    className="chart-bar accounts-bar" 
-                    style={{ height: `${Math.max((item.accounts / maxAccounts) * BAR_MAX_HEIGHT, 4)}px` }}
-                    title={`Accounts: ${item.accounts}`}
-                  >
-                    <span className="bar-value">{item.accounts}</span>
-                  </div>
-                  <div 
-                    className="chart-bar sales-bar" 
-                    style={{ height: `${Math.max((item.sales / maxSales) * BAR_MAX_HEIGHT, 4)}px` }}
-                    title={`Sales: ${formatCurrency(item.sales)}`}
-                  >
-                    <span className="bar-value">{formatCurrency(item.sales)}</span>
-                  </div>
-                  <div 
-                    className="chart-bar recovery-bar" 
-                    style={{ height: `${Math.max((item.recovery / maxRecovery) * BAR_MAX_HEIGHT, 4)}px` }}
-                    title={`Recovery: ${formatCurrency(item.recovery)}`}
-                  >
-                    <span className="bar-value">{formatCurrency(item.recovery)}</span>
-                  </div>
-                </div>
-                <span className="bar-label">{item.month}</span>
-              </div>
-            ))}
-          </div>
+          <ChartLegend />
+          <ResponsiveContainer width="100%" height={320}>
+            <ReAreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="accountsSmoothGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4338ca" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#4338ca" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="salesSmoothGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#C9A84C" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="recoverySmoothGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="4 6" vertical={false} stroke="#eef0f4" />
+              <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis
+                yAxisId="sales"
+                tick={axisTick}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={formatCompactCurrency}
+                domain={[0, 'dataMax']}
+                width={70}
+              />
+              <YAxis yAxisId="accounts" hide domain={[0, 'dataMax']} />
+              <YAxis yAxisId="recovery" hide domain={[0, 'dataMax']} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipStyle} />
+              <Area
+                yAxisId="accounts"
+                type="monotone"
+                dataKey="accounts"
+                name="New Accounts"
+                stroke="#4338ca"
+                strokeWidth={3.5}
+                fill="url(#accountsSmoothGrad)"
+                dot={false}
+                activeDot={{ r: 6 }}
+              />
+              <Area
+                yAxisId="sales"
+                type="monotone"
+                dataKey="sales"
+                name="Monthly Sales"
+                stroke="#C9A84C"
+                strokeWidth={3.5}
+                fill="url(#salesSmoothGrad)"
+                dot={false}
+                activeDot={{ r: 6 }}
+              />
+              <Area
+                yAxisId="recovery"
+                type="monotone"
+                dataKey="recovery"
+                name="Monthly Recovery"
+                stroke="#22c55e"
+                strokeWidth={3.5}
+                fill="url(#recoverySmoothGrad)"
+                dot={false}
+                activeDot={{ r: 6 }}
+              />
+            </ReAreaChart>
+          </ResponsiveContainer>
         </div>
       );
     }
@@ -142,106 +205,53 @@ const Dashboard = () => {
     if (selectedChart === 'line') {
       return (
         <div className="chart-line-container">
-          <div className="chart-legend-horizontal">
-            <span><span className="legend-dot accounts"></span> New Accounts</span>
-            <span><span className="legend-dot sales"></span> Monthly Sales</span>
-            <span><span className="legend-dot recovery"></span> Monthly Recovery</span>
-          </div>
-          <svg viewBox="0 0 600 220" className="chart-svg">
-            <defs>
-              <linearGradient id="accountsLineGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#2e2a6b" />
-                <stop offset="100%" stopColor="#1E1B4B" />
-              </linearGradient>
-            </defs>
-            {[0, 50, 100, 150, 200].map((y) => (
-              <line key={y} x1="0" y1={220 - y} x2="600" y2={220 - y} stroke="#eef0f4" strokeWidth="1" />
-            ))}
-            <polyline
-              points={data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.accounts / maxAccounts) * LINE_MAX_HEIGHT}`
-              ).join(' ')}
-              fill="none"
-              stroke="url(#accountsLineGrad)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <polyline
-              points={data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.sales / maxSales) * LINE_MAX_HEIGHT}`
-              ).join(' ')}
-              fill="none"
-              stroke="#C9A84C"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="8 4"
-            />
-            <polyline
-              points={data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.recovery / maxRecovery) * LINE_MAX_HEIGHT}`
-              ).join(' ')}
-              fill="none"
-              stroke="#22c55e"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="4 4"
-            />
-            {data.map((item, i) => (
-              <text 
-                key={i} 
-                x={(i / (data.length - 1 || 1)) * 600} 
-                y="215" 
-                fontSize="11" 
-                fill="#6b7280" 
-                textAnchor="middle"
-              >
-                {item.month}
-              </text>
-            ))}
-          </svg>
+          <ChartLegend />
+          <ResponsiveContainer width="100%" height={300}>
+            <ReLineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0f4" />
+              <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="accounts" hide domain={[0, 'dataMax']} />
+              <YAxis yAxisId="sales" hide domain={[0, 'dataMax']} />
+              <YAxis yAxisId="recovery" hide domain={[0, 'dataMax']} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipStyle} />
+              <Line yAxisId="accounts" type="monotone" dataKey="accounts" name="New Accounts" stroke="#1E1B4B" strokeWidth={3} dot={{ r: 4, fill: '#1E1B4B', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+              <Line yAxisId="sales" type="monotone" dataKey="sales" name="Monthly Sales" stroke="#C9A84C" strokeWidth={3} strokeDasharray="8 4" dot={{ r: 4, fill: '#C9A84C', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+              <Line yAxisId="recovery" type="monotone" dataKey="recovery" name="Monthly Recovery" stroke="#22c55e" strokeWidth={3} strokeDasharray="4 4" dot={{ r: 4, fill: '#22c55e', strokeWidth: 0 }} activeDot={{ r: 6 }} />
+            </ReLineChart>
+          </ResponsiveContainer>
         </div>
       );
     }
 
     if (selectedChart === 'pie') {
-      const total = data.reduce((sum, d) => sum + d.accounts, 0);
-      let cumulative = 0;
+      const total = data.reduce((sum, d) => sum + (d.accounts || 0), 0);
       const colors = ['#1E1B4B', '#C9A84C', '#4A3520', '#8B7355', '#6B5B8B', '#2563eb'];
 
       return (
         <div className="chart-pie-container">
-          <div className="pie-chart">
-            <svg viewBox="0 0 220 220">
-              {data.map((item, index) => {
-                const percentage = total > 0 ? (item.accounts / total) * 100 : 0;
-                const dashArray = (percentage / 100) * 534.07;
-                const offset = cumulative;
-                cumulative += dashArray;
-                return (
-                  <circle
-                    key={index}
-                    cx="110" cy="110" r="85"
-                    fill="none"
-                    stroke={colors[index % colors.length]}
-                    strokeWidth="45"
-                    strokeDasharray={`${dashArray} 534.07`}
-                    strokeDashoffset={`-${offset}`}
-                    strokeLinecap="butt"
-                    transform="rotate(-90 110 110)"
-                  />
-                );
-              })}
-              <circle cx="110" cy="110" r="62" fill="white" />
-              <text x="110" y="105" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#0A1628">
-                Total
-              </text>
-              <text x="110" y="125" textAnchor="middle" fontSize="11" fill="#6b7280">
-                {total} Accounts
-              </text>
-            </svg>
+          <div className="pie-chart-wrapper">
+            <ResponsiveContainer width="100%" height="100%">
+              <RePieChart>
+                <Pie
+                  data={data}
+                  dataKey="accounts"
+                  nameKey="month"
+                  innerRadius="62%"
+                  outerRadius="95%"
+                  paddingAngle={3}
+                  stroke="none"
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value} Accounts`, '']} contentStyle={tooltipStyle} />
+              </RePieChart>
+            </ResponsiveContainer>
+            <div className="pie-center-label">
+              <span className="pie-center-total">Total</span>
+              <span className="pie-center-count">{total} Accounts</span>
+            </div>
           </div>
           <div className="chart-legend pie-legend">
             {data.map((item, index) => (
@@ -258,63 +268,34 @@ const Dashboard = () => {
     if (selectedChart === 'area') {
       return (
         <div className="chart-area-container">
-          <div className="chart-legend-horizontal">
-            <span><span className="legend-dot accounts"></span> New Accounts</span>
-            <span><span className="legend-dot sales"></span> Monthly Sales</span>
-            <span><span className="legend-dot recovery"></span> Monthly Recovery</span>
-          </div>
-          <svg viewBox="0 0 600 220" className="chart-svg">
-            <defs>
-              <linearGradient id="accountsAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(30,27,75,0.35)" />
-                <stop offset="100%" stopColor="rgba(30,27,75,0.02)" />
-              </linearGradient>
-              <linearGradient id="salesAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(201,168,76,0.35)" />
-                <stop offset="100%" stopColor="rgba(201,168,76,0.02)" />
-              </linearGradient>
-              <linearGradient id="recoveryAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(34,197,94,0.35)" />
-                <stop offset="100%" stopColor="rgba(34,197,94,0.02)" />
-              </linearGradient>
-            </defs>
-            <polygon
-              points={`0,220 ${data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.accounts / maxAccounts) * LINE_MAX_HEIGHT}`
-              ).join(' ')} 600,220`}
-              fill="url(#accountsAreaGrad)"
-              stroke="#1E1B4B"
-              strokeWidth="2"
-            />
-            <polygon
-              points={`0,220 ${data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.sales / maxSales) * LINE_MAX_HEIGHT}`
-              ).join(' ')} 600,220`}
-              fill="url(#salesAreaGrad)"
-              stroke="#C9A84C"
-              strokeWidth="2"
-            />
-            <polygon
-              points={`0,220 ${data.map((val, i) => 
-                `${(i / (data.length - 1 || 1)) * 600},${220 - (val.recovery / maxRecovery) * LINE_MAX_HEIGHT}`
-              ).join(' ')} 600,220`}
-              fill="url(#recoveryAreaGrad)"
-              stroke="#22c55e"
-              strokeWidth="2"
-            />
-            {data.map((item, i) => (
-              <text 
-                key={i} 
-                x={(i / (data.length - 1 || 1)) * 600} 
-                y="215" 
-                fontSize="11" 
-                fill="#6b7280" 
-                textAnchor="middle"
-              >
-                {item.month}
-              </text>
-            ))}
-          </svg>
+          <ChartLegend />
+          <ResponsiveContainer width="100%" height={300}>
+            <ReAreaChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="accountsAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#1E1B4B" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#1E1B4B" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="salesAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#C9A84C" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#C9A84C" stopOpacity={0.02} />
+                </linearGradient>
+                <linearGradient id="recoveryAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0f4" />
+              <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="accounts" hide domain={[0, 'dataMax']} />
+              <YAxis yAxisId="sales" hide domain={[0, 'dataMax']} />
+              <YAxis yAxisId="recovery" hide domain={[0, 'dataMax']} />
+              <Tooltip formatter={tooltipFormatter} contentStyle={tooltipStyle} />
+              <Area yAxisId="accounts" type="monotone" dataKey="accounts" name="New Accounts" stroke="#1E1B4B" strokeWidth={2} fill="url(#accountsAreaGrad)" />
+              <Area yAxisId="sales" type="monotone" dataKey="sales" name="Monthly Sales" stroke="#C9A84C" strokeWidth={2} fill="url(#salesAreaGrad)" />
+              <Area yAxisId="recovery" type="monotone" dataKey="recovery" name="Monthly Recovery" stroke="#22c55e" strokeWidth={2} fill="url(#recoveryAreaGrad)" />
+            </ReAreaChart>
+          </ResponsiveContainer>
         </div>
       );
     }
@@ -360,7 +341,6 @@ const Dashboard = () => {
   }
 
   const data = dashboardData;
-  const branchLabel = data.branch_name || 'All Branches';
 
   const stats = [
     { 
@@ -393,16 +373,7 @@ const Dashboard = () => {
     <div className="dashboard-container">
       <div className="dashboard-header">
         <div className="header-left">
-          <div className="header-title-group">
-            <h2>Dashboard</h2>
-            <span className="live-badge">
-              <Clock size={12} /> Live
-            </span>
-          </div>
-          <p className="branch-label">
-            <Building size={16} />
-            {branchLabel}
-          </p>
+          <h2>Dashboard</h2>
         </div>
         <button className="btn-refresh" onClick={fetchDashboardData}>
           <RefreshCw size={18} />
@@ -413,14 +384,14 @@ const Dashboard = () => {
       <div className="stats-grid-4">
         {stats.map((stat, index) => (
           <div key={index} className="stat-card-4">
-            <div className="stat-card-4-icon">
-              <stat.icon size={24} />
-            </div>
-            <div className="stat-card-4-info">
+            <div className="stat-card-4-top">
+              <div className="stat-card-4-icon">
+                <stat.icon size={18} />
+              </div>
               <span className="stat-card-4-label">{stat.label}</span>
-              <span className="stat-card-4-value">{stat.value}</span>
-              <span className="stat-card-4-sub">{stat.subtitle}</span>
             </div>
+            <span className="stat-card-4-value">{stat.value}</span>
+            {stat.subtitle && <span className="stat-card-4-sub">{stat.subtitle}</span>}
           </div>
         ))}
       </div>
