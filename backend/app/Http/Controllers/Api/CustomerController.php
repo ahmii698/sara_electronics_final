@@ -456,6 +456,8 @@ class CustomerController extends Controller
                 $dueDate = $request->due_date;
 
                 // Calculate monthly installment
+                // ✅ Advance sirf yahan EK dafa invoice_price se minus hoti hai.
+                // (90,000 - 12,000) / 10 = 7,800 per installment.
                 $remainingAmount = $invoicePrice - $advancePayment;
                 $monthlyInstallment = $numberOfInstallments > 0 ? round($remainingAmount / $numberOfInstallments, 0) : 0;
 
@@ -464,8 +466,11 @@ class CustomerController extends Controller
                 $nextId = $lastAccount ? $lastAccount->id + 1 : 1;
                 $caseNo = 'SR-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
 
-                // ✅ FIX: Account create karte waqt paid_amount = advance_payment set karo
-                // aur balance = invoice_price - advance_payment
+                // ✅ FIX: Account ka paid_amount abhi bhi advance_payment hi hai
+                // (Account Summary mein "Total Paid" advance dikhata rahega),
+                // lekin installments_paid ab 0 se start hoga — kyunke advance
+                // ne koi installment "bhari" nahi, wo sirf total amount
+                // (90,000 -> 78,000) kam karne ke liye use hui hai.
                 $account = Account::create([
                     'customer_id' => $customer->id,
                     'employee_account_id' => $employeeAccount->id,
@@ -473,12 +478,14 @@ class CustomerController extends Controller
                     'case_no' => $caseNo,
                     'product_name' => $request->product_name ?? '',
                     'total_amount' => $invoicePrice,
-                    'paid_amount' => $advancePayment, // ✅ Advance payment yahan set ho rahi hai
+                    'paid_amount' => $advancePayment, // ✅ Advance payment account-level pe record
                     'balance' => $invoicePrice - $advancePayment, // ✅ Remaining balance
                     'monthly_installment' => $monthlyInstallment,
                     'total_installments' => $numberOfInstallments,
-                    'installments_paid' => $advancePayment > 0 ? 1 : 0,
-                    'status' => $advancePayment > 0 ? 'active' : 'active',
+                    'installments_paid' => 0, // ✅ FIX: advance ne koi installment nahi bhari
+                    'due_date' => $dueDate,
+                    'next_due_date' => date('Y-m-d', strtotime('+1 month', strtotime($dueDate))),
+                    'status' => 'active',
                     'created_by' => $employeeId,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -489,56 +496,52 @@ class CustomerController extends Controller
                     'case_no' => $caseNo,
                     'total_amount' => $invoicePrice,
                     'paid_amount' => $advancePayment,
-                    'balance' => $invoicePrice - $advancePayment
+                    'balance' => $invoicePrice - $advancePayment,
+                    'due_date' => $dueDate,
                 ]);
 
                 // ============================================
-                // ✅ FIX: 4. Create Installments — advance payment ko
-                // PROPERLY distribute karo (carry-over ke sath), na keh
-                // sirf pehli installment tak limit rakho.
+                // ✅ FIX: 4. Create Installments — advance payment ab
+                // installments ke against DOBARA "paid" mark nahi hoti.
                 //
-                // Purana bug: agar advance ek installment ke amount se
-                // zyada hoti thi (e.g. advance 10,000 lekin monthly
-                // installment 8,000), tw baqi ka 2,000 kahin bhi
-                // installments table mein nahi jata tha — sirf account
-                // ke paid_amount mein reh jata tha. Is se jab InstallmentController
-                // installments ka sum() le kar account ka paid_amount
-                // recalculate karta, tw wo advance ka paisa "gayab" ho jata.
+                // Purana bug: advance_payment pehle hi invoice_price se
+                // minus ho kar monthlyInstallment (7,800) nikal chuki thi.
+                // Lekin phir isi 12,000 advance ko dobara loop mein le kar
+                // pehli 1-2 installments ka paid_amount bhi bhar diya jata
+                // tha — yani 12,000 do dafa "use" ho rahe thay: ek dafa
+                // total kam karne ke liye, doosri dafa installment
+                // "already paid" dikhane ke liye. Isi wajah se Payment
+                // History mein pehli installment "Paid" aur doosri
+                // "Partial" ghalat dikh rahi thi, jab ke customer ne abhi
+                // tak koi installment bhari hi nahi thi.
                 //
-                // Ab hum $remainingAdvance ko installment se installment
-                // carry karte hain jab tak advance khatam na ho jaye.
+                // Ab har installment apne poore due_amount (monthlyInstallment)
+                // ke sath "unpaid" bantay hain. Jo installment ka due date
+                // guzar chuka ho, wo aging/overdue logic (agingReport /
+                // overdue functions) se khud "Overdue" categorize ho jayegi.
+                // Advance sirf account ke total/balance mein reflect hoga.
+                //
+                // Month calculate karne ke liye DateTime use ho raha hai,
+                // base date ko month ke "1st" pe normalize kiya gaya hai
+                // taake 29/30/31 tareekh wali due_date short months
+                // (Feb) mein month skip/duplicate na kare.
                 // ============================================
                 $installments = [];
                 $firstDueDate = $dueDate;
-                $remainingAdvance = $advancePayment;
 
                 for ($i = 0; $i < $numberOfInstallments; $i++) {
-                    $month = date('Y-m', strtotime("+{$i} months", strtotime($firstDueDate)));
-
-                    if ($remainingAdvance > 0) {
-                        $paidAmount = min($remainingAdvance, $monthlyInstallment);
-                        $remainingAdvance -= $paidAmount;
-                    } else {
-                        $paidAmount = 0;
-                    }
-
-                    $balance = $monthlyInstallment - $paidAmount;
-
-                    if ($balance <= 0) {
-                        $status = 'paid';
-                    } elseif ($paidAmount > 0) {
-                        $status = 'partial';
-                    } else {
-                        $status = 'unpaid';
-                    }
+                    $baseDate = new \DateTime($firstDueDate);
+                    $baseDate->modify('first day of this month'); // normalize — avoids skip/duplicate on day 29-31
+                    $baseDate->modify("+{$i} months");
+                    $month = $baseDate->format('Y-m');
 
                     $installments[] = [
                         'account_id' => $account->id,
                         'month' => $month,
                         'due_amount' => $monthlyInstallment,
-                        'paid_amount' => $paidAmount,
-                        'balance' => $balance,
-                        'status' => $status,
+                        'paid_amount' => 0,          // ✅ FIX: advance yahan dobara nahi lagegi
+                        'balance' => $monthlyInstallment, // ✅ FIX: poora due_amount hi balance hai
+                        'status' => 'unpaid',        // ✅ FIX: sab installments unpaid se start
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
@@ -547,17 +550,15 @@ class CustomerController extends Controller
                 Installment::insert($installments);
                 Log::info('✅ Installments created:', [
                     'count' => count($installments),
-                    'advance_distributed' => $advancePayment - $remainingAdvance,
-                    'remaining_undistributed_advance' => $remainingAdvance, // agar 0 se zyada bacha tw advance installments se zyada tha
+                    'advance_applied_to' => 'account.paid_amount only (not distributed into installments)',
+                    'advance_amount' => $advancePayment,
                 ]);
 
-                // ✅ 5. Update account installments_paid count
-                $paidInstallmentsCount = Installment::where('account_id', $account->id)
-                    ->where('paid_amount', '>', 0)
-                    ->count();
-                
+                // ✅ 5. installments_paid ab already 0 hai (koi installment
+                // manually paid nahi hui), is liye dobara recalculate karne
+                // ki zaroorat nahi — lekin agla explicit rehne dete hain.
                 $account->update([
-                    'installments_paid' => $paidInstallmentsCount
+                    'installments_paid' => 0
                 ]);
 
                 DB::commit();

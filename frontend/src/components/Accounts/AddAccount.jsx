@@ -508,11 +508,6 @@ const AddAccount = () => {
   };
 
   // ✅ FIXED: yeh check ab HAMESHA chalta hai — naya customer ho ya existing.
-  // Naye customer ke liye existingTotal 0 treat hota hai, isliye pehla hi
-  // account bhi MAX_COMBINED_AMOUNT se upar nahi ja sakta (pehle yeh check
-  // sirf existingAccountData.exists_as_customer true hone par chalta tha,
-  // isliye naye customer ka pehla account limit bypass kar sakta tha).
-  // ✅ Special Customer toggle ON ho tou ye amount-limit check bhi skip hota hai.
   const validateStep2 = () => {
     const newErrors = {};
     if (!formData.productName) newErrors.productName = 'Product name is required';
@@ -526,7 +521,6 @@ const AddAccount = () => {
     }
 
     if (!isSpecialCustomer) {
-      // ✅ HARD STOP — combined amount 1 lakh se upar na jaye (naya ya existing, dono)
       const newAmount = parseFloat(formData.invoicePrice) || 0;
       const existingTotal = (existingAccountData && existingAccountData.exists_as_customer)
         ? (existingAccountData.total_combined_amount || 0)
@@ -543,7 +537,6 @@ const AddAccount = () => {
   };
 
   const handleNext = () => {
-    // ✅ Special Customer toggle ON ho tou account-count limit block bhi skip
     if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
       showToast('🚫 This CNIC already has the maximum number of accounts. Cannot proceed further.', 'warning');
       return;
@@ -560,7 +553,13 @@ const AddAccount = () => {
   };
 
   // ============================================
-  // ✅ CONFIRM ACCOUNT CREATION - FIXED WITH GUARANTOR IMAGES
+  // ✅ CONFIRM ACCOUNT CREATION
+  // ✅ FIX: Account ab sirf EK BAAR banta hai — pehle yahan customer create
+  // hone ke baad ek ALAG /accounts call bhi ho rahi thi, jab ke backend
+  // (CustomerController@store) customer create karte hi Account +
+  // Installments already bana deta hai. Doosri call se duplicate Account
+  // ban raha tha, isliye wo poori call yahan se hata di gayi hai.
+  // Ab hum sirf customer-create response se hi account/case_no dikhate hain.
   // ============================================
   const confirmAccountCreation = async () => {
     if (isSubmittingRef.current) {
@@ -586,7 +585,7 @@ const AddAccount = () => {
       console.log('👤 Admin/Manager (Creating):', loggedInUserId, loggedInUserName);
       console.log('👤 Employee (Opening):', employeeId);
       
-      // 1. CREATE CUSTOMER
+      // 1. CREATE CUSTOMER (backend yahin Account + Installments bhi bana deta hai)
       const customerFormData = new FormData();
       customerFormData.append('name', formData.name);
       customerFormData.append('cnic', formData.cnic);
@@ -597,9 +596,12 @@ const AddAccount = () => {
       customerFormData.append('status', selectedStatus);
       customerFormData.append('created_by', parseInt(employeeId));
       customerFormData.append('product_name', formData.productName);
-      // ✅ backend limit-check ke liye invoice_price bhi bhej rahe hain customer store call mein
       customerFormData.append('invoice_price', parseFloat(formData.invoicePrice) || 0);
-      // ✅ NAYA: Special Customer flag — backend isse dekh kar dono limits skip karta hai
+      
+      customerFormData.append('number_of_installments', parseInt(formData.noOfInstallments) || 0);
+      customerFormData.append('due_date', formData.dueDate);
+      customerFormData.append('advance_payment', parseFloat(formData.advanceAmount) || 0);
+      
       customerFormData.append('is_unlimited', isSpecialCustomer ? 1 : 0);
       
       if (formData.cnicFront) {
@@ -618,7 +620,7 @@ const AddAccount = () => {
         customerFormData.append('voice_consent', voiceFiles[0].file);
       }
 
-      // 2. GUARANTORS DATA (JSON) - ✅ FIXED: keep original slot index so images match correctly
+      // 2. GUARANTORS DATA (JSON)
       const validGuarantors = formData.guarantors
         .map((g, originalIndex) => ({ ...g, originalIndex }))
         .filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim());
@@ -632,7 +634,7 @@ const AddAccount = () => {
         }))
       ));
 
-      // 3. INSTALLMENT CALCULATION
+      // 3. INSTALLMENT CALCULATION (sirf display/alert ke liye)
       const remainingAmount = (parseFloat(formData.invoicePrice) || 0) - (parseFloat(formData.advanceAmount) || 0);
       const totalInstallments = parseInt(formData.noOfInstallments) || 0;
       const monthlyInstallment = totalInstallments > 0 && remainingAmount > 0 
@@ -652,8 +654,6 @@ const AddAccount = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        // ✅ Ab yahan native alert() ki jagah existing toast system use ho raha hai —
-        // dusre errors ki tarah upar-dayen dikhega aur 8 second mein khud gayab ho jayega.
         if (data.errors) {
           const apiErrors = {};
           Object.keys(data.errors).forEach(key => {
@@ -675,12 +675,17 @@ const AddAccount = () => {
       if (data.success) {
         const customerId = data.data.id;
         const employeeAccountId = data.data.employee_account_id || data.employee_account_id;
+        // ✅ Account already customer-create response ke andar aata hai
+        const createdAccount = Array.isArray(data.data.accounts) && data.data.accounts.length > 0
+          ? data.data.accounts[0]
+          : null;
         
         console.log('✅ Customer created with ID:', customerId);
         console.log('✅ Employee Account ID:', employeeAccountId);
+        console.log('✅ Account created (from customer response):', createdAccount);
 
         // ============================================
-        // ✅ CREATE GUARANTORS WITH IMAGES - FIXED
+        // ✅ CREATE GUARANTORS WITH IMAGES
         // ============================================
         if (validGuarantors.length > 0) {
           for (let i = 0; i < validGuarantors.length; i++) {
@@ -696,10 +701,8 @@ const AddAccount = () => {
               guarantorFormData.append('address', guarantor.address?.trim() || '');
               guarantorFormData.append('created_by', parseInt(employeeId));
               
-              // ✅ IMPORTANT: Append images from original formData using correct original index
               const originalGuarantor = formData.guarantors[guarantor.originalIndex];
               
-              // Debug log
               console.log(`📤 Guarantor ${i+1} (slot ${guarantor.originalIndex + 1}) - ${guarantor.name}:`, {
                 hasFront: !!originalGuarantor?.cnicFront,
                 hasBack: !!originalGuarantor?.cnicBack,
@@ -714,7 +717,6 @@ const AddAccount = () => {
                 guarantorFormData.append('cnic_back', originalGuarantor.cnicBack);
               }
               
-              // Log all FormData entries
               console.log(`📤 Guarantor ${i+1} FormData:`);
               for (let pair of guarantorFormData.entries()) {
                 if (pair[1] instanceof File) {
@@ -746,107 +748,58 @@ const AddAccount = () => {
         }
 
         // ============================================
-        // ✅ CREATE ACCOUNT - WITHOUT case_no (backend generates)
+        // ✅ NOTE: Ab yahan koi ALAG POST /accounts call NAHI hai.
+        // Account already backend ne customer create hote hi bana diya hai.
+        // Bas createdAccount se case_no waghera dikha rahe hain.
         // ============================================
-        const accountFormData = new FormData();
-        accountFormData.append('customer_id', customerId);
-        accountFormData.append('product_name', formData.productName);
-        accountFormData.append('total_amount', parseFloat(formData.invoicePrice) || 0);
-        accountFormData.append('paid_amount', parseFloat(formData.advanceAmount) || 0);
-        accountFormData.append('balance', remainingAmount);
-        accountFormData.append('monthly_installment', Math.round(monthlyInstallment * 100) / 100);
-        accountFormData.append('invoice_price', parseFloat(formData.invoicePrice) || 0);
-        accountFormData.append('advance_amount', parseFloat(formData.advanceAmount) || 0);
-        accountFormData.append('total_installments', totalInstallments);
-        accountFormData.append('installments_paid', 0);
-        accountFormData.append('due_date', formData.dueDate);
-        accountFormData.append('next_due_date', formData.dueDate);
-        accountFormData.append('payment_type', formData.productType === 'cash' ? 'cash' : 'installment');
-        accountFormData.append('status', selectedStatus === 'active' ? 'active' : 'hold');
-        accountFormData.append('branch_id', formData.branch);
-        accountFormData.append('created_by', parseInt(loggedInUserId));
+        setShowStatusModal(false);
         
-        if (employeeAccountId) {
-          accountFormData.append('employee_account_id', employeeAccountId);
-        }
+        const empName = getSelectedEmployeeName() || user?.name || 'N/A';
         
-        if (formData.chalanFront) {
-          accountFormData.append('chalan_front', formData.chalanFront);
-        }
-        if (formData.chalanBack) {
-          accountFormData.append('chalan_back', formData.chalanBack);
-        }
-
-        console.log('📤 Sending account data:', {
-          customer_id: customerId,
-          product_name: formData.productName,
-          total_amount: parseFloat(formData.invoicePrice) || 0,
+        alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${createdAccount?.case_no || 'N/A'}\nStatus: ${selectedStatus.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
+        
+        // Reset form
+        setFormData({
+          name: '',
+          cnic: '',
+          phone: '',
+          address: '',
+          work: '',
+          employeeId: user?.role === 'admin' ? '' : user?.id || '',
+          cnicFront: null,
+          cnicBack: null,
+          cnicFrontPreview: '',
+          cnicBackPreview: '',
+          additionalImage1: null,
+          additionalImage2: null,
+          additionalImage1Preview: '',
+          additionalImage2Preview: '',
+          guarantors: [
+            { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
+            { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
+            { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
+          ],
+          productType: 'new',
+          productName: '',
+          productPrice: '',
+          advanceAmount: '',
+          invoicePrice: '',
+          noOfInstallments: '',
+          dueDate: '',
+          installmentAmount: '',
+          chalanFront: null,
+          chalanBack: null,
+          chalanFrontPreview: '',
+          chalanBackPreview: '',
+          accountType: 'regular',
+          branch: userBranch || 1,
+          status: 'active',
+          created_by: null,
         });
-
-        const accountResponse = await fetch(`${API_URL}/accounts`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-          },
-          body: accountFormData,
-        });
-
-        const accountData = await accountResponse.json();
-
-        if (accountData.success) {
-          setShowStatusModal(false);
-          
-          const empName = getSelectedEmployeeName() || user?.name || 'N/A';
-          
-          alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${accountData.data.case_no || 'N/A'}\nStatus: ${selectedStatus.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
-          
-          // Reset form
-          setFormData({
-            name: '',
-            cnic: '',
-            phone: '',
-            address: '',
-            work: '',
-            employeeId: user?.role === 'admin' ? '' : user?.id || '',
-            cnicFront: null,
-            cnicBack: null,
-            cnicFrontPreview: '',
-            cnicBackPreview: '',
-            additionalImage1: null,
-            additionalImage2: null,
-            additionalImage1Preview: '',
-            additionalImage2Preview: '',
-            guarantors: [
-              { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
-              { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
-              { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
-            ],
-            productType: 'new',
-            productName: '',
-            productPrice: '',
-            advanceAmount: '',
-            invoicePrice: '',
-            noOfInstallments: '',
-            dueDate: '',
-            installmentAmount: '',
-            chalanFront: null,
-            chalanBack: null,
-            chalanFrontPreview: '',
-            chalanBackPreview: '',
-            accountType: 'regular',
-            branch: userBranch || 1,
-            status: 'active',
-            created_by: null,
-          });
-          setVoiceFiles([]);
-          setExistingAccountData(null);
-          setIsSpecialCustomer(false);
-          setStep(1);
-        } else {
-          setErrors({ form: accountData.message || 'Failed to create account' });
-          showToast(`❌ ${accountData.message || 'Failed to create account'}`, 'warning');
-        }
+        setVoiceFiles([]);
+        setExistingAccountData(null);
+        setIsSpecialCustomer(false);
+        setStep(1);
       } else {
         setErrors({ form: data.message || 'Failed to create customer' });
         showToast(`❌ ${data.message || 'Failed to create customer'}`, 'warning');
