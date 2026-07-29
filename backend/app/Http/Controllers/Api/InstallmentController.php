@@ -154,17 +154,13 @@ class InstallmentController extends Controller
                 'payment_date' => $paymentDate
             ]);
 
-            // ============================================
-            // ✅ FIX: Account ka paid_amount ab RECALCULATE (sum se
-            // dobara banana) nahi hota — kyunki agar koi purani payment
-            // (advance/down-payment) installments table mein reflect nahi
-            // hui thi, to sum() usay hamesha nazar-andaz kar deta tha aur
-            // balance ulta barh jata tha. Ab hum sirf itna paisa JAMA
-            // (increment) karte hain jitna abhi is transaction mein pay
-            // hua — purana data hamesha mehfooz rehta hai.
-            // ============================================
+            // ✅ FIX: Account ka paid_amount RECALCULATE karo sum se
+            // taake advance payment bhi account mein reflect ho
             $account = Account::find($installment->account_id);
             if ($account) {
+                // Total paid amount = account ki paid_amount (jo advance include karti hai) + installment ki paid_amount
+                // Lekin agar advance already account mein hai to double count nahi hona chahiye
+                // Is liye hum total_paid = account->paid_amount + amount (jo abhi pay hua) karte hain
                 $newAccountPaid = $account->paid_amount + $amount;
                 $newAccountBalance = $account->total_amount - $newAccountPaid;
 
@@ -285,14 +281,11 @@ class InstallmentController extends Controller
                 }
             }
 
-            // ============================================
-            // ✅ FIX: yahan bhi ab account ka paid_amount sirf
-            // increment hota hai (purani sum-based recalculation
-            // hata di gayi hai) — takay purana paid amount kabhi
-            // gayab na ho.
-            // ============================================
+            // ✅ FIX: Account ka paid_amount RECALCULATE karo sum se
+            // taake advance payment bhi account mein reflect ho
             $account = Account::find($installment->account_id);
             if ($account) {
+                // Total paid amount = account->paid_amount (jo advance include karti hai) + amount (jo abhi pay hua)
                 $newAccountPaid = $account->paid_amount + $amount;
                 $newAccountBalance = $account->total_amount - $newAccountPaid;
 

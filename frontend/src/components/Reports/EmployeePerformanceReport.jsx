@@ -24,13 +24,8 @@ const EmployeePerformanceReport = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
-      // ✅ FIX: users login-time se branch_id use karte hain (jaisa Overdue
-      // Installments / UsersManagement mein bhi hai). Pehle sirf `user.branch`
-      // read hota tha jo hamesha undefined hota — is wajah se userBranch kabhi
-      // set hi nahi hota tha aur branch-scoping silently bypass ho jaati thi.
       setUserBranch(user.branch_id || user.branch);
       setUserId(user.id);
-      // Employee khud apna hi data dekhta hai
       if (user.role === 'employee') {
         setSelectedEmployeeId(user.id);
       }
@@ -44,9 +39,6 @@ const EmployeePerformanceReport = () => {
   const isManager = userRole === 'manager';
   const canEditRemarks = isAdmin || isManager;
 
-  // ============================================
-  // ✅ REAL DATA FETCH
-  // ============================================
   const fetchEmployees = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -61,7 +53,6 @@ const EmployeePerformanceReport = () => {
         let list = Array.isArray(data.data) ? data.data
           : (data.data?.data && Array.isArray(data.data.data)) ? data.data.data
           : [];
-        // Sirf employee/manager dikhane hain dropdown mein
         list = list.filter(u => u.role === 'employee' || u.role === 'manager');
         setEmployeesList(list);
       }
@@ -86,6 +77,27 @@ const EmployeePerformanceReport = () => {
         const mapped = raw.map(acc => {
           const employeeAccount = acc.employee_account || {};
           const employee = employeeAccount.employee || {};
+          
+          // Get current month's installment balance for Mirror column
+          const currentMonthStr = getCurrentMonthStr();
+          const installments = acc.installments || [];
+          const currentMonthInstallment = installments.find(p => p.month === currentMonthStr);
+          const mirrorAmount = currentMonthInstallment ? parseFloat(currentMonthInstallment.balance || 0) : 0;
+          
+          // Sort installments by month
+          const sortedInstallments = [...installments].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+          
+          // Get the first unpaid installment for due date
+          const firstUnpaid = sortedInstallments.find(p => parseFloat(p.balance || 0) > 0);
+          
+          // Get the due date from the unpaid installment's due_date field if available, otherwise from month
+          let dueDate = null;
+          if (firstUnpaid) {
+            dueDate = firstUnpaid.due_date || firstUnpaid.month || null;
+          } else if (sortedInstallments.length > 0) {
+            dueDate = sortedInstallments[0].due_date || sortedInstallments[0].month || null;
+          }
+          
           return {
             id: acc.id,
             caseNo: acc.case_no || 'N/A',
@@ -98,13 +110,14 @@ const EmployeePerformanceReport = () => {
             paid: parseFloat(acc.paid_amount) || 0,
             balance: parseFloat(acc.balance) || 0,
             monthly: parseFloat(acc.monthly_installment) || 0,
-            date: acc.created_at ? acc.created_at.split('T')[0] : null,
+            openingDate: acc.created_at ? acc.created_at : null,
+            dueDate: dueDate,
             branch: acc.branch_id || 1,
-            // ✅ ye employee ne account khola tha (jiske hisaab se performance track karni hai)
             employeeId: employee.id || acc.created_by || null,
             employeeName: employee.name || 'N/A',
             guarantors: acc.customer?.guarantors || [],
-            installments: acc.installments || []
+            installments: acc.installments || [],
+            mirror: mirrorAmount // Current month installment balance
           };
         });
         setAccounts(mapped);
@@ -116,9 +129,6 @@ const EmployeePerformanceReport = () => {
     }
   };
 
-  // ============================================
-  // ✅ MONTH HELPERS (same logic as Installments.jsx / UsersManagement.jsx)
-  // ============================================
   const monthsBetween = (fromMonth, toMonth) => {
     if (!fromMonth || !toMonth) return 0;
     const [fy, fm] = fromMonth.split('-').map(Number);
@@ -131,21 +141,66 @@ const EmployeePerformanceReport = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
 
-  // Ek account "overdue" hai ya nahi — sabse purani due-unpaid installment dekh kar
+  // ✅ NEW: work out the real due date of an installment using the account's
+  // opening day (e.g. account opened on 24th -> every installment is due on the 24th)
+  const getInstallmentDueDate = (account, installmentMonth) => {
+    if (!installmentMonth) return null;
+    const [y, m] = installmentMonth.split('-').map(Number);
+    if (!y || !m) return null;
+
+    let day = 1;
+    if (account?.openingDate) {
+      day = new Date(account.openingDate).getDate();
+    }
+    return new Date(y, m - 1, day);
+  };
+
+  // ✅ UPDATED: overdue is now based on the actual due date (day-wise),
+  // not just "month has arrived". So if account opened 24-Jul, the Aug
+  // installment only becomes overdue after 24-Aug, not on 1-Aug.
   const isAccountOverdue = (account) => {
     const list = Array.isArray(account.installments) ? account.installments : [];
-    if (list.length === 0) return account.balance > 0; // fallback
+    if (list.length === 0) return account.balance > 0;
 
-    const currentMonthStr = getCurrentMonthStr();
-    const dueUnpaid = list.filter(p =>
-      parseFloat(p.balance || 0) > 0 &&
-      p.month &&
-      monthsBetween(p.month, currentMonthStr) >= 0
-    );
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueUnpaid = list.filter(p => {
+      if (parseFloat(p.balance || 0) <= 0 || !p.month) return false;
+
+      const dueDate = p.due_date ? new Date(p.due_date) : getInstallmentDueDate(account, p.month);
+      if (!dueDate) return false;
+      dueDate.setHours(0, 0, 0, 0);
+
+      return dueDate <= today;
+    });
+
     return dueUnpaid.length > 0;
   };
 
-  // Is mahine ki installment ka balance (agar is mahine ka record mile)
+  // ✅ NEW: gives the actual remaining (unpaid) amount for the installment(s)
+  // that are currently overdue — e.g. installment is 5,800 but customer paid
+  // 300, so this returns 5,500 instead of the account's total balance.
+  const getOverdueAmount = (account) => {
+    const list = Array.isArray(account.installments) ? account.installments : [];
+    if (list.length === 0) return account.balance > 0 ? account.balance : 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueUnpaid = list.filter(p => {
+      if (parseFloat(p.balance || 0) <= 0 || !p.month) return false;
+
+      const dueDate = p.due_date ? new Date(p.due_date) : getInstallmentDueDate(account, p.month);
+      if (!dueDate) return false;
+      dueDate.setHours(0, 0, 0, 0);
+
+      return dueDate <= today;
+    });
+
+    return dueUnpaid.reduce((sum, p) => sum + parseFloat(p.balance || 0), 0);
+  };
+
   const getThisMonthDue = (account) => {
     const list = Array.isArray(account.installments) ? account.installments : [];
     const currentMonthStr = getCurrentMonthStr();
@@ -165,13 +220,6 @@ const EmployeePerformanceReport = () => {
 
   const filteredEmployees = getFilteredEmployees();
 
-  // ============================================
-  // ✅ BRANCH SCOPING — sabse pehle sirf apni branch ke accounts nikalo.
-  // Admin ho ya Manager, dono ka session-branch (login-time selected) hi
-  // yahan decide karti hai konse accounts dikhne hain. Koi role exception
-  // nahi — warna "All Employees" select karte hi doosri branch ka data
-  // bhi mix ho jata tha.
-  // ============================================
   const getBranchScopedAccounts = () => {
     if (userBranch) {
       return accounts.filter(acc => parseInt(acc.branch) === parseInt(userBranch));
@@ -179,9 +227,6 @@ const EmployeePerformanceReport = () => {
     return accounts;
   };
 
-  // ============================================
-  // ✅ PER-EMPLOYEE STATS — sirf usi employee ke (aur apni branch ke) accounts se calculate hote hain
-  // ============================================
   const getEmployeeAccounts = (employeeId) => {
     const branchScoped = getBranchScopedAccounts();
     if (!employeeId) return branchScoped;
@@ -198,15 +243,12 @@ const EmployeePerformanceReport = () => {
     const totalAccounts = empAccounts.length;
 
     const newAccounts = empAccounts.filter(acc => {
-      if (!acc.date) return false;
-      const accDate = new Date(acc.date);
+      if (!acc.openingDate) return false;
+      const accDate = new Date(acc.openingDate);
       return accDate.getMonth() === currentMonth && accDate.getFullYear() === currentYear;
     });
 
-    // ✅ Recovery Due = is mahine ka jo paisa abhi tak nahi aaya, un sab accounts ka jama
     const recoveryDue = empAccounts.reduce((sum, acc) => sum + getThisMonthDue(acc), 0);
-
-    // ✅ Overdue = jitne accounts ka koi purana due month abhi tak clear nahi
     const overdueAccounts = empAccounts.filter(acc => isAccountOverdue(acc));
 
     return {
@@ -240,7 +282,42 @@ const EmployeePerformanceReport = () => {
     return emp ? emp.name : 'All Employees';
   };
 
-  // ===== COLORFUL CARDS =====
+  // ✅ Full date formatter with day number
+  const formatFullDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-PK', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  // ✅ Format due date from month string or full date
+  const formatDueDate = (dueDate) => {
+    if (!dueDate) return '-';
+    
+    // If it's already a full date with day
+    if (dueDate.includes('-') && dueDate.split('-').length === 3) {
+      return new Date(dueDate).toLocaleDateString('en-PK', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+    
+    // If it's just month string like "2026-07"
+    if (dueDate.includes('-') && dueDate.split('-').length === 2) {
+      const date = new Date(dueDate + '-01');
+      return date.toLocaleDateString('en-PK', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+    
+    return '-';
+  };
+
   const cards = isEmployee ? [
     {
       key: 'new',
@@ -308,10 +385,12 @@ const EmployeePerformanceReport = () => {
     },
   ];
 
+  // ✅ UPDATED: no more "pending" state - either paid (balance cleared, or
+  // due date hasn't arrived yet) or overdue (due date passed and unpaid)
   const getStatusForAccount = (account) => {
     if (account.balance <= 0) return 'paid';
     if (isAccountOverdue(account)) return 'overdue';
-    return 'pending';
+    return 'paid';
   };
 
   const renderTable = () => {
@@ -335,14 +414,17 @@ const EmployeePerformanceReport = () => {
                   <th>Amount (PKR)</th>
                   <th>Paid (PKR)</th>
                   <th>Balance (PKR)</th>
-                  <th>Date</th>
+                  <th>Installment</th>
+                  <th>Mirror</th>
+                  <th>Account Opening</th>
+                  <th>Due Date</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAccounts.length === 0 ? (
-                  <tr><td colSpan="9" className="epr-no-data">No accounts found</td></tr>
+                  <tr><td colSpan="12" className="epr-no-data">No accounts found</td></tr>
                 ) : (
                   filteredAccounts.map((item, index) => {
                     const status = getStatusForAccount(item);
@@ -363,10 +445,20 @@ const EmployeePerformanceReport = () => {
                         <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
                           PKR {item.balance.toLocaleString()}
                         </td>
+                        <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
+                        <td className={item.mirror > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
+                          PKR {item.mirror.toLocaleString()}
+                        </td>
                         <td>
-                          <div className="epr-date-info">
+                          <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
                             <Calendar size={12} />
-                            {item.date || '-'}
+                            {formatFullDate(item.openingDate)}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
+                            <Calendar size={12} />
+                            {formatDueDate(item.dueDate)}
                           </div>
                         </td>
                         <td>
@@ -411,14 +503,17 @@ const EmployeePerformanceReport = () => {
                   <th>Customer</th>
                   <th>Product</th>
                   <th>Amount (PKR)</th>
-                  <th>Date</th>
+                  <th>Installment</th>
+                  <th>Mirror</th>
+                  <th>Account Opening</th>
+                  <th>Due Date</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="7" className="epr-no-data">No new accounts this month</td></tr>
+                  <tr><td colSpan="10" className="epr-no-data">No new accounts this month</td></tr>
                 ) : (
                   list.map((item, index) => {
                     const status = getStatusForAccount(item);
@@ -433,10 +528,20 @@ const EmployeePerformanceReport = () => {
                         </td>
                         <td>{item.product}</td>
                         <td className="epr-amount">PKR {item.amount.toLocaleString()}</td>
+                        <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
+                        <td className={item.mirror > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
+                          PKR {item.mirror.toLocaleString()}
+                        </td>
                         <td>
-                          <div className="epr-date-info">
+                          <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
                             <Calendar size={12} />
-                            {item.date || '-'}
+                            {formatFullDate(item.openingDate)}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
+                            <Calendar size={12} />
+                            {formatDueDate(item.dueDate)}
                           </div>
                         </td>
                         <td>
@@ -463,7 +568,6 @@ const EmployeePerformanceReport = () => {
     }
 
     if (activeTab === 'recovery') {
-      // ✅ Sirf wo accounts jinka is mahine ka due amount abhi bhi baaki hai
       const list = selectedEmployeeData.accounts.filter(acc => getThisMonthDue(acc) > 0);
       return (
         <div className="epr-table-container">
@@ -481,14 +585,16 @@ const EmployeePerformanceReport = () => {
                   <th>Customer</th>
                   <th>Case #</th>
                   <th>Installment</th>
-                  <th>This Month Due (PKR)</th>
-                  <th>Total Balance (PKR)</th>
+                  <th>Mirror</th>
+                  <th>Balance</th>
+                  <th>Account Opening</th>
+                  <th>Due Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="6" className="epr-no-data">No recovery due this month</td></tr>
+                  <tr><td colSpan="8" className="epr-no-data">No recovery due this month</td></tr>
                 ) : (
                   list.map((item, index) => (
                     <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
@@ -502,6 +608,18 @@ const EmployeePerformanceReport = () => {
                       <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
                       <td className="epr-balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
                       <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                      <td>
+                        <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
+                          <Calendar size={12} />
+                          {formatFullDate(item.openingDate)}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
+                          <Calendar size={12} />
+                          {formatDueDate(item.dueDate)}
+                        </div>
+                      </td>
                       <td>
                         <div className="epr-action-group">
                           <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
@@ -537,13 +655,16 @@ const EmployeePerformanceReport = () => {
                   <th>Customer</th>
                   <th>Case #</th>
                   <th>Installment</th>
-                  <th>Balance (PKR)</th>
+                  <th>Mirror</th>
+                  <th>Balance</th>
+                  <th>Account Opening</th>
+                  <th>Due Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="5" className="epr-no-data">No overdue accounts</td></tr>
+                  <tr><td colSpan="8" className="epr-no-data">No overdue accounts</td></tr>
                 ) : (
                   list.map((item, index) => (
                     <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
@@ -555,7 +676,20 @@ const EmployeePerformanceReport = () => {
                       </td>
                       <td className="epr-case-number">{item.caseNo}</td>
                       <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
-                      <td className="epr-balance-amount">PKR {item.balance.toLocaleString()}</td>
+                      <td className="epr-balance-amount">PKR {getOverdueAmount(item).toLocaleString()}</td>
+                      <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                      <td>
+                        <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
+                          <Calendar size={12} />
+                          {formatFullDate(item.openingDate)}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
+                          <Calendar size={12} />
+                          {formatDueDate(item.dueDate)}
+                        </div>
+                      </td>
                       <td>
                         <div className="epr-action-group">
                           <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
@@ -753,6 +887,18 @@ const EmployeePerformanceReport = () => {
                     PKR {selectedAccount.balance.toLocaleString()}
                   </strong>
                 </div>
+                <div className="epr-account-detail-item">
+                  <span style={{ fontWeight: 700 }}>Account Opening</span>
+                  <strong style={{ fontWeight: 600, color: '#2563eb' }}>
+                    {formatFullDate(selectedAccount.openingDate)}
+                  </strong>
+                </div>
+                <div className="epr-account-detail-item">
+                  <span style={{ fontWeight: 700 }}>Due Date</span>
+                  <strong style={{ fontWeight: 600, color: '#7c3aed' }}>
+                    {formatDueDate(selectedAccount.dueDate)}
+                  </strong>
+                </div>
               </div>
 
               {selectedAccount.guarantors && selectedAccount.guarantors.length > 0 && (
@@ -789,17 +935,22 @@ const EmployeePerformanceReport = () => {
                     </thead>
                     <tbody>
                       {selectedAccount.installments && selectedAccount.installments.length > 0 ? (
-                        selectedAccount.installments.map((inst, index) => (
-                          <tr key={inst.id} className={`${parseFloat(inst.balance || 0) > 0 ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
-                            <td style={{ fontWeight: 700 }}>{index + 1}</td>
-                            <td style={{ fontWeight: 600 }}>{inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}</td>
-                            <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
-                            <td className="epr-paid-amount" style={{ fontWeight: 700 }}>PKR {parseFloat(inst.paid_amount || 0).toLocaleString()}</td>
-                            <td className={parseFloat(inst.balance || 0) > 0 ? 'epr-balance-amount' : 'epr-paid-amount'} style={{ fontWeight: 700 }}>
-                              PKR {parseFloat(inst.balance || 0).toLocaleString()}
-                            </td>
-                          </tr>
-                        ))
+                        selectedAccount.installments.map((inst, index) => {
+                          const dueAmount = parseFloat(inst.due_amount || 0);
+                          const paidAmount = parseFloat(inst.paid_amount || 0);
+                          const balanceAmount = parseFloat(inst.balance || 0);
+                          return (
+                            <tr key={inst.id} className={`${balanceAmount > 0 ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
+                              <td style={{ fontWeight: 700 }}>{index + 1}</td>
+                              <td style={{ fontWeight: 600 }}>{inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}</td>
+                              <td style={{ fontWeight: 600 }}>PKR {dueAmount.toLocaleString()}</td>
+                              <td className="epr-paid-amount" style={{ fontWeight: 700 }}>PKR {paidAmount.toLocaleString()}</td>
+                              <td className={balanceAmount > 0 ? 'epr-balance-amount' : 'epr-paid-amount'} style={{ fontWeight: 700 }}>
+                                PKR {balanceAmount.toLocaleString()}
+                              </td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr><td colSpan="5" className="epr-no-data">No installment records found</td></tr>
                       )}

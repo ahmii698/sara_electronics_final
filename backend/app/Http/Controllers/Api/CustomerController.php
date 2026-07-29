@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Guarantor;
 use App\Models\EmployeeAccount;
+use App\Models\Account;
+use App\Models\Installment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,6 @@ use Illuminate\Support\Facades\Storage;
 
 class CustomerController extends Controller
 {
-    // ✅ Combined limit across both accounts for the same CNIC
     const MAX_ACCOUNTS_PER_CNIC = 2;
     const MAX_COMBINED_AMOUNT = 100000;
 
@@ -59,9 +60,6 @@ class CustomerController extends Controller
         return $this->sendResponse($customer, 'Customer details retrieved');
     }
 
-    // ============================================
-    // ✅ UPGRADED: CNIC check — ab poori account/limit/guarantor report deta hai
-    // ============================================
     public function checkCnic(Request $request)
     {
         $request->validate(['cnic' => 'required|string']);
@@ -69,7 +67,6 @@ class CustomerController extends Controller
         $cnic = $request->cnic;
         $cleanCnic = preg_replace('/[^0-9]/', '', $cnic);
 
-        // ✅ 1) Kya ye CNIC pehle se ek customer hai (aur uske accounts kya hain)
         $customer = Customer::where('cnic', $cnic)
             ->orWhere('cnic', $cleanCnic)
             ->with([
@@ -82,7 +79,6 @@ class CustomerController extends Controller
             ])
             ->first();
 
-        // ✅ 2) Kya ye CNIC kisi aur ka guarantor hai
         $guarantorRecords = Guarantor::where('cnic', $cnic)
             ->orWhere('cnic', $cleanCnic)
             ->with('customer')
@@ -91,9 +87,6 @@ class CustomerController extends Controller
         $existsAsCustomer = $customer !== null;
         $existsAsGuarantor = $guarantorRecords->isNotEmpty();
 
-        // ✅ Special / VIP CNIC check — is CNIC ke kisi bhi existing
-        // record pe is_unlimited = true hai tou dono limits (account-count
-        // aur combined-amount) bilkul skip ho jayengi.
         $isUnlimited = Customer::where('cnic', $cnic)
             ->orWhere('cnic', $cleanCnic)
             ->where('is_unlimited', true)
@@ -107,27 +100,19 @@ class CustomerController extends Controller
 
         if ($customer) {
             $accounts = $customer->accounts;
-
-            // ✅ Option B: sirf woh accounts count/limit mein shamil hote hain
-            // jinka balance ab bhi > 0 hai. Jo account clear (fully paid) ho
-            // chuka hai, uska balance 0 ho jata hai — isliye wo na account-count
-            // ki limit rokega, na combined-amount limit mein add hoga.
             $openAccounts = $accounts->where('balance', '>', 0);
             $accountsCount = $openAccounts->count();
             $totalCombinedAmount = (float) $openAccounts->sum('total_amount');
 
             if ($isUnlimited) {
-                // ✅ Special customer — limits hi apply nahi hoti
                 $canOpenMore = true;
-                $remainingLimit = null; // frontend ke liye signal ke "no limit"
+                $remainingLimit = null;
             } else {
                 $canOpenMore = $accountsCount < self::MAX_ACCOUNTS_PER_CNIC
                     && $totalCombinedAmount < self::MAX_COMBINED_AMOUNT;
                 $remainingLimit = max(0, self::MAX_COMBINED_AMOUNT - $totalCombinedAmount);
             }
 
-            // Note: accountsData poori history (open + cleared) dikhata hai —
-            // sirf upar wala limit-check calculation open accounts pe based hai.
             $accountsData = $accounts->map(function ($acc) {
                 return [
                     'id' => $acc->id,
@@ -162,8 +147,6 @@ class CustomerController extends Controller
             'exists_as_customer' => $existsAsCustomer,
             'exists_as_guarantor' => $existsAsGuarantor,
             'is_available' => !($existsAsCustomer || $existsAsGuarantor),
-
-            // ✅ customer + accounts report
             'customer' => $customer ? [
                 'id' => $customer->id,
                 'name' => $customer->name,
@@ -180,8 +163,6 @@ class CustomerController extends Controller
             'can_open_more' => $canOpenMore,
             'remaining_limit' => $remainingLimit,
             'is_unlimited' => $isUnlimited,
-
-            // ✅ agar ye CNIC khud kisi ka guarantor hai
             'guarantor_records' => $guarantorRecords->map(function ($g) {
                 return [
                     'guarantor_name' => $g->name,
@@ -191,14 +172,12 @@ class CustomerController extends Controller
                     'customer_id' => $g->customer_id,
                 ];
             }),
-
             'message' => $existsAsCustomer ? 'This CNIC already exists as a customer' :
                         ($existsAsGuarantor ? 'This CNIC already exists as a guarantor' :
                         'CNIC is available')
         ], 'CNIC check completed');
     }
 
-    // ✅ FIXED: Store - created_by = Employee ID (who opened)
     public function store(Request $request)
     {
         try {
@@ -206,11 +185,6 @@ class CustomerController extends Controller
             Log::info('created_by (employee_id):', [$request->created_by]);
             Log::info('product_name:', [$request->product_name]);
 
-            // ============================================
-            // ✅ HARD LIMIT CHECK: max 2 accounts per CNIC,
-            // combined total_amount max PKR 100,000
-            // (Option B: sirf open/balance>0 accounts count hote hain)
-            // ============================================
             $cleanCnic = preg_replace('/[^0-9]/', '', $request->cnic ?? '');
 
             $existingCustomer = Customer::where('cnic', $request->cnic)
@@ -218,22 +192,16 @@ class CustomerController extends Controller
                 ->with('accounts')
                 ->first();
 
-            // ✅ Special / VIP CNIC — is CNIC ke kisi bhi existing record pe
-            // is_unlimited = true hai tou 2-account limit aur 1-lakh combined
-            // limit dono bilkul skip ho jayengi.
             $isUnlimitedCnic = Customer::where('cnic', $request->cnic)
                 ->orWhere('cnic', $cleanCnic)
                 ->where('is_unlimited', true)
                 ->exists();
 
             if ($existingCustomer && !$isUnlimitedCnic) {
-                // ✅ Option B: sirf open (balance > 0) accounts count/limit mein
-                // shamil hote hain — cleared/paid account naya slot free kar deta hai.
                 $openAccounts = $existingCustomer->accounts->where('balance', '>', 0);
                 $existingAccountsCount = $openAccounts->count();
                 $existingTotal = (float) $openAccounts->sum('total_amount');
 
-                // Naye account ka amount — invoice_price hi total_amount ban ke jayega
                 $newAccountAmount = (float) $request->input('invoice_price', 0);
 
                 if ($existingAccountsCount >= self::MAX_ACCOUNTS_PER_CNIC) {
@@ -252,7 +220,6 @@ class CustomerController extends Controller
             } elseif ($isUnlimitedCnic) {
                 Log::info('✅ Special/unlimited CNIC — skipping account-count and combined-amount limit checks', ['cnic' => $request->cnic]);
             }
-            // ============================================
 
             // Get guarantors from request
             $guarantors = [];
@@ -297,7 +264,6 @@ class CustomerController extends Controller
 
             Log::info('Guarantors extracted:', ['count' => count($guarantors)]);
 
-            // Filter valid guarantors
             $validGuarantors = [];
             foreach ($guarantors as $g) {
                 if (!empty($g['name']) && !empty($g['cnic']) && !empty($g['phone'])) {
@@ -312,12 +278,6 @@ class CustomerController extends Controller
 
             Log::info('Valid Guarantors count:', ['count' => count($validGuarantors)]);
 
-            // ✅ Validate — "unique:customers,cnic" hata diya gaya hai.
-            // Wajah: system 1 CNIC pe 2 accounts allow karta hai (MAX_ACCOUNTS_PER_CNIC),
-            // magar ye Laravel rule 2nd account ko hamesha "cnic already taken" keh kar
-            // reject kar deta tha — chahe wo 2-account/1-lakh limit ke andar hi kyun na ho.
-            // Asli limit-check upar wale custom block mein already ho raha hai, isi liye
-            // ye purana unique rule ab zaroori nahi.
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:100',
                 'cnic' => 'required|string',
@@ -327,7 +287,11 @@ class CustomerController extends Controller
                 'product_name' => 'nullable|string|max:255',
                 'branch_id' => 'required|exists:branches,id',
                 'status' => 'nullable|in:active,hold,closed',
-                'created_by' => 'required|exists:users,id',  // ✅ Employee ID
+                'created_by' => 'required|exists:users,id',
+                'invoice_price' => 'required|numeric|min:0',
+                'advance_payment' => 'nullable|numeric|min:0',
+                'number_of_installments' => 'required|integer|min:1',
+                'due_date' => 'required|date',
             ]);
 
             if ($validator->fails()) {
@@ -338,12 +302,9 @@ class CustomerController extends Controller
                 ], 422);
             }
 
-            // ✅ Get employee_id from request
             $employeeId = $request->created_by;
-            
             Log::info('✅ Employee ID from request:', ['employee_id' => $employeeId]);
 
-            // Check guarantors count
             if (count($validGuarantors) < 2) {
                 return response()->json([
                     'success' => false,
@@ -362,7 +323,6 @@ class CustomerController extends Controller
                 ], 422);
             }
 
-            // Check if any CNIC already exists as customer
             foreach ($validGuarantors as $g) {
                 if (Customer::where('cnic', $g['cnic'])->exists()) {
                     return response()->json([
@@ -372,7 +332,6 @@ class CustomerController extends Controller
                 }
             }
 
-            // Check employee
             $employee = User::find($employeeId);
             
             if (!$employee) {
@@ -456,11 +415,7 @@ class CustomerController extends Controller
             DB::beginTransaction();
 
             try {
-                // ✅ 1. Har account ke liye hamesha ek NAYA, bilkul independent
-                // Customer row banega — chahe same CNIC ka pehle se koi customer
-                // record maujood ho. Koi reuse/link nahi. (DB ke cnic column se
-                // unique constraint migration ke zariye hata diya gaya hai, isi
-                // liye ab ye insert "Duplicate entry" error diye bina chalega.)
+                // ✅ 1. Create Customer
                 $customer = Customer::create([
                     'name' => $request->name,
                     'cnic' => $request->cnic,
@@ -470,7 +425,7 @@ class CustomerController extends Controller
                     'product_name' => $request->product_name ?? '',
                     'branch_id' => $request->branch_id,
                     'status' => $request->status ?? 'active',
-                    'created_by' => $employeeId,  // ✅ Employee ID (who opened)
+                    'created_by' => $employeeId,
                     'cnic_front' => $cnicFrontPath,
                     'cnic_back' => $cnicBackPath,
                     'voice_consent' => $voiceConsentPath,
@@ -482,42 +437,146 @@ class CustomerController extends Controller
 
                 // ✅ 2. Create Employee Account
                 $employeeAccount = EmployeeAccount::create([
-                    'employee_id' => $employeeId,  // ✅ Employee ID (who opened)
+                    'employee_id' => $employeeId,
                     'customer_id' => $customer->id,
                     'branch_id' => $request->branch_id,
                     'account_opened_date' => now(),
                     'month' => now()->format('Y-m'),
                     'year' => now()->year,
                     'status' => 'active',
-                    'created_by' => $employeeId,  // ✅ Employee ID
+                    'created_by' => $employeeId,
                 ]);
 
                 Log::info('✅ EmployeeAccount created:', ['id' => $employeeAccount->id, 'employee_id' => $employeeId]);
 
-                // ✅ 3. Guarantors are intentionally NOT created here.
-                // GuarantorController@store handles guarantor creation (with cnic_front / cnic_back images).
-                // Creating them here too used to cause a duplicate record with NULL images,
-                // which then made the frontend's follow-up /guarantors call (with the actual
-                // images) get rejected as "already added for this customer".
-                Log::info('ℹ️ Skipping guarantor creation in CustomerController — handled by GuarantorController with images', [
-                    'valid_guarantors_count' => count($validGuarantors)
+                // ✅ 3. Create Account
+                $invoicePrice = (float) $request->invoice_price;
+                $advancePayment = (float) ($request->advance_payment ?? 0);
+                $numberOfInstallments = (int) $request->number_of_installments;
+                $dueDate = $request->due_date;
+
+                // Calculate monthly installment
+                $remainingAmount = $invoicePrice - $advancePayment;
+                $monthlyInstallment = $numberOfInstallments > 0 ? round($remainingAmount / $numberOfInstallments, 0) : 0;
+
+                // Generate case number
+                $lastAccount = Account::orderBy('id', 'desc')->first();
+                $nextId = $lastAccount ? $lastAccount->id + 1 : 1;
+                $caseNo = 'SR-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+
+                // ✅ FIX: Account create karte waqt paid_amount = advance_payment set karo
+                // aur balance = invoice_price - advance_payment
+                $account = Account::create([
+                    'customer_id' => $customer->id,
+                    'employee_account_id' => $employeeAccount->id,
+                    'branch_id' => $request->branch_id,
+                    'case_no' => $caseNo,
+                    'product_name' => $request->product_name ?? '',
+                    'total_amount' => $invoicePrice,
+                    'paid_amount' => $advancePayment, // ✅ Advance payment yahan set ho rahi hai
+                    'balance' => $invoicePrice - $advancePayment, // ✅ Remaining balance
+                    'monthly_installment' => $monthlyInstallment,
+                    'total_installments' => $numberOfInstallments,
+                    'installments_paid' => $advancePayment > 0 ? 1 : 0,
+                    'status' => $advancePayment > 0 ? 'active' : 'active',
+                    'created_by' => $employeeId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                Log::info('✅ Account created:', [
+                    'id' => $account->id, 
+                    'case_no' => $caseNo,
+                    'total_amount' => $invoicePrice,
+                    'paid_amount' => $advancePayment,
+                    'balance' => $invoicePrice - $advancePayment
+                ]);
+
+                // ============================================
+                // ✅ FIX: 4. Create Installments — advance payment ko
+                // PROPERLY distribute karo (carry-over ke sath), na keh
+                // sirf pehli installment tak limit rakho.
+                //
+                // Purana bug: agar advance ek installment ke amount se
+                // zyada hoti thi (e.g. advance 10,000 lekin monthly
+                // installment 8,000), tw baqi ka 2,000 kahin bhi
+                // installments table mein nahi jata tha — sirf account
+                // ke paid_amount mein reh jata tha. Is se jab InstallmentController
+                // installments ka sum() le kar account ka paid_amount
+                // recalculate karta, tw wo advance ka paisa "gayab" ho jata.
+                //
+                // Ab hum $remainingAdvance ko installment se installment
+                // carry karte hain jab tak advance khatam na ho jaye.
+                // ============================================
+                $installments = [];
+                $firstDueDate = $dueDate;
+                $remainingAdvance = $advancePayment;
+
+                for ($i = 0; $i < $numberOfInstallments; $i++) {
+                    $month = date('Y-m', strtotime("+{$i} months", strtotime($firstDueDate)));
+
+                    if ($remainingAdvance > 0) {
+                        $paidAmount = min($remainingAdvance, $monthlyInstallment);
+                        $remainingAdvance -= $paidAmount;
+                    } else {
+                        $paidAmount = 0;
+                    }
+
+                    $balance = $monthlyInstallment - $paidAmount;
+
+                    if ($balance <= 0) {
+                        $status = 'paid';
+                    } elseif ($paidAmount > 0) {
+                        $status = 'partial';
+                    } else {
+                        $status = 'unpaid';
+                    }
+
+                    $installments[] = [
+                        'account_id' => $account->id,
+                        'month' => $month,
+                        'due_amount' => $monthlyInstallment,
+                        'paid_amount' => $paidAmount,
+                        'balance' => $balance,
+                        'status' => $status,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+
+                Installment::insert($installments);
+                Log::info('✅ Installments created:', [
+                    'count' => count($installments),
+                    'advance_distributed' => $advancePayment - $remainingAdvance,
+                    'remaining_undistributed_advance' => $remainingAdvance, // agar 0 se zyada bacha tw advance installments se zyada tha
+                ]);
+
+                // ✅ 5. Update account installments_paid count
+                $paidInstallmentsCount = Installment::where('account_id', $account->id)
+                    ->where('paid_amount', '>', 0)
+                    ->count();
+                
+                $account->update([
+                    'installments_paid' => $paidInstallmentsCount
                 ]);
 
                 DB::commit();
                 
-                $customer->load(['guarantors', 'employeeAccount', 'employeeAccount.employee', 'branch', 'creator']);
+                $customer->load(['guarantors', 'employeeAccount', 'employeeAccount.employee', 'branch', 'creator', 'accounts']);
                 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Customer created successfully',
+                    'message' => 'Customer and Account created successfully',
                     'data' => $customer,
                     'employee_account_id' => $employeeAccount->id,
-                    'employee_id' => $employeeId
+                    'employee_id' => $employeeId,
+                    'account_id' => $account->id,
+                    'case_no' => $caseNo,
                 ], 201);
                 
             } catch (\Exception $e) {
                 DB::rollBack();
-                Log::error('❌ Failed to create customer:', ['error' => $e->getMessage()]);
+                Log::error('❌ Failed to create customer:', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
                 return response()->json([
                     'success' => false,
                     'message' => $e->getMessage()
@@ -552,8 +611,6 @@ class CustomerController extends Controller
             'work' => 'nullable|string|max:100',
             'product_name' => 'nullable|string|max:255',
             'status' => 'nullable|in:active,hold,closed',
-            // ✅ Special / VIP flag — jab true, is CNIC ke tamam accounts pe
-            // 2-account aur 1-lakh combined-amount limits skip ho jati hain.
             'is_unlimited' => 'sometimes|boolean',
         ]);
 

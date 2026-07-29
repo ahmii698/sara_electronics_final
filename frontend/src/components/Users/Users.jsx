@@ -64,34 +64,41 @@ const UsersManagement = () => {
       const data = await response.json();
       if (data.success) {
         const accounts = data.data.data || data.data || [];
-        const clientsData = accounts.map(account => ({
-          id: account.id,
-          name: account.customer?.name || 'N/A',
-          phone: account.customer?.phone || '',
-          cnic: account.customer?.cnic || '',
-          address: account.customer?.address || '',
-          branch: account.branch_id || 1,
-          accountStatus: account.status || 'active',
-          totalAmount: parseFloat(account.total_amount) || 0,
-          paidAmount: parseFloat(account.paid_amount) || 0,
-          balance: parseFloat(account.balance) || 0,
-          monthlyInstallment: parseFloat(account.monthly_installment) || 0,
-          installmentsPaid: account.installments_paid || 0,
-          totalInstallments: account.total_installments || 0,
-          nextDueDate: account.next_due_date || account.due_date || 'N/A',
-          joiningDate: account.created_at ? new Date(account.created_at).toLocaleDateString() : 'N/A',
-          lastPaymentDate: account.last_payment_date || 'N/A',
-          product: account.product_name || 'N/A',
-          caseNo: account.case_no || 'N/A',
-          employeeId: account.created_by || null,
-          creator: account.creator || null,
-          employeeAccount: account.employee_account || null,
-          employeeName: account.employee_account?.employee?.name || null,
-          creatorName: account.creator?.name || null,
-          creatorRole: account.creator?.role || null,
-          // ✅ per-installment payment records — needed for months-based overdue calc
-          installments: account.installments || []
-        }));
+        const clientsData = accounts.map(account => {
+          const installments = account.installments || [];
+          const currentMonthStr = getCurrentMonthStr();
+          const currentMonthInstallment = installments.find(p => p.month === currentMonthStr);
+          const mirrorAmount = currentMonthInstallment ? parseFloat(currentMonthInstallment.balance || 0) : 0;
+          
+          return {
+            id: account.id,
+            name: account.customer?.name || 'N/A',
+            phone: account.customer?.phone || '',
+            cnic: account.customer?.cnic || '',
+            address: account.customer?.address || '',
+            branch: account.branch_id || 1,
+            accountStatus: account.status || 'active',
+            totalAmount: parseFloat(account.total_amount) || 0,
+            paidAmount: parseFloat(account.paid_amount) || 0,
+            balance: parseFloat(account.balance) || 0,
+            monthlyInstallment: parseFloat(account.monthly_installment) || 0,
+            installmentsPaid: account.installments_paid || 0,
+            totalInstallments: account.total_installments || 0,
+            nextDueDate: account.next_due_date || account.due_date || 'N/A',
+            joiningDate: account.created_at ? new Date(account.created_at).toLocaleDateString() : 'N/A',
+            lastPaymentDate: account.last_payment_date || 'N/A',
+            product: account.product_name || 'N/A',
+            caseNo: account.case_no || 'N/A',
+            employeeId: account.created_by || null,
+            creator: account.creator || null,
+            employeeAccount: account.employee_account || null,
+            employeeName: account.employee_account?.employee?.name || null,
+            creatorName: account.creator?.name || null,
+            creatorRole: account.creator?.role || null,
+            installments: account.installments || [],
+            mirror: mirrorAmount
+          };
+        });
         setClients(clientsData);
       }
     } catch (error) {
@@ -105,7 +112,6 @@ const UsersManagement = () => {
   // ✅ SAME LOGIC AS Installments.jsx
   // ============================================
 
-  // "2026-07" jaisi do month-strings ke darmiyan farq (months) nikalta hai
   const monthsBetween = (fromMonth, toMonth) => {
     if (!fromMonth || !toMonth) return 0;
     const [fy, fm] = fromMonth.split('-').map(Number);
@@ -118,18 +124,11 @@ const UsersManagement = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
 
-  // ✅ Client-level category — based on the OLDEST unpaid installment whose
-  // month has already arrived (future months are ignored).
-  // - fully paid off (all installments paid)     -> 'clear'
-  // - no due-but-unpaid month yet                -> 'paid' (active/on-track)
-  // - oldest due-unpaid installment is 1-3 months overdue -> 'overdue' (with count)
-  // - oldest due-unpaid installment is 4+ months overdue  -> 'aging'
   const getClientCategoryInfo = (client) => {
     const list = Array.isArray(client.installments) ? client.installments : [];
     const totalInstallments = client.totalInstallments || list.length;
     const fullyPaidCount = list.filter(p => parseFloat(p.balance || 0) <= 0).length;
 
-    // Fallback: agar installments list nahi mili to sirf balance se decide karo
     if (list.length === 0) {
       if (client.balance <= 0) return { category: 'clear', months: 0 };
       return { category: 'paid', months: 0 };
@@ -191,7 +190,6 @@ const UsersManagement = () => {
     }
   };
 
-  // ===== GET FILTERED DATA =====
   const getFilteredData = () => {
     let filtered = clients;
 
@@ -239,7 +237,6 @@ const UsersManagement = () => {
 
   const filteredData = getFilteredData();
 
-  // ===== STATS (based on the 4 categories) =====
   const totalClients = clients.length;
   const totalAging = clients.filter(c => getClientCategoryInfo(c).category === 'aging').length;
   const totalOverdue = clients.filter(c => getClientCategoryInfo(c).category === 'overdue').length;
@@ -247,8 +244,9 @@ const UsersManagement = () => {
   const totalClear = clients.filter(c => getClientCategoryInfo(c).category === 'clear').length;
   const totalBalance = clients.reduce((sum, c) => sum + c.balance, 0);
 
+  // ✅ Format currency WITHOUT "PKR" prefix
   const formatCurrency = (amount) => {
-    return `PKR ${amount.toLocaleString()}`;
+    return amount.toLocaleString();
   };
 
   const getBranchName = (branchId) => {
@@ -336,7 +334,7 @@ const UsersManagement = () => {
     },
     { 
       label: 'Total Balance', 
-      value: formatCurrency(totalBalance), 
+      value: `PKR ${formatCurrency(totalBalance)}`, 
       icon: DollarSign, 
       color: '#C9A84C', 
       bg: 'rgba(201,168,76,0.12)',
@@ -344,7 +342,6 @@ const UsersManagement = () => {
     },
   ];
 
-  // ===== RENDER CLIENTS TABLE =====
   const renderClientsTable = () => {
     if (loading) {
       return (
@@ -364,16 +361,19 @@ const UsersManagement = () => {
             <th style={{ fontWeight: 800 }}>Client</th>
             <th style={{ fontWeight: 800 }}>Case #</th>
             <th style={{ fontWeight: 800 }}>Product</th>
-            <th style={{ fontWeight: 800 }}>Total (PKR)</th>
-            <th style={{ fontWeight: 800 }}>Paid (PKR)</th>
-            <th style={{ fontWeight: 800 }}>Balance (PKR)</th>
+            <th style={{ fontWeight: 800 }}>Total</th>
+            <th style={{ fontWeight: 800 }}>Paid</th>
+            <th style={{ fontWeight: 800 }}>Balance</th>
+            <th style={{ fontWeight: 800 }}>Installment</th>
+            <th style={{ fontWeight: 800 }}>Mirror</th>
+            <th style={{ fontWeight: 800 }}>Status</th>
             <th style={{ fontWeight: 800 }}>Actions</th>
           </tr>
         </thead>
         <tbody>
           {data.length === 0 ? (
             <tr>
-              <td colSpan="8" className="no-data">
+              <td colSpan="11" className="no-data">
                 <div className="no-data-content">
                   <UsersIcon size={32} />
                   <p style={{ fontWeight: 600 }}>No clients found</p>
@@ -381,47 +381,57 @@ const UsersManagement = () => {
               </td>
             </tr>
           ) : (
-            data.map((client, index) => (
-              <tr key={client.id} className={getRowColorClass(client)}>
-                <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
-                <td>
-                  <div className="user-name-cell">
-                    <div className="user-avatar" style={{ fontWeight: 700 }}>{client.name.charAt(0)}</div>
-                    <div>
-                      <span className="user-name" style={{ fontWeight: 700 }}>{client.name}</span>
-                      <span className="client-branch" style={{ fontWeight: 500 }}>
-                        <Building size={12} />
-                        {getBranchName(client.branch)}
-                      </span>
+            data.map((client, index) => {
+              const categoryInfo = getClientCategoryInfo(client);
+              return (
+                <tr key={client.id} className={getRowColorClass(client)}>
+                  <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
+                  <td>
+                    <div className="user-name-cell">
+                      <div className="user-avatar" style={{ fontWeight: 700 }}>{client.name.charAt(0)}</div>
+                      <div>
+                        <span className="user-name" style={{ fontWeight: 700 }}>{client.name}</span>
+                        <span className="client-branch" style={{ fontWeight: 500 }}>
+                          <Building size={12} />
+                          {getBranchName(client.branch)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="case-number" style={{ fontWeight: 700 }}>{client.caseNo}</td>
-                <td style={{ fontWeight: 500 }}>{client.product}</td>
-                <td className="amount" style={{ fontWeight: 600 }}>{formatCurrency(client.totalAmount)}</td>
-                <td className="paid-amount" style={{ fontWeight: 700 }}>{formatCurrency(client.paidAmount)}</td>
-                <td className={client.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
-                  {formatCurrency(client.balance)}
-                </td>
-                <td>
-                  <div className="action-group">
-                    <button className="btn-view" onClick={() => viewDetail(client)} title="View Details" style={{ fontWeight: 700 }}>
-                      <Eye size={15} />
-                    </button>
-                    {isAdmin && (
-                      <>
-                        <button className="btn-edit" onClick={() => editUser(client)} title="Edit Client" style={{ fontWeight: 700 }}>
-                          <Edit size={15} />
-                        </button>
-                        <button className="btn-delete" onClick={() => deleteUser(client.id)} title="Delete Client" style={{ fontWeight: 700 }}>
-                          <Trash2 size={15} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))
+                  </td>
+                  <td className="case-number" style={{ fontWeight: 700 }}>{client.caseNo}</td>
+                  <td style={{ fontWeight: 500 }}>{client.product}</td>
+                  <td className="amount" style={{ fontWeight: 600 }}>{formatCurrency(client.totalAmount)}</td>
+                  <td className="paid-amount" style={{ fontWeight: 700 }}>{formatCurrency(client.paidAmount)}</td>
+                  <td className={client.balance > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
+                    {formatCurrency(client.balance)}
+                  </td>
+                  <td className="amount" style={{ fontWeight: 600 }}>{formatCurrency(client.monthlyInstallment)}</td>
+                  <td className={client.mirror > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
+                    {formatCurrency(client.mirror)}
+                  </td>
+                  <td>
+                    {getCategoryBadge(client)}
+                  </td>
+                  <td>
+                    <div className="action-group">
+                      <button className="btn-view" onClick={() => viewDetail(client)} title="View Details" style={{ fontWeight: 700 }}>
+                        <Eye size={15} />
+                      </button>
+                      {isAdmin && (
+                        <>
+                          <button className="btn-edit" onClick={() => editUser(client)} title="Edit Client" style={{ fontWeight: 700 }}>
+                            <Edit size={15} />
+                          </button>
+                          <button className="btn-delete" onClick={() => deleteUser(client.id)} title="Delete Client" style={{ fontWeight: 700 }}>
+                            <Trash2 size={15} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
@@ -441,13 +451,9 @@ const UsersManagement = () => {
           </div>
           <p className="subtitle" style={{ fontWeight: 600 }}>Manage all customers with accounts</p>
         </div>
+        {/* ✅ Add Client button REMOVED */}
         <div className="header-actions">
-          {isAdmin && (
-            <button className="btn-add-user" onClick={() => alert('Add new client')} style={{ fontWeight: 700 }}>
-              <UserPlus size={18} />
-              Add Client
-            </button>
-          )}
+          {/* Empty - no button here */}
         </div>
       </div>
 
@@ -487,7 +493,7 @@ const UsersManagement = () => {
         </div>
         <div className="filter-group">
           <select className="filter-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ fontWeight: 500 }}>
-            <option value="all">All</option>
+            <option value="all">All Clients</option>
             <option value="clear">Clear Account</option>
             <option value="paid">Active</option>
             <option value="overdue">Overdue</option>

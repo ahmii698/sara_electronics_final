@@ -29,7 +29,7 @@ const Dashboard = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
-      setUserBranch(user.branch);
+      setUserBranch(user.branch_id || user.branch);
     }
     fetchDashboardData();
   }, []);
@@ -43,8 +43,8 @@ const Dashboard = () => {
       
       let url = `${API_URL}/reports/dashboard`;
       
-      if (user && user.branch && user.role !== 'admin') {
-        url += `?branch_id=${user.branch}`;
+      if (user && user.branch_id && user.role !== 'admin') {
+        url += `?branch_id=${user.branch_id}`;
       }
       
       const response = await fetch(url, {
@@ -342,12 +342,20 @@ const Dashboard = () => {
 
   const data = dashboardData;
 
+  // ✅ Get branch name for display
+  const getBranchDisplayName = () => {
+    if (userBranch) {
+      return `Branch ${userBranch}`;
+    }
+    return data.branch_name || 'All Branches';
+  };
+
   const stats = [
     { 
       label: 'Total Customers', 
       value: data.total_customers?.toLocaleString() || '0', 
       icon: Users,
-      subtitle: data.branch_name
+      subtitle: getBranchDisplayName()
     },
     { 
       label: `New Accounts (${new Date().toLocaleString('default', { month: 'long' })})`, 
@@ -374,6 +382,11 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <div className="header-left">
           <h2>Dashboard</h2>
+          {userBranch && (
+            <span className="branch-indicator">
+              {getBranchDisplayName()}
+            </span>
+          )}
         </div>
         <button className="btn-refresh" onClick={fetchDashboardData}>
           <RefreshCw size={18} />
@@ -427,7 +440,7 @@ const Dashboard = () => {
             Top Performers - This Month
           </h3>
           <div className="performer-card">
-            <h4>{data.branch_name}</h4>
+            <h4>{getBranchDisplayName()}</h4>
             <table className="performer-table">
               <thead>
                 <tr>
@@ -472,7 +485,7 @@ const Dashboard = () => {
           
           <div className="revenue-bars">
             <div className="branch-row">
-              <span>{data.branch_name}</span>
+              <span>{getBranchDisplayName()}</span>
               <div className="bar-track">
                 <div className="bar-fill dark" style={{ width: '100%' }}></div>
               </div>
