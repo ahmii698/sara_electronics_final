@@ -351,7 +351,11 @@ class CustomerController extends Controller
 
             Log::info('✅ Employee verified:', ['id' => $employeeId, 'name' => $employee->name, 'role' => $employee->role]);
 
-            // Handle file uploads
+            // ============================================
+            // ✅ Handle all file uploads
+            // ============================================
+            
+            // CNIC Images
             $cnicFrontPath = null;
             if ($request->hasFile('cnic_front')) {
                 $file = $request->file('cnic_front');
@@ -376,6 +380,7 @@ class CustomerController extends Controller
                 $cnicBackPath = 'customers/cnic_back/' . $filename;
             }
 
+            // Voice Consent
             $voiceConsentPath = null;
             if ($request->hasFile('voice_consent')) {
                 $file = $request->file('voice_consent');
@@ -388,6 +393,7 @@ class CustomerController extends Controller
                 $voiceConsentPath = 'customers/voice/' . $filename;
             }
 
+            // Additional Images
             $additionalImage1Path = null;
             if ($request->hasFile('additional_image_1')) {
                 $file = $request->file('additional_image_1');
@@ -410,6 +416,33 @@ class CustomerController extends Controller
                 $filename = time() . '_add2_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $file->move($destinationPath, $filename);
                 $additionalImage2Path = 'customers/additional_images/' . $filename;
+            }
+
+            // ============================================
+            // ✅ Chalan Images Upload (NEW)
+            // ============================================
+            $chalanFrontPath = null;
+            if ($request->hasFile('chalan_front')) {
+                $file = $request->file('chalan_front');
+                $destinationPath = public_path('storage/accounts/chalan_front');
+                if (!file_exists($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $filename = time() . '_chalan_front_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move($destinationPath, $filename);
+                $chalanFrontPath = 'accounts/chalan_front/' . $filename;
+            }
+
+            $chalanBackPath = null;
+            if ($request->hasFile('chalan_back')) {
+                $file = $request->file('chalan_back');
+                $destinationPath = public_path('storage/accounts/chalan_back');
+                if (!file_exists($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $filename = time() . '_chalan_back_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move($destinationPath, $filename);
+                $chalanBackPath = 'accounts/chalan_back/' . $filename;
             }
 
             DB::beginTransaction();
@@ -456,8 +489,6 @@ class CustomerController extends Controller
                 $dueDate = $request->due_date;
 
                 // Calculate monthly installment
-                // ✅ Advance sirf yahan EK dafa invoice_price se minus hoti hai.
-                // (90,000 - 12,000) / 10 = 7,800 per installment.
                 $remainingAmount = $invoicePrice - $advancePayment;
                 $monthlyInstallment = $numberOfInstallments > 0 ? round($remainingAmount / $numberOfInstallments, 0) : 0;
 
@@ -466,23 +497,21 @@ class CustomerController extends Controller
                 $nextId = $lastAccount ? $lastAccount->id + 1 : 1;
                 $caseNo = 'SR-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
 
-                // ✅ FIX: Account ka paid_amount abhi bhi advance_payment hi hai
-                // (Account Summary mein "Total Paid" advance dikhata rahega),
-                // lekin installments_paid ab 0 se start hoga — kyunke advance
-                // ne koi installment "bhari" nahi, wo sirf total amount
-                // (90,000 -> 78,000) kam karne ke liye use hui hai.
+                // ✅ Create Account with chalan images
                 $account = Account::create([
                     'customer_id' => $customer->id,
                     'employee_account_id' => $employeeAccount->id,
                     'branch_id' => $request->branch_id,
                     'case_no' => $caseNo,
                     'product_name' => $request->product_name ?? '',
+                    'chalan_front' => $chalanFrontPath,  // ✅ ADDED
+                    'chalan_back' => $chalanBackPath,    // ✅ ADDED
                     'total_amount' => $invoicePrice,
-                    'paid_amount' => $advancePayment, // ✅ Advance payment account-level pe record
-                    'balance' => $invoicePrice - $advancePayment, // ✅ Remaining balance
+                    'paid_amount' => $advancePayment,
+                    'balance' => $invoicePrice - $advancePayment,
                     'monthly_installment' => $monthlyInstallment,
                     'total_installments' => $numberOfInstallments,
-                    'installments_paid' => 0, // ✅ FIX: advance ne koi installment nahi bhari
+                    'installments_paid' => 0,
                     'due_date' => $dueDate,
                     'next_due_date' => date('Y-m-d', strtotime('+1 month', strtotime($dueDate))),
                     'status' => 'active',
@@ -498,40 +527,19 @@ class CustomerController extends Controller
                     'paid_amount' => $advancePayment,
                     'balance' => $invoicePrice - $advancePayment,
                     'due_date' => $dueDate,
+                    'chalan_front' => $chalanFrontPath,
+                    'chalan_back' => $chalanBackPath,
                 ]);
 
                 // ============================================
-                // ✅ FIX: 4. Create Installments — advance payment ab
-                // installments ke against DOBARA "paid" mark nahi hoti.
-                //
-                // Purana bug: advance_payment pehle hi invoice_price se
-                // minus ho kar monthlyInstallment (7,800) nikal chuki thi.
-                // Lekin phir isi 12,000 advance ko dobara loop mein le kar
-                // pehli 1-2 installments ka paid_amount bhi bhar diya jata
-                // tha — yani 12,000 do dafa "use" ho rahe thay: ek dafa
-                // total kam karne ke liye, doosri dafa installment
-                // "already paid" dikhane ke liye. Isi wajah se Payment
-                // History mein pehli installment "Paid" aur doosri
-                // "Partial" ghalat dikh rahi thi, jab ke customer ne abhi
-                // tak koi installment bhari hi nahi thi.
-                //
-                // Ab har installment apne poore due_amount (monthlyInstallment)
-                // ke sath "unpaid" bantay hain. Jo installment ka due date
-                // guzar chuka ho, wo aging/overdue logic (agingReport /
-                // overdue functions) se khud "Overdue" categorize ho jayegi.
-                // Advance sirf account ke total/balance mein reflect hoga.
-                //
-                // Month calculate karne ke liye DateTime use ho raha hai,
-                // base date ko month ke "1st" pe normalize kiya gaya hai
-                // taake 29/30/31 tareekh wali due_date short months
-                // (Feb) mein month skip/duplicate na kare.
+                // ✅ 4. Create Installments
                 // ============================================
                 $installments = [];
                 $firstDueDate = $dueDate;
 
                 for ($i = 0; $i < $numberOfInstallments; $i++) {
                     $baseDate = new \DateTime($firstDueDate);
-                    $baseDate->modify('first day of this month'); // normalize — avoids skip/duplicate on day 29-31
+                    $baseDate->modify('first day of this month');
                     $baseDate->modify("+{$i} months");
                     $month = $baseDate->format('Y-m');
 
@@ -539,24 +547,18 @@ class CustomerController extends Controller
                         'account_id' => $account->id,
                         'month' => $month,
                         'due_amount' => $monthlyInstallment,
-                        'paid_amount' => 0,          // ✅ FIX: advance yahan dobara nahi lagegi
-                        'balance' => $monthlyInstallment, // ✅ FIX: poora due_amount hi balance hai
-                        'status' => 'unpaid',        // ✅ FIX: sab installments unpaid se start
+                        'paid_amount' => 0,
+                        'balance' => $monthlyInstallment,
+                        'status' => 'unpaid',
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
                 }
 
                 Installment::insert($installments);
-                Log::info('✅ Installments created:', [
-                    'count' => count($installments),
-                    'advance_applied_to' => 'account.paid_amount only (not distributed into installments)',
-                    'advance_amount' => $advancePayment,
-                ]);
+                Log::info('✅ Installments created:', ['count' => count($installments)]);
 
-                // ✅ 5. installments_paid ab already 0 hai (koi installment
-                // manually paid nahi hui), is liye dobara recalculate karne
-                // ki zaroorat nahi — lekin agla explicit rehne dete hain.
+                // ✅ 5. Update account installments_paid
                 $account->update([
                     'installments_paid' => 0
                 ]);

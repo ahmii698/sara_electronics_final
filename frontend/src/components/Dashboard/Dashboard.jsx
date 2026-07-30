@@ -1,10 +1,11 @@
 // src/components/Dashboard/Dashboard.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Users, Package, DollarSign, TrendingUp, BarChart, 
   LineChart, PieChart, Activity, Award, AlertTriangle, 
-  Calendar, ChevronDown, ChevronUp, RefreshCw, Sparkles
+  Calendar, ChevronDown, ChevronUp, RefreshCw, Sparkles,
+  CheckCircle, Clock, AlertCircle, Building, Filter
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -16,6 +17,28 @@ import {
 import './Dashboard.css';
 import { API_URL } from '../../../config';
 
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i); // last 6 years
+
+const formatYYYYMM = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+// last 6 calendar months ka start date (chalu month ko include karte hue)
+const getLast6MonthsStart = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() - 5, 1);
+};
+
+// startDate se le kar 'count' months ke labels generate karo (unique - year sath)
+const generateMonthLabels = (startDate, count) => {
+  const labels = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+    labels.push(`${MONTH_NAMES[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`);
+  }
+  return labels;
+};
+
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
@@ -24,6 +47,15 @@ const Dashboard = () => {
   const [userBranch, setUserBranch] = useState(null);
   const [selectedChart, setSelectedChart] = useState('bar');
   const [showBranchOverview, setShowBranchOverview] = useState(false);
+  const [upcomingExpenses, setUpcomingExpenses] = useState([]);
+
+  // ===== NEW: Chart Filter State =====
+  const [filterMode, setFilterMode] = useState('last6'); // 'last6' | 'single' | 'custom'
+  const [singleMonth, setSingleMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [singleYear, setSingleYear] = useState(CURRENT_YEAR);
+  const [customMonth, setCustomMonth] = useState(new Date().getMonth() + 1);
+  const [customYear, setCustomYear] = useState(CURRENT_YEAR);
+  const [appliedFilter, setAppliedFilter] = useState({ mode: 'last6' });
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -31,50 +63,136 @@ const Dashboard = () => {
       setUserRole(user.role);
       setUserBranch(user.branch_id || user.branch);
     }
-    fetchDashboardData();
+    fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchDashboardData = async () => {
+  // Filter change hone par dobara data fetch karo
+  useEffect(() => {
+    fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedFilter]);
+
+  // ===== Build query string for dashboard endpoint based on filter =====
+  const buildDashboardParams = useCallback((user) => {
+    const params = new URLSearchParams();
+
+    if (user && user.branch_id && user.role !== 'admin') {
+      params.set('branch_id', user.branch_id);
+    }
+
+    if (appliedFilter.mode === 'single') {
+      params.set('month', `${appliedFilter.year}-${String(appliedFilter.month).padStart(2, '0')}`);
+    } else if (appliedFilter.mode === 'custom') {
+      const start = new Date(appliedFilter.year, appliedFilter.month - 1, 1);
+      const end = new Date(appliedFilter.year, appliedFilter.month - 1 + 5, 1);
+      params.set('start', formatYYYYMM(start));
+      params.set('end', formatYYYYMM(end));
+    }
+    // 'last6' => koi extra param nahi, backend apna default (last 6 months) return karega
+
+    return params.toString();
+  }, [appliedFilter]);
+
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user'));
-      
-      let url = `${API_URL}/reports/dashboard`;
-      
-      if (user && user.branch_id && user.role !== 'admin') {
-        url += `?branch_id=${user.branch_id}`;
-      }
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
+      const query = buildDashboardParams(user);
 
-      const data = await response.json();
-      console.log('Dashboard Data:', data);
+      const [dashboardRes, expensesRes] = await Promise.all([
+        fetch(`${API_URL}/reports/dashboard${query ? `?${query}` : ''}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        }),
+        fetch(`${API_URL}/expenses/fixed${userBranch ? `?branch_id=${userBranch}` : ''}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        })
+      ]);
 
-      if (data.success) {
-        setDashboardData(data.data);
+      const [dashboardJson, expensesData] = await Promise.all([
+        dashboardRes.json(),
+        expensesRes.json()
+      ]);
+
+      if (dashboardJson.success) {
+        setDashboardData(dashboardJson.data);
       } else {
-        setError(data.message || 'Failed to load dashboard');
+        setError(dashboardJson.message || 'Failed to load dashboard');
+      }
+
+      if (expensesData.success) {
+        const expenses = (expensesData.data || []).map(exp => ({
+          id: exp.id,
+          name: exp.name,
+          amount: parseFloat(exp.amount) || 0,
+          branch: exp.branch_id,
+          dueDate: exp.due_date || '',
+          paid: !!exp.paid,
+          lastPaid: exp.last_paid || 'Never'
+        }));
+
+        const allExpenses = expenses.filter(e => e.dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcoming = allExpenses.map(e => {
+          let dayMatch = e.dueDate.match(/(\d+)/);
+          let dueDay = dayMatch ? parseInt(dayMatch[0]) : 1;
+          let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+          if (dueDate < today) {
+            dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+          }
+          const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+          return { ...e, dueDateObj: dueDate, daysLeft, dueDay };
+        });
+
+        const filtered = upcoming.filter(e => e.daysLeft === 1);
+        filtered.sort((a, b) => a.daysLeft - b.daysLeft);
+        setUpcomingExpenses(filtered);
       }
     } catch (error) {
-      console.error('Error fetching dashboard:', error);
+      console.error('Error fetching data:', error);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+    }
+  }, [userBranch, buildDashboardParams]);
+
+  const handleRefresh = useCallback(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  const handleMarkAsPaid = async (expenseId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const expense = upcomingExpenses.find(e => e.id === expenseId);
+      if (!expense) return;
+
+      const response = await fetch(`${API_URL}/expenses/fixed/${expenseId}/pay`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: expense.amount }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setUpcomingExpenses(prev => prev.filter(e => e.id !== expenseId));
+        alert('✅ Expense marked as paid!');
+        handleRefresh();
+      } else {
+        alert('❌ Failed to mark as paid: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error paying expense:', error);
+      alert('Network error. Please try again.');
     }
   };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
-      minimumFractionDigits: 0
+      style: 'currency', currency: 'PKR', minimumFractionDigits: 0
     }).format(amount || 0);
   };
 
@@ -92,7 +210,6 @@ const Dashboard = () => {
     { id: 'area', label: 'Area Chart', icon: Activity },
   ];
 
-  // Tooltip shows currency for sales/recovery but a plain number for accounts
   const tooltipFormatter = (value, name) => {
     if (name === 'Monthly Sales' || name === 'Monthly Recovery') {
       return [formatCurrency(value), name];
@@ -101,11 +218,9 @@ const Dashboard = () => {
   };
 
   const tooltipStyle = {
-    borderRadius: 12,
-    border: '1px solid #eef0f4',
+    borderRadius: 12, border: '1px solid #eef0f4',
     boxShadow: '0 10px 24px rgba(10, 22, 40, 0.14)',
-    fontSize: '0.85rem',
-    fontWeight: 600,
+    fontSize: '0.85rem', fontWeight: 600,
   };
 
   const axisTick = { fontSize: 12, fill: '#6b7280', fontWeight: 600 };
@@ -118,17 +233,34 @@ const Dashboard = () => {
     </div>
   );
 
+  // ===== Backend ab khud sahi month label bhejta hai, isliye yahan sirf pass-through =====
+  const chartData = useMemo(() => {
+    return dashboardData?.performance_data || [];
+  }, [dashboardData]);
+
+  const chartTitle = useMemo(() => {
+    if (appliedFilter.mode === 'single') {
+      return `Performance Overview (${MONTH_NAMES[appliedFilter.month - 1]} ${appliedFilter.year})`;
+    }
+    if (appliedFilter.mode === 'custom') {
+      const start = new Date(appliedFilter.year, appliedFilter.month - 1, 1);
+      const end = new Date(appliedFilter.year, appliedFilter.month - 1 + 5, 1);
+      return `Performance Overview (${MONTH_NAMES[start.getMonth()]} ${start.getFullYear()} - ${MONTH_NAMES[end.getMonth()]} ${end.getFullYear()})`;
+    }
+    return 'Performance Overview (Last 6 Months)';
+  }, [appliedFilter]);
+
+  const applyLast6 = () => setAppliedFilter({ mode: 'last6' });
+  const applySingle = () => setAppliedFilter({ mode: 'single', month: singleMonth, year: singleYear });
+  const applyCustom = () => setAppliedFilter({ mode: 'custom', month: customMonth, year: customYear });
+
   const renderChart = () => {
     if (!dashboardData) return null;
-
-    const data = dashboardData.performance_data || [];
+    const data = chartData;
     if (data.length === 0) {
       return <div className="chart-empty">No performance data available</div>;
     }
 
-    // Each metric gets its own hidden Y axis so it is scaled against its OWN
-    // max, not a shared/guessed max — this keeps small-value bars (accounts,
-    // recovery) visible even when sales spikes into the thousands/lakhs.
     if (selectedChart === 'bar') {
       return (
         <div className="chart-bar-container-multi">
@@ -151,51 +283,17 @@ const Dashboard = () => {
               </defs>
               <CartesianGrid strokeDasharray="4 6" vertical={false} stroke="#eef0f4" />
               <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
-              <YAxis
-                yAxisId="sales"
-                tick={axisTick}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={formatCompactCurrency}
-                domain={[0, 'dataMax']}
-                width={70}
-              />
+              <YAxis yAxisId="sales" tick={axisTick} axisLine={false} tickLine={false}
+                tickFormatter={formatCompactCurrency} domain={[0, 'dataMax']} width={70} />
               <YAxis yAxisId="accounts" hide domain={[0, 'dataMax']} />
               <YAxis yAxisId="recovery" hide domain={[0, 'dataMax']} />
               <Tooltip formatter={tooltipFormatter} contentStyle={tooltipStyle} />
-              <Area
-                yAxisId="accounts"
-                type="monotone"
-                dataKey="accounts"
-                name="New Accounts"
-                stroke="#4338ca"
-                strokeWidth={3.5}
-                fill="url(#accountsSmoothGrad)"
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
-              <Area
-                yAxisId="sales"
-                type="monotone"
-                dataKey="sales"
-                name="Monthly Sales"
-                stroke="#C9A84C"
-                strokeWidth={3.5}
-                fill="url(#salesSmoothGrad)"
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
-              <Area
-                yAxisId="recovery"
-                type="monotone"
-                dataKey="recovery"
-                name="Monthly Recovery"
-                stroke="#22c55e"
-                strokeWidth={3.5}
-                fill="url(#recoverySmoothGrad)"
-                dot={false}
-                activeDot={{ r: 6 }}
-              />
+              <Area yAxisId="accounts" type="monotone" dataKey="accounts" name="New Accounts"
+                stroke="#4338ca" strokeWidth={3.5} fill="url(#accountsSmoothGrad)" dot={false} activeDot={{ r: 6 }} />
+              <Area yAxisId="sales" type="monotone" dataKey="sales" name="Monthly Sales"
+                stroke="#C9A84C" strokeWidth={3.5} fill="url(#salesSmoothGrad)" dot={false} activeDot={{ r: 6 }} />
+              <Area yAxisId="recovery" type="monotone" dataKey="recovery" name="Monthly Recovery"
+                stroke="#22c55e" strokeWidth={3.5} fill="url(#recoverySmoothGrad)" dot={false} activeDot={{ r: 6 }} />
             </ReAreaChart>
           </ResponsiveContainer>
         </div>
@@ -226,21 +324,12 @@ const Dashboard = () => {
     if (selectedChart === 'pie') {
       const total = data.reduce((sum, d) => sum + (d.accounts || 0), 0);
       const colors = ['#1E1B4B', '#C9A84C', '#4A3520', '#8B7355', '#6B5B8B', '#2563eb'];
-
       return (
         <div className="chart-pie-container">
           <div className="pie-chart-wrapper">
             <ResponsiveContainer width="100%" height="100%">
               <RePieChart>
-                <Pie
-                  data={data}
-                  dataKey="accounts"
-                  nameKey="month"
-                  innerRadius="62%"
-                  outerRadius="95%"
-                  paddingAngle={3}
-                  stroke="none"
-                >
+                <Pie data={data} dataKey="accounts" nameKey="month" innerRadius="62%" outerRadius="95%" paddingAngle={3} stroke="none">
                   {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                   ))}
@@ -303,7 +392,7 @@ const Dashboard = () => {
     return null;
   };
 
-  if (loading) {
+  if (loading && !dashboardData) {
     return (
       <div className="dashboard-container">
         <div className="loading-state">
@@ -321,7 +410,7 @@ const Dashboard = () => {
           <AlertTriangle size={40} />
           <h3>Error Loading Dashboard</h3>
           <p>{error}</p>
-          <button className="btn-retry" onClick={fetchDashboardData}>
+          <button className="btn-retry" onClick={handleRefresh}>
             <RefreshCw size={16} />
             Retry
           </button>
@@ -333,48 +422,23 @@ const Dashboard = () => {
   if (!dashboardData) {
     return (
       <div className="dashboard-container">
-        <div className="empty-state">
-          <p>No data available</p>
-        </div>
+        <div className="empty-state"><p>No data available</p></div>
       </div>
     );
   }
 
   const data = dashboardData;
 
-  // ✅ Get branch name for display
   const getBranchDisplayName = () => {
-    if (userBranch) {
-      return `Branch ${userBranch}`;
-    }
+    if (userBranch) return `Branch ${userBranch}`;
     return data.branch_name || 'All Branches';
   };
 
   const stats = [
-    { 
-      label: 'Total Customers', 
-      value: data.total_customers?.toLocaleString() || '0', 
-      icon: Users,
-      subtitle: getBranchDisplayName()
-    },
-    { 
-      label: `New Accounts (${new Date().toLocaleString('default', { month: 'long' })})`, 
-      value: data.new_accounts || 0, 
-      icon: Calendar,
-      subtitle: 'This month'
-    },
-    { 
-      label: 'Total Sales', 
-      value: formatCurrency(data.total_sales || 0), 
-      icon: DollarSign,
-      subtitle: 'Lifetime revenue'
-    },
-    { 
-      label: 'Monthly Recovery', 
-      value: formatCurrency(data.monthly_recovery || 0), 
-      icon: TrendingUp,
-      subtitle: `${new Date().toLocaleString('default', { month: 'long' })} recovery`
-    },
+    { label: 'Total Customers', value: data.total_customers?.toLocaleString() || '0', icon: Users, subtitle: getBranchDisplayName() },
+    { label: `New Accounts (${new Date().toLocaleString('default', { month: 'long' })})`, value: data.new_accounts || 0, icon: Calendar, subtitle: 'This month' },
+    { label: 'Total Sales', value: formatCurrency(data.total_sales || 0), icon: DollarSign, subtitle: 'Lifetime revenue' },
+    { label: 'Monthly Recovery', value: formatCurrency(data.monthly_recovery || 0), icon: TrendingUp, subtitle: `${new Date().toLocaleString('default', { month: 'long' })} recovery` },
   ];
 
   return (
@@ -382,25 +446,20 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <div className="header-left">
           <h2>Dashboard</h2>
-          {userBranch && (
-            <span className="branch-indicator">
-              {getBranchDisplayName()}
-            </span>
-          )}
+          {userBranch && <span className="branch-indicator">{getBranchDisplayName()}</span>}
         </div>
-        <button className="btn-refresh" onClick={fetchDashboardData}>
+        <button className="btn-refresh" onClick={handleRefresh} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <RefreshCw size={18} />
           Refresh
         </button>
       </div>
 
+      {/* ===== STATS GRID ===== */}
       <div className="stats-grid-4">
         {stats.map((stat, index) => (
           <div key={index} className="stat-card-4">
             <div className="stat-card-4-top">
-              <div className="stat-card-4-icon">
-                <stat.icon size={18} />
-              </div>
+              <div className="stat-card-4-icon"><stat.icon size={18} /></div>
               <span className="stat-card-4-label">{stat.label}</span>
             </div>
             <span className="stat-card-4-value">{stat.value}</span>
@@ -409,11 +468,12 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* ===== PERFORMANCE CHART ===== */}
       <div className="chart-section">
         <div className="chart-header">
           <h3>
             <Sparkles size={18} className="chart-header-icon" />
-            Performance Overview (Last 6 Months)
+            {chartTitle}
           </h3>
           <div className="chart-type-selector">
             {chartTypes.map((type) => (
@@ -428,26 +488,72 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
+
+        {/* ===== NEW: Chart Filter Bar ===== */}
+        <div className="chart-filter-bar">
+          <div className="filter-mode-selector">
+            <button className={`filter-mode-btn ${filterMode === 'last6' ? 'active' : ''}`}
+              onClick={() => { setFilterMode('last6'); applyLast6(); }}>
+              <Filter size={14} /> Last 6 Months
+            </button>
+            <button className={`filter-mode-btn ${filterMode === 'single' ? 'active' : ''}`}
+              onClick={() => setFilterMode('single')}>
+              Single Month
+            </button>
+            <button className={`filter-mode-btn ${filterMode === 'custom' ? 'active' : ''}`}
+              onClick={() => setFilterMode('custom')}>
+              Custom 6 Months
+            </button>
+          </div>
+
+          {filterMode === 'single' && (
+            <div className="filter-controls">
+              <select value={singleMonth} onChange={(e) => setSingleMonth(Number(e.target.value))}>
+                {MONTH_NAMES.map((m, idx) => (
+                  <option key={m} value={idx + 1}>{m}</option>
+                ))}
+              </select>
+              <select value={singleYear} onChange={(e) => setSingleYear(Number(e.target.value))}>
+                {YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button className="btn-apply-filter" onClick={applySingle}>Apply</button>
+            </div>
+          )}
+
+          {filterMode === 'custom' && (
+            <div className="filter-controls">
+              <span className="filter-hint">Start:</span>
+              <select value={customMonth} onChange={(e) => setCustomMonth(Number(e.target.value))}>
+                {MONTH_NAMES.map((m, idx) => (
+                  <option key={m} value={idx + 1}>{m}</option>
+                ))}
+              </select>
+              <select value={customYear} onChange={(e) => setCustomYear(Number(e.target.value))}>
+                {YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+              <button className="btn-apply-filter" onClick={applyCustom}>Apply</button>
+            </div>
+          )}
+        </div>
+
         <div className="chart-container">
           {renderChart()}
         </div>
       </div>
 
+      {/* ===== TOP PERFORMERS + REVENUE COMPARISON ===== */}
       <div className="performers-revenue-grid">
         <div className="performers-section fixed-height">
-          <h3>
-            <Award size={20} />
-            Top Performers - This Month
-          </h3>
+          <h3><Award size={20} /> Top Performers - This Month</h3>
           <div className="performer-card">
             <h4>{getBranchDisplayName()}</h4>
             <table className="performer-table">
               <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Employee</th>
-                  <th>Accounts</th>
-                </tr>
+                <tr><th>Rank</th><th>Employee</th><th>Accounts</th></tr>
               </thead>
               <tbody>
                 {data.top_performers && data.top_performers.length > 0 ? (
@@ -463,9 +569,7 @@ const Dashboard = () => {
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="3" className="no-data">No performers this month</td>
-                  </tr>
+                  <tr><td colSpan="3" className="no-data">No performers this month</td></tr>
                 )}
               </tbody>
             </table>
@@ -474,30 +578,23 @@ const Dashboard = () => {
 
         <div className="revenue-section">
           <div className="revenue-header" onClick={() => setShowBranchOverview(!showBranchOverview)}>
-            <h3>
-              <DollarSign size={20} />
-              Revenue Comparison
-            </h3>
+            <h3><DollarSign size={20} /> Revenue Comparison</h3>
             <button className="expand-btn">
               {showBranchOverview ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </button>
           </div>
-          
+
           <div className="revenue-bars">
             <div className="branch-row">
               <span>{getBranchDisplayName()}</span>
-              <div className="bar-track">
-                <div className="bar-fill dark" style={{ width: '100%' }}></div>
-              </div>
+              <div className="bar-track"><div className="bar-fill dark" style={{ width: '100%' }}></div></div>
               <span>{formatCurrency(data.total_revenue || 0)}</span>
             </div>
           </div>
 
           {showBranchOverview && data.branch_overview && (
             <div className="branch-overview-expanded">
-              <div className="branch-overview-header">
-                <h4>Branch Overview</h4>
-              </div>
+              <div className="branch-overview-header"><h4>Branch Overview</h4></div>
               <div className="branch-overview-details">
                 <div className="overview-item">
                   <span className="overview-label">Total Revenue</span>
@@ -528,6 +625,46 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* ===== UPCOMING FIXED EXPENSES ===== */}
+      {upcomingExpenses.length > 0 && (
+        <div className="upcoming-expenses-section">
+          <div className="upcoming-expenses-header">
+            <div className="header-left">
+              <AlertCircle size={18} className="warning-icon" />
+              <h3>⚠️ Upcoming Fixed Expenses (Tomorrow)</h3>
+              <span className="expense-count">{upcomingExpenses.length} due tomorrow</span>
+            </div>
+            <button className="btn-view-all" onClick={() => window.location.href = '/fixed-expenses'}>
+              View All
+            </button>
+          </div>
+          <div className="upcoming-expenses-grid">
+            {upcomingExpenses.map((expense) => (
+              <div key={expense.id} className="expense-card urgent">
+                <div className="expense-card-left">
+                  <div className="expense-icon"><DollarSign size={16} /></div>
+                  <div className="expense-info">
+                    <span className="expense-name">{expense.name}</span>
+                    <span className="expense-amount">{formatCurrency(expense.amount)}</span>
+                  </div>
+                </div>
+                <div className="expense-card-center">
+                  <span className="expense-days urgent"><Clock size={12} /> Tomorrow!</span>
+                  <span className="expense-due-date">
+                    Due: {expense.dueDateObj.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="expense-card-right">
+                  <button className="btn-mark-paid" onClick={() => handleMarkAsPaid(expense.id)} title="Mark as Paid">
+                    <CheckCircle size={18} /> Paid
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

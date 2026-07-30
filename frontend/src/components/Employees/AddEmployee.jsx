@@ -20,7 +20,7 @@ const AddEmployee = () => {
     confirmPassword: '',
     address: '',
     salary: 0,
-    hasSystemAccess: true, // ✅ NEW
+    hasSystemAccess: true,
     cnicFront: null,
     cnicBack: null,
     cnicFrontPreview: '',
@@ -189,12 +189,8 @@ const AddEmployee = () => {
     if (voiceFileRef.current) voiceFileRef.current.value = '';
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormSubmitted(true);
-    setSuccessMessage('');
-    setLoading(true);
-    
+  // ✅ VALIDATION — VOICE CONSENT OPTIONAL
+  const validateForm = () => {
     const newErrors = {};
     if (!employee.name) newErrors.name = 'Name is required';
     if (!employee.email) newErrors.email = 'Email is required';
@@ -205,6 +201,22 @@ const AddEmployee = () => {
     }
     if (!employee.cnicFront) newErrors.cnicFront = 'CNIC Front image is required';
     if (!employee.cnicBack) newErrors.cnicBack = 'CNIC Back image is required';
+    
+    // ✅ VOICE CONSENT — OPTIONAL (nahi hai toh error nahi aayega)
+    // if (!employee.voiceFile) {
+    //   newErrors.voiceConsent = 'Voice consent / Raza Mandi file is required';
+    // }
+    
+    return newErrors;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormSubmitted(true);
+    setSuccessMessage('');
+    setLoading(true);
+    
+    const newErrors = validateForm();
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -224,7 +236,6 @@ const AddEmployee = () => {
       formData.append('password', employee.password);
       formData.append('address', employee.address || '');
       formData.append('salary', employee.salary || 0);
-      // ✅ NEW: System Access
       formData.append('has_system_access', employee.hasSystemAccess ? 1 : 0);
       
       if (employee.cnicFront) {
@@ -236,6 +247,7 @@ const AddEmployee = () => {
       if (employee.agreement) {
         formData.append('agreement_form', employee.agreement);
       }
+      // ✅ VOICE CONSENT — OPTIONAL (agar hai toh bhejo, nahi hai toh mat bhejo)
       if (employee.voiceFile) {
         formData.append('voice_consent', employee.voiceFile);
       }
@@ -413,7 +425,7 @@ const AddEmployee = () => {
             </div>
           </div>
 
-          {/* ✅ NEW: System Access Field */}
+          {/* System Access Field */}
           <div className="form-group">
             <label style={{ fontWeight: 700 }}>System Access</label>
             <div className="checkbox-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
@@ -555,17 +567,39 @@ const AddEmployee = () => {
           </div>
         </div>
 
-        {/* ===== VOICE CONSENT SECTION ===== */}
-        <div className="voice-section" style={{ border: '1px solid #86efac', background: '#f0fdf4' }}>
+        {/* ===== VOICE CONSENT SECTION — OPTIONAL ===== */}
+        <div className="voice-section" style={{ 
+          border: employee.voiceFile ? '1px solid #86efac' : '1px solid #e5e7eb', 
+          background: employee.voiceFile ? '#f0fdf4' : '#fafafa' 
+        }}>
           <div className="section-header">
-            <Mic size={18} style={{ color: '#065f46' }} />
+            <Mic size={18} style={{ color: employee.voiceFile ? '#065f46' : '#6b7280' }} />
             <h4 style={{ fontWeight: 700 }}>Voice Consent / Raza Mandi</h4>
-            <span className="optional-badge" style={{ fontWeight: 600 }}>Optional</span>
+            <span className="optional-badge" style={{ 
+              fontWeight: 600, 
+              color: employee.voiceFile ? '#065f46' : '#6b7280', 
+              background: employee.voiceFile ? '#d1fae5' : '#f3f4f6', 
+              padding: '2px 10px', 
+              borderRadius: '12px', 
+              fontSize: '12px' 
+            }}>
+              {employee.voiceFile ? '✅ Uploaded' : 'Optional'}
+            </span>
           </div>
-          <p className="voice-hint" style={{ fontWeight: 500 }}>Employee ki raza mandi ki voice file upload karein</p>
+          <p className="voice-hint" style={{ 
+            fontWeight: 500, 
+            color: employee.voiceFile ? '#6b7280' : '#6b7280' 
+          }}>
+            {employee.voiceFile 
+              ? 'Employee ki raza mandi ki voice file upload kar di gayi hai' 
+              : 'Employee ki raza mandi ki voice file upload karein (Optional)'}
+          </p>
           
           <div className="voice-upload">
-            <div className="upload-area voice-upload-area" onClick={() => voiceFileRef.current?.click()} style={{ borderColor: '#86efac' }}>
+            <div className="upload-area voice-upload-area" onClick={() => voiceFileRef.current?.click()} style={{ 
+              borderColor: employee.voiceFile ? '#86efac' : '#d1d5db',
+              background: employee.voiceFile ? '#f0fdf4' : 'white'
+            }}>
               {employee.voiceFilePreview ? (
                 <div className="voice-preview">
                   <FileAudio size={32} style={{ color: '#065f46' }} />
@@ -588,8 +622,8 @@ const AddEmployee = () => {
                 </div>
               ) : (
                 <>
-                  <FileAudio size={32} style={{ color: '#065f46' }} />
-                  <span style={{ fontWeight: 600 }}>Click to upload voice file</span>
+                  <FileAudio size={32} style={{ color: '#6b7280' }} />
+                  <span style={{ fontWeight: 600, color: '#4b5563' }}>Click to upload voice file (Optional)</span>
                   <span className="file-hint" style={{ fontWeight: 500 }}>MP3, WAV, M4A (Max 10MB)</span>
                 </>
               )}
@@ -602,6 +636,12 @@ const AddEmployee = () => {
               style={{ display: 'none' }} 
             />
           </div>
+
+          {errors.voiceConsent && (
+            <span className="error-text" style={{ fontWeight: 600, display: 'block', marginTop: '8px' }}>
+              {errors.voiceConsent}
+            </span>
+          )}
         </div>
 
         {/* ===== AGREEMENT SECTION ===== */}

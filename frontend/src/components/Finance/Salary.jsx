@@ -1,3 +1,5 @@
+// src/components/Salary/Salary.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Search, Eye, Edit, DollarSign, RefreshCw, X, Wallet, Users, Calendar, Clock, Award, Building, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
 import './Salary.css';
@@ -19,80 +21,123 @@ const Salary = () => {
   const [salaryData, setSalaryData] = useState([]);
   const [advanceData, setAdvanceData] = useState([]);
 
+  // ✅ Pehle branch set karo, phir data fetch karo
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
       setUserBranch(user.branch);
     }
+    // ✅ Branch set hone ke baad data fetch karo
     fetchAllData();
   }, []);
 
   // ============================================
-  // ✅ FETCH ALL DATA FROM API
+  // ✅ FETCH ACCOUNT COUNT FOR A SPECIFIC EMPLOYEE
+  // ============================================
+  const fetchAccountCountForEmployee = async (employeeId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/accounts?employee_id=${employeeId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        const accounts = data.data?.data || data.data || [];
+        return Array.isArray(accounts) ? accounts.length : 0;
+      }
+      return 0;
+    } catch (error) {
+      console.error(`Error fetching accounts for employee ${employeeId}:`, error);
+      return 0;
+    }
+  };
+
+  // ============================================
+  // ✅ OPTIMIZED: PARALLEL API CALLS - 3x FAST
   // ============================================
   const fetchAllData = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       
-      const empRes = await fetch(`${API_URL}/users?role=employee`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const empData = await empRes.json();
-      
-      const salRes = await fetch(`${API_URL}/salary`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const salData = await salRes.json();
-      
-      const advRes = await fetch(`${API_URL}/salary/advances`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const advData = await advRes.json();
+      // ✅ PARALLEL API CALLS - Sab ek saath
+      const [empRes, salRes, advRes] = await Promise.all([
+        fetch(`${API_URL}/users?role=employee`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/salary`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/salary/advances`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      // ✅ PARALLEL JSON PARSING - Sab ek saath
+      const [empData, salData, advData] = await Promise.all([
+        empRes.json(),
+        salRes.json(),
+        advRes.json()
+      ]);
 
       if (empData.success) {
-        const mergedEmployees = empData.data.data.map(emp => {
-          const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
-          const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
-          
-          const totalAdvances = advances
-            .filter(a => !a.deducted)
-            .reduce((sum, a) => sum + parseFloat(a.amount), 0);
-          
-          const deductedAdvances = advances
-            .filter(a => a.deducted)
-            .reduce((sum, a) => sum + parseFloat(a.amount), 0);
+        const employeesList = empData.data.data || [];
+        
+        // ✅ Manually fetch account count for each employee if needed
+        const employeesWithCounts = await Promise.all(
+          employeesList.map(async (emp) => {
+            let accountCount = emp.accounts_count || 0;
+            
+            // If backend returns 0, fetch manually
+            if (accountCount === 0) {
+              accountCount = await fetchAccountCountForEmployee(emp.id);
+            }
+            
+            const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
+            const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
+            
+            const totalAdvances = advances
+              .filter(a => !a.deducted)
+              .reduce((sum, a) => sum + parseFloat(a.amount), 0);
+            
+            const deductedAdvances = advances
+              .filter(a => a.deducted)
+              .reduce((sum, a) => sum + parseFloat(a.amount), 0);
 
-          return {
-            id: emp.id,
-            name: emp.name,
-            branch: emp.branch_id,
-            salary: parseFloat(emp.salary) || 0,
-            commission: salary ? parseFloat(salary.commission) || 0 : 0,
-            paid: salary ? salary.status === 'paid' : false,
-            lastPaid: salary ? salary.paid_date : 'Never',
-            totalAdvances: totalAdvances,
-            deductedAdvances: deductedAdvances,
-            accountCount: emp.accounts_count || 0,
-            history: salary ? [{
-              date: salary.paid_date || '2026-06-01',
-              amount: salary.total_paid || 0,
-              status: 'Paid',
-              type: 'salary'
-            }] : [],
-            advances: advances.map(a => ({
-              date: a.date,
-              amount: a.amount,
-              reason: a.reason,
-              deducted: a.deducted
-            })),
-            salaryRecord: salary,
-            currentMonth: new Date().toISOString().slice(0, 7)
-          };
-        });
+            return {
+              id: emp.id,
+              name: emp.name,
+              branch: emp.branch_id,
+              salary: parseFloat(emp.salary) || 0,
+              commission: salary ? parseFloat(salary.commission) || 0 : 0,
+              paid: salary ? salary.status === 'paid' : false,
+              lastPaid: salary ? salary.paid_date : 'Never',
+              totalAdvances: totalAdvances,
+              deductedAdvances: deductedAdvances,
+              accountCount: accountCount,
+              history: salary ? [{
+                date: salary.paid_date || '2026-06-01',
+                amount: salary.total_paid || 0,
+                status: 'Paid',
+                type: 'salary'
+              }] : [],
+              advances: advances.map(a => ({
+                date: a.date,
+                amount: a.amount,
+                reason: a.reason,
+                deducted: a.deducted
+              })),
+              salaryRecord: salary,
+              currentMonth: new Date().toISOString().slice(0, 7)
+            };
+          })
+        );
 
-        setEmployees(mergedEmployees);
+        setEmployees(employeesWithCounts);
         setSalaryData(salData.success ? salData.data : []);
         setAdvanceData(advData.success ? advData.data : []);
       }
@@ -100,6 +145,85 @@ const Salary = () => {
       console.error('Error fetching data:', error);
     }
     setLoading(false);
+  };
+
+  // ✅ Fast refresh ke liye - Loading state dikhaye bina refresh kare
+  const handleRefresh = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      const [empRes, salRes, advRes] = await Promise.all([
+        fetch(`${API_URL}/users?role=employee`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/salary`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/salary/advances`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      const [empData, salData, advData] = await Promise.all([
+        empRes.json(),
+        salRes.json(),
+        advRes.json()
+      ]);
+
+      if (empData.success) {
+        const employeesList = empData.data.data || [];
+        
+        const employeesWithCounts = await Promise.all(
+          employeesList.map(async (emp) => {
+            let accountCount = emp.accounts_count || 0;
+            
+            if (accountCount === 0) {
+              accountCount = await fetchAccountCountForEmployee(emp.id);
+            }
+            
+            const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
+            const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
+            
+            const totalAdvances = advances
+              .filter(a => !a.deducted)
+              .reduce((sum, a) => sum + parseFloat(a.amount), 0);
+
+            return {
+              id: emp.id,
+              name: emp.name,
+              branch: emp.branch_id,
+              salary: parseFloat(emp.salary) || 0,
+              commission: salary ? parseFloat(salary.commission) || 0 : 0,
+              paid: salary ? salary.status === 'paid' : false,
+              lastPaid: salary ? salary.paid_date : 'Never',
+              totalAdvances: totalAdvances,
+              deductedAdvances: 0,
+              accountCount: accountCount,
+              history: salary ? [{
+                date: salary.paid_date || '2026-06-01',
+                amount: salary.total_paid || 0,
+                status: 'Paid',
+                type: 'salary'
+              }] : [],
+              advances: advances.map(a => ({
+                date: a.date,
+                amount: a.amount,
+                reason: a.reason,
+                deducted: a.deducted
+              })),
+              salaryRecord: salary,
+              currentMonth: new Date().toISOString().slice(0, 7)
+            };
+          })
+        );
+
+        setEmployees(employeesWithCounts);
+        setSalaryData(salData.success ? salData.data : []);
+        setAdvanceData(advData.success ? advData.data : []);
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
   };
 
   const canManageSalary = () => {
@@ -122,7 +246,6 @@ const Salary = () => {
     return `${date} ${time}`;
   };
 
-  // ✅ Format date to YYYY-MM-DD only
   const formatLastPaid = (dateStr) => {
     if (!dateStr) return 'Never';
     if (dateStr === 'Never') return 'Never';
@@ -188,7 +311,7 @@ const Salary = () => {
           });
         }
 
-        await fetchAllData();
+        await handleRefresh();
         alert('✅ Salary paid successfully!');
       } else {
         alert(data.message || 'Failed to pay salary');
@@ -230,7 +353,7 @@ const Salary = () => {
       const data = await response.json();
       
       if (data.success) {
-        await fetchAllData();
+        await handleRefresh();
         setAdvanceAmount('');
         setAdvanceReason('');
         setShowAdvanceModal(false);
@@ -245,9 +368,6 @@ const Salary = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ RESET SALARY - COMPLETE RESET FOR NEXT MONTH
-  // ============================================
   const handleReset = async (id) => {
     if (!window.confirm('Reset this employee\'s salary for the current month?\n\nThis will:\n• Mark as Pending\n• Remove Paid Date\n• Reset Commission to 0\n• Reset Total Paid to 0')) {
       return;
@@ -260,7 +380,6 @@ const Salary = () => {
       const salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
       
       if (salaryRecord) {
-        // ✅ COMPLETE RESET - All fields reset
         const response = await fetch(`${API_URL}/salary/${salaryRecord.id}`, {
           method: 'PUT',
           headers: {
@@ -279,7 +398,7 @@ const Salary = () => {
         
         const data = await response.json();
         if (data.success) {
-          await fetchAllData();
+          await handleRefresh();
           alert('✅ Salary reset successfully! Employee is now pending for the new month.');
         } else {
           alert(data.message || 'Failed to reset salary');
@@ -312,7 +431,7 @@ const Salary = () => {
 
       const data = await response.json();
       if (data.success) {
-        await fetchAllData();
+        await handleRefresh();
         alert('✅ Salary updated successfully!');
       } else {
         alert(data.message || 'Failed to update salary');
@@ -368,7 +487,7 @@ const Salary = () => {
 
       const data = await response.json();
       if (data.success) {
-        await fetchAllData();
+        await handleRefresh();
         alert('✅ Commission updated successfully!');
       } else {
         alert(data.message || 'Failed to update commission');
@@ -462,6 +581,18 @@ const Salary = () => {
     },
   ];
 
+  // ✅ Agar loading ho aur employees empty hain toh spinner dikhao
+  if (loading && employees.length === 0) {
+    return (
+      <div className="salary-container">
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading salary data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="salary-container">
       <div className="salary-header">
@@ -504,6 +635,9 @@ const Salary = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <button className="btn-refresh-small" onClick={handleRefresh} title="Refresh">
+          <RefreshCw size={16} />
+        </button>
       </div>
 
       <div className="salary-table-wrap">
@@ -528,7 +662,13 @@ const Salary = () => {
               </tr>
             ) : (
               filtered.map(emp => {
-                const balance = emp.salary + emp.commission - emp.totalAdvances;
+                // ✅ FIX: Balance calculation - if paid, show 0, else show actual balance
+                let balance;
+                if (emp.paid) {
+                  balance = 0; // ✅ Paid employees ka balance 0
+                } else {
+                  balance = emp.salary + emp.commission - emp.totalAdvances;
+                }
                 
                 return (
                   <tr key={emp.id} className={emp.paid ? 'paid-row' : 'pending-row'}>
@@ -566,7 +706,10 @@ const Salary = () => {
                         <span className="no-value">—</span>
                       )}
                     </td>
-                    <td className="balance-amount" style={{ fontWeight: 800, color: balance > 0 ? '#1E1B4B' : '#dc2626' }}>
+                    <td className="balance-amount" style={{ 
+                      fontWeight: 800, 
+                      color: balance === 0 ? '#22c55e' : (balance > 0 ? '#1E1B4B' : '#dc2626')
+                    }}>
                       PKR {balance.toLocaleString()}
                     </td>
                     <td>
@@ -639,6 +782,7 @@ const Salary = () => {
                 </div>
               </div>
 
+              {/* ✅ FIX: Total Paid -> Remaining Salary */}
               <div className="history-summary">
                 <div className="summary-item" style={{ background: 'rgba(30, 27, 75, 0.06)', borderRadius: '0.75rem' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Salary</span>
@@ -649,7 +793,7 @@ const Salary = () => {
                   <strong style={{ fontSize: '1.1rem', color: '#8B5CF6' }}>PKR {selectedEmployee.commission.toLocaleString()}</strong>
                 </div>
                 <div className="summary-item" style={{ background: 'rgba(34, 197, 94, 0.08)', borderRadius: '0.75rem' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Total Paid</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#166534' }}>Remaining Salary</span>
                   <strong style={{ fontSize: '1.1rem', color: '#22c55e' }}>
                     PKR {(
                       selectedEmployee.salary + 

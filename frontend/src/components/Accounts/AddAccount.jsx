@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star
+  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star, FileImage, Wallet
 } from 'lucide-react';
 import './AddAccount.css';
 import { API_URL } from '../../../config';
@@ -21,8 +21,6 @@ const AddAccount = () => {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [toast, setToast] = useState(null);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('active');
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
 
@@ -32,13 +30,12 @@ const AddAccount = () => {
   // ✅ DOUBLE SUBMIT GUARD
   const isSubmittingRef = useRef(false);
 
-  // ✅ NAYA: real CNIC check ka data (mock systemData hata diya gaya hai)
-  const [existingAccountData, setExistingAccountData] = useState(null); // /customers/check-cnic ka result
+  // ✅ NAYA: real CNIC check ka data
+  const [existingAccountData, setExistingAccountData] = useState(null);
   const [showExistingAccountModal, setShowExistingAccountModal] = useState(false);
   const [cnicCheckLoading, setCnicCheckLoading] = useState(false);
 
-  // ✅ NAYA: Special Customer toggle — jab ON ho, 2-account aur 1-lakh
-  // dono client-side limits bypass ho jati hain, aur backend ko is_unlimited=1 bhejta hai.
+  // ✅ NAYA: Special Customer toggle
   const [isSpecialCustomer, setIsSpecialCustomer] = useState(false);
 
   const showToast = (message, type = 'warning', details = null) => {
@@ -55,7 +52,6 @@ const AddAccount = () => {
     const token = localStorage.getItem('token');
 
     try {
-      // 1) Customer + accounts + limit check
       const custRes = await fetch(`${API_URL}/customers/check-cnic`, {
         method: 'POST',
         headers: {
@@ -72,8 +68,6 @@ const AddAccount = () => {
         setExistingAccountData(custData);
         setShowExistingAccountModal(true);
 
-        // ✅ Agar backend ne is CNIC ko already special/unlimited mark kar rakha hai,
-        // to toggle ko bhi auto-ON kar do taake UI consistent rahe.
         if (custData.is_unlimited) {
           setIsSpecialCustomer(true);
         }
@@ -98,7 +92,6 @@ const AddAccount = () => {
         setExistingAccountData(null);
       }
 
-      // 2) Is this CNIC itself a guarantor for someone?
       if (custData && custData.exists_as_guarantor && custData.guarantor_records?.length > 0) {
         const details = custData.guarantor_records.map(g =>
           `• Guarantor for: ${g.customer_name} (${g.customer_cnic})`
@@ -125,7 +118,6 @@ const AddAccount = () => {
     const token = localStorage.getItem('token');
 
     try {
-      // 1) Is this CNIC already an existing customer?
       const custRes = await fetch(`${API_URL}/customers/check-cnic`, {
         method: 'POST',
         headers: {
@@ -146,7 +138,6 @@ const AddAccount = () => {
         return;
       }
 
-      // 2) Is this CNIC already a guarantor somewhere else?
       const gRes = await fetch(`${API_URL}/guarantors/check-cnic`, {
         method: 'POST',
         headers: {
@@ -201,6 +192,10 @@ const AddAccount = () => {
     additionalImage2: null,
     additionalImage1Preview: '',
     additionalImage2Preview: '',
+    billImage1: null,
+    billImage2: null,
+    billImage1Preview: '',
+    billImage2Preview: '',
     guarantors: [
       { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
       { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
@@ -214,6 +209,7 @@ const AddAccount = () => {
     noOfInstallments: '',
     dueDate: '',
     installmentAmount: '',
+    paymentType: 'cash',
     chalanFront: null,
     chalanBack: null,
     chalanFrontPreview: '',
@@ -233,6 +229,8 @@ const AddAccount = () => {
   const voiceFileRef = useRef(null);
   const additionalImage1Ref = useRef(null);
   const additionalImage2Ref = useRef(null);
+  const billImage1Ref = useRef(null);
+  const billImage2Ref = useRef(null);
   const guarantorRefs = useRef([]);
 
   useEffect(() => {
@@ -254,7 +252,6 @@ const AddAccount = () => {
       setUserName(user.name);
       setUserEmail(user.email);
       
-      // ✅ Auto-set branch
       if (user.branch) {
         setFormData(prev => ({ 
           ...prev, 
@@ -262,7 +259,6 @@ const AddAccount = () => {
         }));
       }
       
-      // ✅ Auto-set employeeId for employees/manager (not admin)
       if (user.role === 'employee' || user.role === 'manager') {
         setFormData(prev => ({ 
           ...prev, 
@@ -418,6 +414,30 @@ const AddAccount = () => {
     setFormData({ ...formData, guarantors: updated });
   };
 
+  // ✅ NEW: Bill Image Upload Handlers
+  const handleBillImageUpload = (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const previewUrl = URL.createObjectURL(file);
+    
+    if (type === 'bill1') {
+      setFormData({ ...formData, billImage1: file, billImage1Preview: previewUrl });
+    } else if (type === 'bill2') {
+      setFormData({ ...formData, billImage2: file, billImage2Preview: previewUrl });
+    }
+  };
+
+  const removeBillImage = (type) => {
+    if (type === 'bill1') {
+      setFormData({ ...formData, billImage1: null, billImage1Preview: '' });
+      if (billImage1Ref.current) billImage1Ref.current.value = '';
+    } else if (type === 'bill2') {
+      setFormData({ ...formData, billImage2: null, billImage2Preview: '' });
+      if (billImage2Ref.current) billImage2Ref.current.value = '';
+    }
+  };
+
   const handleAdditionalImageUpload = (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -474,6 +494,17 @@ const AddAccount = () => {
     }
   };
 
+  // ✅ Check for duplicate CNIC in guarantors
+  const checkDuplicateGuarantorCnic = () => {
+    const cnics = formData.guarantors
+      .filter(g => g.cnic && g.cnic.trim())
+      .map(g => g.cnic.trim());
+    
+    const uniqueCnics = new Set(cnics);
+    return cnics.length !== uniqueCnics.size;
+  };
+
+  // ✅ STEP 1 VALIDATION
   const validateStep1 = () => {
     const newErrors = {};
     if (!formData.name) newErrors.name = 'Name is required';
@@ -485,6 +516,7 @@ const AddAccount = () => {
     if (!formData.cnicFront) newErrors.cnicFront = 'CNIC Front image is required';
     if (!formData.cnicBack) newErrors.cnicBack = 'CNIC Back image is required';
     
+    // ✅ Additional images are still required (keeping old logic)
     if (!formData.additionalImage1) {
       newErrors.additionalImage1 = 'Additional Image 1 is required';
     }
@@ -492,13 +524,16 @@ const AddAccount = () => {
       newErrors.additionalImage2 = 'Additional Image 2 is required';
     }
     
+    // ✅ Check duplicate CNIC in guarantors
+    if (checkDuplicateGuarantorCnic()) {
+      newErrors.guarantors = 'Duplicate CNIC found in guarantors. Each guarantor must have a unique CNIC.';
+    }
+    
     const completeGuarantors = formData.guarantors.filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim() && g.address.trim() && g.cnicFront !== null && g.cnicBack !== null);
     if (completeGuarantors.length < 2) {
       newErrors.guarantors = 'Minimum 2 complete guarantors required';
     }
 
-    // ✅ HARD STOP — agar CNIC ki limit khatam ho chuki hai to Next hi na hone do
-    // (Special Customer toggle ON ho tou ye hard-stop bilkul skip ho jata hai)
     if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
       newErrors.cnic = `This CNIC already has ${existingAccountData.accounts_count} accounts. Maximum limit reached.`;
     }
@@ -507,7 +542,6 @@ const AddAccount = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ✅ FIXED: yeh check ab HAMESHA chalta hai — naya customer ho ya existing.
   const validateStep2 = () => {
     const newErrors = {};
     if (!formData.productName) newErrors.productName = 'Product name is required';
@@ -545,22 +579,15 @@ const AddAccount = () => {
   };
   const handlePrev = () => setStep(1);
 
+  // ✅ FINAL SUBMIT — NO STATUS MODAL, DIRECT CREATE
   const handleFinalSubmit = (e) => {
     e.preventDefault();
     if (validateStep2()) {
-      setShowStatusModal(true);
+      // ✅ Direct create without status modal
+      confirmAccountCreation();
     }
   };
 
-  // ============================================
-  // ✅ CONFIRM ACCOUNT CREATION
-  // ✅ FIX: Account ab sirf EK BAAR banta hai — pehle yahan customer create
-  // hone ke baad ek ALAG /accounts call bhi ho rahi thi, jab ke backend
-  // (CustomerController@store) customer create karte hi Account +
-  // Installments already bana deta hai. Doosri call se duplicate Account
-  // ban raha tha, isliye wo poori call yahan se hata di gayi hai.
-  // Ab hum sirf customer-create response se hi account/case_no dikhate hain.
-  // ============================================
   const confirmAccountCreation = async () => {
     if (isSubmittingRef.current) {
       console.warn('⚠️ Submission already in progress, ignoring duplicate call');
@@ -585,7 +612,6 @@ const AddAccount = () => {
       console.log('👤 Admin/Manager (Creating):', loggedInUserId, loggedInUserName);
       console.log('👤 Employee (Opening):', employeeId);
       
-      // 1. CREATE CUSTOMER (backend yahin Account + Installments bhi bana deta hai)
       const customerFormData = new FormData();
       customerFormData.append('name', formData.name);
       customerFormData.append('cnic', formData.cnic);
@@ -593,7 +619,7 @@ const AddAccount = () => {
       customerFormData.append('address', formData.address);
       customerFormData.append('work', formData.work);
       customerFormData.append('branch_id', formData.branch);
-      customerFormData.append('status', selectedStatus);
+      customerFormData.append('status', 'active'); // ✅ Always active
       customerFormData.append('created_by', parseInt(employeeId));
       customerFormData.append('product_name', formData.productName);
       customerFormData.append('invoice_price', parseFloat(formData.invoicePrice) || 0);
@@ -601,6 +627,7 @@ const AddAccount = () => {
       customerFormData.append('number_of_installments', parseInt(formData.noOfInstallments) || 0);
       customerFormData.append('due_date', formData.dueDate);
       customerFormData.append('advance_payment', parseFloat(formData.advanceAmount) || 0);
+      customerFormData.append('payment_type', formData.paymentType || 'cash');
       
       customerFormData.append('is_unlimited', isSpecialCustomer ? 1 : 0);
       
@@ -610,17 +637,34 @@ const AddAccount = () => {
       if (formData.cnicBack) {
         customerFormData.append('cnic_back', formData.cnicBack);
       }
+      
       if (formData.additionalImage1) {
         customerFormData.append('additional_image_1', formData.additionalImage1);
       }
       if (formData.additionalImage2) {
         customerFormData.append('additional_image_2', formData.additionalImage2);
       }
+      
+      // ✅ Bill Images (Optional)
+      if (formData.billImage1) {
+        customerFormData.append('bill_image_1', formData.billImage1);
+      }
+      if (formData.billImage2) {
+        customerFormData.append('bill_image_2', formData.billImage2);
+      }
+      
+      // ✅ Voice Consent — OPTIONAL
       if (voiceFiles.length > 0) {
         customerFormData.append('voice_consent', voiceFiles[0].file);
       }
+      
+      if (formData.chalanFront) {
+        customerFormData.append('chalan_front', formData.chalanFront);
+      }
+      if (formData.chalanBack) {
+        customerFormData.append('chalan_back', formData.chalanBack);
+      }
 
-      // 2. GUARANTORS DATA (JSON)
       const validGuarantors = formData.guarantors
         .map((g, originalIndex) => ({ ...g, originalIndex }))
         .filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim());
@@ -634,14 +678,12 @@ const AddAccount = () => {
         }))
       ));
 
-      // 3. INSTALLMENT CALCULATION (sirf display/alert ke liye)
       const remainingAmount = (parseFloat(formData.invoicePrice) || 0) - (parseFloat(formData.advanceAmount) || 0);
       const totalInstallments = parseInt(formData.noOfInstallments) || 0;
       const monthlyInstallment = totalInstallments > 0 && remainingAmount > 0 
         ? remainingAmount / totalInstallments 
         : 0;
 
-      // 4. CREATE CUSTOMER API CALL
       const response = await fetch(`${API_URL}/customers`, {
         method: 'POST',
         headers: {
@@ -667,7 +709,6 @@ const AddAccount = () => {
           showToast(`❌ ${data.message || 'Failed to create customer'}`, 'warning');
         }
         setLoading(false);
-        setShowStatusModal(false);
         isSubmittingRef.current = false;
         return;
       }
@@ -675,7 +716,6 @@ const AddAccount = () => {
       if (data.success) {
         const customerId = data.data.id;
         const employeeAccountId = data.data.employee_account_id || data.employee_account_id;
-        // ✅ Account already customer-create response ke andar aata hai
         const createdAccount = Array.isArray(data.data.accounts) && data.data.accounts.length > 0
           ? data.data.accounts[0]
           : null;
@@ -684,9 +724,6 @@ const AddAccount = () => {
         console.log('✅ Employee Account ID:', employeeAccountId);
         console.log('✅ Account created (from customer response):', createdAccount);
 
-        // ============================================
-        // ✅ CREATE GUARANTORS WITH IMAGES
-        // ============================================
         if (validGuarantors.length > 0) {
           for (let i = 0; i < validGuarantors.length; i++) {
             const guarantor = validGuarantors[i];
@@ -703,27 +740,11 @@ const AddAccount = () => {
               
               const originalGuarantor = formData.guarantors[guarantor.originalIndex];
               
-              console.log(`📤 Guarantor ${i+1} (slot ${guarantor.originalIndex + 1}) - ${guarantor.name}:`, {
-                hasFront: !!originalGuarantor?.cnicFront,
-                hasBack: !!originalGuarantor?.cnicBack,
-                frontFile: originalGuarantor?.cnicFront?.name,
-                backFile: originalGuarantor?.cnicBack?.name
-              });
-              
               if (originalGuarantor && originalGuarantor.cnicFront) {
                 guarantorFormData.append('cnic_front', originalGuarantor.cnicFront);
               }
               if (originalGuarantor && originalGuarantor.cnicBack) {
                 guarantorFormData.append('cnic_back', originalGuarantor.cnicBack);
-              }
-              
-              console.log(`📤 Guarantor ${i+1} FormData:`);
-              for (let pair of guarantorFormData.entries()) {
-                if (pair[1] instanceof File) {
-                  console.log(`  ${pair[0]}: File(${pair[1].name}, ${pair[1].size} bytes)`);
-                } else {
-                  console.log(`  ${pair[0]}: ${pair[1]}`);
-                }
               }
               
               const guarantorResponse = await fetch(`${API_URL}/guarantors`, {
@@ -746,17 +767,10 @@ const AddAccount = () => {
             }
           }
         }
-
-        // ============================================
-        // ✅ NOTE: Ab yahan koi ALAG POST /accounts call NAHI hai.
-        // Account already backend ne customer create hote hi bana diya hai.
-        // Bas createdAccount se case_no waghera dikha rahe hain.
-        // ============================================
-        setShowStatusModal(false);
         
         const empName = getSelectedEmployeeName() || user?.name || 'N/A';
         
-        alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${createdAccount?.case_no || 'N/A'}\nStatus: ${selectedStatus.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
+        alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${createdAccount?.case_no || 'N/A'}\nStatus: ACTIVE\nPayment Type: ${formData.paymentType.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
         
         // Reset form
         setFormData({
@@ -774,6 +788,10 @@ const AddAccount = () => {
           additionalImage2: null,
           additionalImage1Preview: '',
           additionalImage2Preview: '',
+          billImage1: null,
+          billImage2: null,
+          billImage1Preview: '',
+          billImage2Preview: '',
           guarantors: [
             { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
             { name: '', cnic: '', phone: '', address: '', cnicFront: null, cnicBack: null, cnicFrontPreview: '', cnicBackPreview: '' },
@@ -787,6 +805,7 @@ const AddAccount = () => {
           noOfInstallments: '',
           dueDate: '',
           installmentAmount: '',
+          paymentType: 'cash',
           chalanFront: null,
           chalanBack: null,
           chalanFrontPreview: '',
@@ -811,7 +830,6 @@ const AddAccount = () => {
     }
     
     setLoading(false);
-    setShowStatusModal(false);
     isSubmittingRef.current = false;
   };
 
@@ -880,7 +898,6 @@ const AddAccount = () => {
         </div>
       )}
 
-      {/* ✅ USER INFO BAR */}
       <div className="user-info-bar" style={{
         background: 'linear-gradient(135deg, #1E1B4B 0%, #312e81 100%)',
         color: 'white',
@@ -916,57 +933,6 @@ const AddAccount = () => {
         </div>
       </div>
 
-      {showStatusModal && (
-        <div className="status-modal-overlay" onClick={() => setShowStatusModal(false)}>
-          <div className="status-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="status-modal-header">
-              <Shield size={24} className="status-modal-icon" />
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Account Status</h3>
-              <button className="status-modal-close" onClick={() => setShowStatusModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="status-modal-body">
-              <p className="status-modal-text" style={{ fontSize: '1rem', fontWeight: 600 }}>
-                Select the status for this account:
-              </p>
-              <div className="status-options">
-                <label className={`status-option ${selectedStatus === 'active' ? 'active' : ''}`}>
-                  <input type="radio" name="accountStatus" value="active" checked={selectedStatus === 'active'} onChange={(e) => setSelectedStatus(e.target.value)} />
-                  <div className="status-option-content">
-                    <PlayCircle size={24} className="status-option-icon active-icon" />
-                    <div>
-                      <span className="status-option-label" style={{ fontWeight: 700 }}>Active</span>
-                      <span className="status-option-desc" style={{ fontWeight: 500 }}>Account will be active immediately</span>
-                    </div>
-                  </div>
-                </label>
-                <label className={`status-option ${selectedStatus === 'hold' ? 'active' : ''}`}>
-                  <input type="radio" name="accountStatus" value="hold" checked={selectedStatus === 'hold'} onChange={(e) => setSelectedStatus(e.target.value)} />
-                  <div className="status-option-content">
-                    <PauseCircle size={24} className="status-option-icon hold-icon" />
-                    <div>
-                      <span className="status-option-label" style={{ fontWeight: 700 }}>Hold</span>
-                      <span className="status-option-desc" style={{ fontWeight: 500 }}>Account will be placed on hold</span>
-                    </div>
-                  </div>
-                </label>
-              </div>
-            </div>
-            <div className="status-modal-footer">
-              <button className="status-btn-cancel" onClick={() => setShowStatusModal(false)} style={{ fontWeight: 700 }}>Cancel</button>
-              <button className="status-btn-confirm" onClick={confirmAccountCreation} style={{ fontWeight: 700 }} disabled={loading}>
-                <CheckCircle size={18} />
-                {loading ? 'Creating...' : 'Create Account'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================ */}
-      {/* ✅ NAYA: Existing Customer / Account Report Modal */}
-      {/* ============================================ */}
       {showExistingAccountModal && existingAccountData && (
         <div className="status-modal-overlay" onClick={() => setShowExistingAccountModal(false)}>
           <div className="status-modal" style={{ maxWidth: '720px', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
@@ -1052,9 +1018,6 @@ const AddAccount = () => {
         )}
       </div>
 
-      {/* ============================================ */}
-      {/* ✅ NAYA: Special Customer Toggle */}
-      {/* ============================================ */}
       <div
         style={{
           display: 'flex',
@@ -1202,7 +1165,6 @@ const AddAccount = () => {
               </div>
             </div>
 
-            {/* EMPLOYEE SECTION */}
             <div className="employee-section" style={{ border: '1px solid #c4b5fd', background: '#faf8ff' }}>
               <div className="section-header">
                 <UserPlus size={18} style={{ color: '#1E1B4B' }} />
@@ -1247,7 +1209,6 @@ const AddAccount = () => {
               {userBranch && <p className="employee-hint" style={{ fontWeight: 500 }}>Only employees from {branchLabel} are available</p>}
             </div>
 
-            {/* ADDITIONAL IMAGES SECTION */}
             <div className="image-section" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
               <div className="section-header">
                 <Upload size={18} style={{ color: '#92400e' }} />
@@ -1286,22 +1247,48 @@ const AddAccount = () => {
               </div>
             </div>
 
-            {/* VOICE SECTION */}
-            <div className="voice-section" style={{ border: '1px solid #86efac', background: '#f0fdf4' }}>
+            {/* ✅ VOICE SECTION — OPTIONAL */}
+            <div className="voice-section" style={{ 
+              border: voiceFiles.length === 0 ? '1px solid #e5e7eb' : '1px solid #86efac', 
+              background: voiceFiles.length === 0 ? '#fafafa' : '#f0fdf4' 
+            }}>
               <div className="section-header">
-                <Mic size={18} style={{ color: '#065f46' }} />
+                <Mic size={18} style={{ color: voiceFiles.length === 0 ? '#6b7280' : '#065f46' }} />
                 <h4 style={{ fontWeight: 700 }}>Voice Consent / Raza Mandi</h4>
+                <span className="optional-badge" style={{ 
+                  fontWeight: 600, 
+                  color: voiceFiles.length === 0 ? '#6b7280' : '#065f46', 
+                  background: voiceFiles.length === 0 ? '#f3f4f6' : '#d1fae5', 
+                  padding: '2px 10px', 
+                  borderRadius: '12px', 
+                  fontSize: '12px' 
+                }}>
+                  {voiceFiles.length === 0 ? 'Optional' : '✅ Uploaded'}
+                </span>
               </div>
-              <p className="voice-hint" style={{ fontWeight: 500 }}>Customer ki raza mandi ki voice file upload karein</p>
+              <p className="voice-hint" style={{ fontWeight: 500, color: '#6b7280' }}>
+                {voiceFiles.length === 0 
+                  ? 'Customer ki raza mandi ki voice file upload karein (Optional)' 
+                  : 'Customer ki raza mandi ki voice file upload kar di gayi hai'}
+              </p>
               
               <div className="voice-upload">
-                <div className="upload-area voice-upload-area" onClick={() => voiceFileRef.current?.click()} style={{ borderColor: '#86efac' }}>
-                  <FileAudio size={32} style={{ color: '#065f46' }} />
-                  <span style={{ fontWeight: 600 }}>Click to upload voice file</span>
+                <div className="upload-area voice-upload-area" onClick={() => voiceFileRef.current?.click()} style={{ 
+                  borderColor: voiceFiles.length === 0 ? '#d1d5db' : '#86efac',
+                  background: voiceFiles.length === 0 ? 'white' : '#f0fdf4'
+                }}>
+                  <FileAudio size={32} style={{ color: voiceFiles.length === 0 ? '#6b7280' : '#065f46' }} />
+                  <span style={{ fontWeight: 600 }}>{voiceFiles.length === 0 ? 'Click to upload voice file (Optional)' : 'Click to upload another voice file'}</span>
                   <span className="file-hint" style={{ fontWeight: 500 }}>MP3, WAV, M4A (Max 10MB)</span>
                 </div>
                 <input type="file" ref={voiceFileRef} accept="audio/*" onChange={handleVoiceFileUpload} style={{ display: 'none' }} />
               </div>
+
+              {errors.voiceConsent && (
+                <span className="error-text" style={{ fontWeight: 600, display: 'block', marginTop: '8px' }}>
+                  {errors.voiceConsent}
+                </span>
+              )}
 
               {voiceFiles.length > 0 && (
                 <div className="voice-files-list">
@@ -1326,7 +1313,6 @@ const AddAccount = () => {
               )}
             </div>
 
-            {/* CNIC IMAGES SECTION */}
             <div className="image-section" style={{ border: '1px solid #bfdbfe', background: '#eff6ff' }}>
               <div className="section-header">
                 <Upload size={18} style={{ color: '#2563eb' }} />
@@ -1362,7 +1348,6 @@ const AddAccount = () => {
               </div>
             </div>
 
-            {/* GUARANTORS SECTION */}
             <div className="guarantors-section" style={{ border: '1px solid #fde68a', background: '#fffbeb' }}>
               <div className="section-header">
                 <Users size={18} style={{ color: '#92400e' }} />
@@ -1412,7 +1397,7 @@ const AddAccount = () => {
                   <small className="field-hint" style={{ fontWeight: 500 }}>System will check if this CNIC is already a customer or guarantor</small>
                 </div>
               ))}
-              {errors.guarantors && <span className="error-text" style={{ fontWeight: 600 }}>{errors.guarantors}</span>}
+              {errors.guarantors && <span className="error-text" style={{ fontWeight: 600, color: '#dc2626' }}>{errors.guarantors}</span>}
             </div>
           </div>
         )}
@@ -1520,6 +1505,24 @@ const AddAccount = () => {
               </div>
             </div>
 
+            {/* ✅ PAYMENT TYPE DROPDOWN */}
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ fontWeight: 700 }}>Payment Type *</label>
+              <select
+                name="paymentType"
+                className="form-input"
+                value={formData.paymentType}
+                onChange={handleChange}
+                style={{ fontWeight: 500 }}
+              >
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="cheque">Cheque</option>
+                <option value="online">Online Payment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
             <div className="image-section" style={{ border: '1px solid #d1fae5', background: '#f0fdf4' }}>
               <div className="section-header">
                 <Upload size={18} style={{ color: '#065f46' }} />
@@ -1555,7 +1558,45 @@ const AddAccount = () => {
                   {errors.chalanBack && <span className="error-text" style={{ fontWeight: 600 }}>{errors.chalanBack}</span>}
                 </div>
               </div>
-              {errors.chalan && <span className="error-text" style={{ fontWeight: 600 }}>{errors.chalan}</span>}
+            </div>
+
+            {/* ✅ NEW: BILL IMAGES SECTION (Optional) */}
+            <div className="image-section" style={{ border: '1px solid #d1d5db', background: '#fafafa', marginTop: '16px' }}>
+              <div className="section-header">
+                <FileImage size={18} style={{ color: '#6b7280' }} />
+                <h4 style={{ fontWeight: 700 }}>Bill Images</h4>
+                <span className="optional-badge" style={{ fontWeight: 600, color: '#6b7280', background: '#f3f4f6', padding: '2px 10px', borderRadius: '12px', fontSize: '12px' }}>
+                  Optional
+                </span>
+              </div>
+              <p className="voice-hint" style={{ fontWeight: 500, color: '#6b7280' }}>Upload bill images (Optional)</p>
+              
+              <div className="image-grid">
+                <div className="image-upload-box">
+                  <label style={{ fontWeight: 600 }}>Bill Image 1</label>
+                  <div className="upload-area" onClick={() => billImage1Ref.current?.click()} style={{ borderColor: '#d1d5db' }}>
+                    {formData.billImage1Preview ? (
+                      <div className="preview-container">
+                        <img src={formData.billImage1Preview} alt="Bill Image 1" />
+                        <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeBillImage('bill1'); }}><X size={16} /></button>
+                      </div>
+                    ) : ( <><Upload size={32} style={{ color: '#6b7280' }} /><span style={{ fontWeight: 500 }}>Click to upload</span></> )}
+                  </div>
+                  <input type="file" ref={billImage1Ref} accept="image/*" onChange={(e) => handleBillImageUpload(e, 'bill1')} style={{ display: 'none' }} />
+                </div>
+                <div className="image-upload-box">
+                  <label style={{ fontWeight: 600 }}>Bill Image 2</label>
+                  <div className="upload-area" onClick={() => billImage2Ref.current?.click()} style={{ borderColor: '#d1d5db' }}>
+                    {formData.billImage2Preview ? (
+                      <div className="preview-container">
+                        <img src={formData.billImage2Preview} alt="Bill Image 2" />
+                        <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeBillImage('bill2'); }}><X size={16} /></button>
+                      </div>
+                    ) : ( <><Upload size={32} style={{ color: '#6b7280' }} /><span style={{ fontWeight: 500 }}>Click to upload</span></> )}
+                  </div>
+                  <input type="file" ref={billImage2Ref} accept="image/*" onChange={(e) => handleBillImageUpload(e, 'bill2')} style={{ display: 'none' }} />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1565,9 +1606,9 @@ const AddAccount = () => {
           {step === 1 ? (
             <button type="button" className="btn-next" onClick={handleNext} style={{ fontWeight: 700 }}>Next →</button>
           ) : (
-            <button type="submit" className="btn-submit" style={{ fontWeight: 700 }}>
+            <button type="submit" className="btn-submit" style={{ fontWeight: 700 }} disabled={loading}>
               <CheckCircle size={18} />
-              Create Account
+              {loading ? 'Creating...' : 'Create Account'}
             </button>
           )}
         </div>

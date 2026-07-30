@@ -817,10 +817,6 @@ const SystemAccess = () => {
       </div>
 
       <div className="system-footer">
-        <button className="btn-export" onClick={() => window.print()}>
-          <Printer size={16} />
-          Print Report
-        </button>
         <span className="total-record-text">
           Total {filteredTotalUsers} users | {filteredSystemAccessCount} with system access
         </span>

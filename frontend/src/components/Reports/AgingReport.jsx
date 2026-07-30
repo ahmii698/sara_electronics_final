@@ -1,8 +1,37 @@
+// src/components/AgingReport/AgingReport.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Search, Calendar, DollarSign, User, Building, AlertTriangle, Clock, Eye, FileText, Download, Filter, X, Users } from 'lucide-react';
 import './AgingReport.css';
-import { API_URL } from '../../../config';
+import { API_URL, STORAGE_URL } from '../../../config';
 import ExportButton from '../common/ExportButton';
+
+// ============================================
+// ✅ Storage URL helper - file path ko full URL mein convert karta hai
+// ============================================
+const getFileUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${STORAGE_URL}/${path}`;
+};
+
+// ============================================
+// ✅ DocImage - single document image card, click pe full size khulta hai
+// ============================================
+const DocImage = ({ label, src }) => (
+  <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+    <a href={src} target="_blank" rel="noopener noreferrer">
+      <img 
+        src={src} 
+        alt={label} 
+        style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'zoom-in' }} 
+      />
+    </a>
+    <p style={{ fontSize: '12px', fontWeight: 600, textAlign: 'center', padding: '6px', margin: 0, color: '#374151' }}>
+      {label}
+    </p>
+  </div>
+);
 
 const AgingReport = () => {
   const [search, setSearch] = useState('');
@@ -98,7 +127,7 @@ const AgingReport = () => {
   //   - Clear   -> every installment (up to total_installments) fully paid
   //   - Active  -> no due-and-unpaid installment at all
   //   - Overdue -> oldest due-unpaid installment is 1-3 months behind
-  //   - Aging   -> oldest due-unpaid installment is 4+ months behind   ✅ FIXED (was 3+)
+  //   - Aging   -> oldest due-unpaid installment is 4+ months behind
   // ============================================
   const getAccountAgingInfo = (list, account) => {
     const totalInstallments = account?.total_installments || list.length;
@@ -127,10 +156,6 @@ const AgingReport = () => {
     const oldestDueMonth = dueUnpaidMonths[0];
     const overdueMonths = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
 
-    // ✅ FIXED: ab 4+ se Aging start hogi, taake Installments.jsx aur
-    // OverdueInstallments.jsx ke sath 100% match ho (pehle 3+ tha, jiski
-    // wajah se ek account 3rd month mein Overdue page aur Aging page
-    // dono par ek sath dikh raha tha)
     if (overdueMonths >= 4) {
       return { statusKey: 'aging', overdueMonths };
     }
@@ -150,7 +175,6 @@ const AgingReport = () => {
     if (monthsDiff < 0) return { key: 'unpaid', label: 'Unpaid' }; // future month, not due yet
 
     const overdueCount = monthsDiff + 1;
-    // ✅ FIXED: 4+ se Aging (pehle 3+ tha)
     if (overdueCount >= 4) return { key: 'aging', label: 'Aging' };
     return { key: 'overdue', label: `Overdue (${overdueCount}m)` };
   };
@@ -162,6 +186,7 @@ const AgingReport = () => {
   const fetchAgingAccounts = async (branch, role) => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
       const allInstallments = await fetchAllInstallments(branch, role);
 
       const grouped = new Map();
@@ -174,13 +199,13 @@ const AgingReport = () => {
 
       const agingList = [];
 
-      grouped.forEach((list, accId) => {
+      for (const [accId, list] of grouped) {
         const sample = list[0];
         const account = sample.account || {};
 
         // ✅ Only accounts whose status is actually "Aging" (4+ months behind)
         const { statusKey, overdueMonths } = getAccountAgingInfo(list, account);
-        if (statusKey !== 'aging') return;
+        if (statusKey !== 'aging') continue;
 
         const sortedInstallments = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
 
@@ -190,6 +215,54 @@ const AgingReport = () => {
           : null;
 
         const customer = account.customer || {};
+
+        // ✅ GUARANTORS KO PROPERLY FETCH KARO - Multiple possible paths
+        let guarantors = [];
+        
+        // Path 1: customer.guarantors
+        if (customer.guarantors && Array.isArray(customer.guarantors)) {
+          guarantors = customer.guarantors;
+        }
+        // Path 2: account.guarantors
+        else if (account.guarantors && Array.isArray(account.guarantors)) {
+          guarantors = account.guarantors;
+        }
+        // Path 3: sample.guarantors
+        else if (sample.guarantors && Array.isArray(sample.guarantors)) {
+          guarantors = sample.guarantors;
+        }
+        // Path 4: customer ki nested guarantors property
+        else if (customer.guarantor && Array.isArray(customer.guarantor)) {
+          guarantors = customer.guarantor;
+        }
+        // Path 5: account ki nested guarantors property
+        else if (account.guarantor && Array.isArray(account.guarantor)) {
+          guarantors = account.guarantor;
+        }
+
+        // ✅ Agar guarantors empty hain to try fetching from account details API
+        if (guarantors.length === 0 && accId) {
+          try {
+            const detailResponse = await fetch(`${API_URL}/installments/account-details/${accId}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+              }
+            });
+            const detailData = await detailResponse.json();
+            if (detailData.success && detailData.data) {
+              const accDetail = detailData.data;
+              const cust = accDetail.customer || {};
+              if (cust.guarantors && Array.isArray(cust.guarantors)) {
+                guarantors = cust.guarantors;
+              } else if (accDetail.guarantors && Array.isArray(accDetail.guarantors)) {
+                guarantors = accDetail.guarantors;
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching account details for guarantors:', err);
+          }
+        }
 
         agingList.push({
           accountId: accId,
@@ -206,9 +279,13 @@ const AgingReport = () => {
           balance: parseFloat(account.balance || 0),
           lastPaymentDate,
           overdueMonths,
-          installments: sortedInstallments
+          installments: sortedInstallments,
+          // ✅ Documents ke liye fields
+          customer: customer,
+          account: account,
+          guarantors: guarantors,
         });
-      });
+      }
 
       // Worst accounts (most months overdue) first
       agingList.sort((a, b) => b.overdueMonths - a.overdueMonths);
@@ -268,6 +345,11 @@ const AgingReport = () => {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  const formatMonth = (month) => {
+    if (!month) return '-';
+    return new Date(month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
   };
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : (branchFilter !== 'all' ? `Branch ${branchFilter}` : 'All Branches');
@@ -348,7 +430,6 @@ const AgingReport = () => {
             <Building size={14} />
             <span>{branchLabel}</span>
           </div>
-          {/* ✅ FIXED text: 3+ -> 4+ */}
           <p className="subtitle">Customers whose oldest due installment is 4+ months overdue</p>
         </div>
         <ExportButton
@@ -431,7 +512,6 @@ const AgingReport = () => {
             <h3 style={{ fontWeight: 700 }}>Aging Customers</h3>
             <span className="record-count" style={{ fontWeight: 600 }}>{totalRecords} entries</span>
           </div>
-          {/* ✅ FIXED text: 3+ -> 4+ */}
           <span className="aging-info" style={{ fontWeight: 600 }}>Showing accounts 4+ months overdue</span>
         </div>
 
@@ -549,7 +629,7 @@ const AgingReport = () => {
         </div>
       </div>
 
-      {/* ===== DETAIL MODAL (Full Screen) ===== */}
+      {/* ===== DETAIL MODAL (Full Screen with Documents) ===== */}
       {showDetailModal && selectedCustomer && (
         <div className="aging-modal-overlay" onClick={closeModal}>
           <div className="aging-modal-content aging-modal-detail" onClick={(e) => e.stopPropagation()}>
@@ -590,6 +670,18 @@ const AgingReport = () => {
                   <strong style={{ fontWeight: 600 }}>{selectedCustomer.description}</strong>
                 </div>
                 <div className="detail-summary-item">
+                  <span style={{ fontWeight: 700 }}>CNIC</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedCustomer.customerCnic || 'N/A'}</strong>
+                </div>
+                <div className="detail-summary-item">
+                  <span style={{ fontWeight: 700 }}>Phone</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedCustomer.customerPhone || 'N/A'}</strong>
+                </div>
+                <div className="detail-summary-item">
+                  <span style={{ fontWeight: 700 }}>Address</span>
+                  <strong style={{ fontWeight: 600 }}>{selectedCustomer.customerAddress || 'N/A'}</strong>
+                </div>
+                <div className="detail-summary-item">
                   <span style={{ fontWeight: 700 }}>Total Amount</span>
                   <strong style={{ fontWeight: 700 }}>PKR {selectedCustomer.totalAmount.toLocaleString()}</strong>
                 </div>
@@ -609,9 +701,115 @@ const AgingReport = () => {
                   <span style={{ fontWeight: 700 }}>Months Overdue</span>
                   <strong className="overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>{selectedCustomer.overdueMonths}m</strong>
                 </div>
+                <div className="detail-summary-item">
+                  <span style={{ fontWeight: 700 }}>Account Opening</span>
+                  <strong style={{ fontWeight: 600 }}>{formatDate(selectedCustomer.account?.created_at)}</strong>
+                </div>
               </div>
 
-              <div className="installment-history">
+              {/* ============================================ */}
+              {/* ✅ DOCUMENTS SECTION - Same as Installments.jsx */}
+              {/* ============================================ */}
+              <div className="aging-documents-section" style={{ marginTop: '20px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
+                <div className="aging-section-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <FileText size={20} style={{ color: '#374151' }} />
+                  <h4 style={{ fontWeight: 700, fontSize: '16px', margin: 0, color: '#1f2937' }}>Original Form Documents</h4>
+                </div>
+
+                {/* Customer CNIC Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Customer CNIC
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedCustomer.customer?.cnic_front && (
+                      <DocImage label="CNIC Front" src={getFileUrl(selectedCustomer.customer.cnic_front)} />
+                    )}
+                    {selectedCustomer.customer?.cnic_back && (
+                      <DocImage label="CNIC Back" src={getFileUrl(selectedCustomer.customer.cnic_back)} />
+                    )}
+                    {!selectedCustomer.customer?.cnic_front && !selectedCustomer.customer?.cnic_back && (
+                      <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No customer CNIC images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Additional Documents
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedCustomer.customer?.additional_image_1 && (
+                      <DocImage label="Additional Image 1" src={getFileUrl(selectedCustomer.customer.additional_image_1)} />
+                    )}
+                    {selectedCustomer.customer?.additional_image_2 && (
+                      <DocImage label="Additional Image 2" src={getFileUrl(selectedCustomer.customer.additional_image_2)} />
+                    )}
+                    {!selectedCustomer.customer?.additional_image_1 && !selectedCustomer.customer?.additional_image_2 && (
+                      <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No additional documents found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chalan Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Chalan
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedCustomer.account?.chalan_front && (
+                      <DocImage label="Chalan Front" src={getFileUrl(selectedCustomer.account.chalan_front)} />
+                    )}
+                    {selectedCustomer.account?.chalan_back && (
+                      <DocImage label="Chalan Back" src={getFileUrl(selectedCustomer.account.chalan_back)} />
+                    )}
+                    {!selectedCustomer.account?.chalan_front && !selectedCustomer.account?.chalan_back && (
+                      <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No chalan images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Voice Consent */}
+                {selectedCustomer.customer?.voice_consent && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                      Voice Consent (Raza Mandi)
+                    </h5>
+                    <audio controls style={{ width: '100%' }}>
+                      <source src={getFileUrl(selectedCustomer.customer.voice_consent)} />
+                      Your browser does not support audio playback.
+                    </audio>
+                  </div>
+                )}
+
+                {/* ✅ GUARANTORS' CNIC IMAGES */}
+                <div>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Guarantors' CNIC Images
+                  </h5>
+                  {selectedCustomer.guarantors && selectedCustomer.guarantors.length > 0 ? (
+                    selectedCustomer.guarantors.map((g, idx) => (
+                      <div key={idx} style={{ marginBottom: '16px', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>
+                        <p style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px' }}>
+                          {g.name || g.guarantor_name || 'N/A'} — {g.cnic || g.guarantor_cnic || 'N/A'}
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                          {g.cnic_front && <DocImage label="CNIC Front" src={getFileUrl(g.cnic_front)} />}
+                          {g.cnic_back && <DocImage label="CNIC Back" src={getFileUrl(g.cnic_back)} />}
+                          {!g.cnic_front && !g.cnic_back && (
+                            <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No CNIC images for this guarantor</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No guarantor documents found</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="installment-history" style={{ marginTop: '20px' }}>
                 <div className="history-header">
                   <h4 style={{ fontWeight: 700 }}>Installment History</h4>
                   <span className="history-badge" style={{ fontWeight: 600 }}>{selectedCustomer.installments.length} months</span>
@@ -633,7 +831,7 @@ const AgingReport = () => {
                         return (
                           <tr key={inst.id || index} className={`${isOverdue ? 'overdue-row' : ''} ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
                             <td className="month-cell" style={{ fontWeight: 600 }}>
-                              {inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}
+                              {formatMonth(inst.month)}
                             </td>
                             <td style={{ fontWeight: 600 }}>PKR {parseFloat(inst.due_amount || 0).toLocaleString()}</td>
                             <td className={rowStatus.key === 'paid' ? 'paid-amount' : 'balance-amount'} style={{ fontWeight: 700 }}>

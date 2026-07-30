@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, DollarSign, X, Calendar, Clock, Building, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
+// src/components/FixedExpense/FixedExpense.jsx
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Edit, Trash2, Eye, DollarSign, X, Calendar, Clock, Building, CreditCard, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import './FixedExpense.css';
 import { API_URL } from '../../../config';
 
 const FixedExpense = () => {
   const [search, setSearch] = useState('');
+  const [monthFilter, setMonthFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -15,32 +19,68 @@ const FixedExpense = () => {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [expenses, setExpenses] = useState([]);
   const itemsPerPage = 10;
 
+  // ✅ Get user data immediately
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
       setUserBranch(user.branch);
+      fetchExpenses(user.branch);
+    } else {
+      fetchExpenses(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Jab userBranch pata chal jaye (ya null confirm ho jaye), tabhi data fetch karo
-  useEffect(() => {
-    fetchExpenses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // ✅ useCallback - function memoize
+  const fetchExpenses = useCallback(async (branch) => {
+    setFetching(true);
+    try {
+      const token = localStorage.getItem('token');
+      let url = `${API_URL}/expenses/fixed`;
+      const effectiveBranch = branch || userBranch;
+      if (effectiveBranch) {
+        url += `?branch_id=${effectiveBranch}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const mapped = (data.data || []).map(exp => ({
+          id: exp.id,
+          name: exp.name,
+          amount: parseFloat(exp.amount) || 0,
+          branch: exp.branch_id,
+          dueDate: exp.due_date || '',
+          paid: !!exp.paid,
+          lastPaid: exp.last_paid || 'Never',
+          history: exp.last_paid
+            ? [{ date: exp.last_paid, amount: parseFloat(exp.amount) || 0, status: 'Paid' }]
+            : []
+        }));
+        setExpenses(mapped);
+      } else {
+        setExpenses([]);
+      }
+    } catch (error) {
+      console.error('Error fetching fixed expenses:', error);
+      setExpenses([]);
+    }
+    setFetching(false);
   }, [userBranch]);
 
-  const [expenses, setExpenses] = useState([]);
-
-  // ============================================
-  // ✅ FETCH REAL DATA FROM BACKEND
-  // Pehle yahan hardcoded demo array tha jo kabhi refresh hi nahi hota tha.
-  // Ab yeh GET /expenses/fixed?branch_id=... call karta hai — jo backend mein
-  // pehle se maujood hai — aur asal database ka data laata hai.
-  // ============================================
-  const fetchExpenses = async () => {
-    setFetching(true);
+  // ✅ Refresh function with no full loading state
+  const handleRefresh = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       let url = `${API_URL}/expenses/fixed`;
@@ -66,23 +106,16 @@ const FixedExpense = () => {
           dueDate: exp.due_date || '',
           paid: !!exp.paid,
           lastPaid: exp.last_paid || 'Never',
-          // ✅ Note: database sirf "last_paid" (ek hi date) store karta hai,
-          // poori payment history ki table nahi hai — isliye yahan sirf
-          // aakhri payment ek entry ke roop mein dikhayi ja rahi hai.
           history: exp.last_paid
             ? [{ date: exp.last_paid, amount: parseFloat(exp.amount) || 0, status: 'Paid' }]
             : []
         }));
         setExpenses(mapped);
-      } else {
-        setExpenses([]);
       }
     } catch (error) {
-      console.error('Error fetching fixed expenses:', error);
-      setExpenses([]);
+      console.error('Error refreshing expenses:', error);
     }
-    setFetching(false);
-  };
+  }, [userBranch]);
 
   const [newExpense, setNewExpense] = useState({
     name: '',
@@ -93,6 +126,49 @@ const FixedExpense = () => {
 
   const [payAmount, setPayAmount] = useState('');
 
+  // ✅ ALL YEARS - 2020 se current year tak
+  const getAllYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 2020; year <= currentYear; year++) {
+      years.push(String(year));
+    }
+    return years;
+  };
+
+  // ✅ ALL MONTHS - January to December
+  const getAllMonths = () => {
+    return ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+  };
+
+  const getMonthName = (monthStr) => {
+    if (monthStr === 'all') return 'All Months';
+    const date = new Date(2000, parseInt(monthStr) - 1);
+    return date.toLocaleString('default', { month: 'long' });
+  };
+
+  // ✅ FIXED FILTER LOGIC - lastPaid se bhi month/year extract karo
+  const getExpenseMonthYear = (expense) => {
+    // Pehle dueDate se check karo
+    if (expense.dueDate) {
+      const dateMatch = expense.dueDate.match(/(\d{4})-(\d{2})/);
+      if (dateMatch) {
+        return { year: dateMatch[1], month: dateMatch[2] };
+      }
+    }
+    
+    // Agar dueDate mein year/month nahi hai, toh lastPaid se le lo
+    if (expense.lastPaid && expense.lastPaid !== 'Never') {
+      const dateMatch = expense.lastPaid.match(/(\d{4})-(\d{2})/);
+      if (dateMatch) {
+        return { year: dateMatch[1], month: dateMatch[2] };
+      }
+    }
+    
+    return null;
+  };
+
+  // ✅ Filter logic with month and year - FIXED
   const filtered = expenses.filter(e => {
     const searchMatch = e.name.toLowerCase().includes(search.toLowerCase());
     
@@ -100,32 +176,37 @@ const FixedExpense = () => {
     if (userBranch) {
       branchMatch = e.branch === parseInt(userBranch);
     }
+
+    // ✅ Get expense month/year from dueDate or lastPaid
+    const expMonthYear = getExpenseMonthYear(e);
     
-    return searchMatch && branchMatch;
+    let monthMatch = true;
+    let yearMatch = true;
+    
+    if (expMonthYear) {
+      if (monthFilter !== 'all') {
+        monthMatch = expMonthYear.month === monthFilter;
+      }
+      if (yearFilter !== 'all') {
+        yearMatch = expMonthYear.year === yearFilter;
+      }
+    } else {
+      // Agar expense mein koi date nahi hai, toh sirf "All" filter mein show ho
+      monthMatch = monthFilter === 'all';
+      yearMatch = yearFilter === 'all';
+    }
+    
+    return searchMatch && branchMatch && monthMatch && yearMatch;
   });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentItems = filtered.slice(startIndex, startIndex + itemsPerPage);
 
-  const getCurrentDateTime = () => {
-    const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    return `${date} ${time}`;
-  };
-
-  // ============================================
-  // ✅ CHECK IF USER CAN MANAGE EXPENSES
-  // Only Manager or Admin can manage
-  // ============================================
   const canManageExpenses = () => {
     return userRole === 'admin' || userRole === 'manager';
   };
 
-  // ============================================
-  // ✅ ADD EXPENSE - SEND TO API
-  // ============================================
   const handleAddExpense = async () => {
     if (!newExpense.name || !newExpense.amount || !newExpense.dueDate) {
       alert('Please fill all fields');
@@ -163,7 +244,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        await fetchExpenses();
+        await handleRefresh();
         setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
         setShowModal(false);
         alert('✅ Fixed expense added successfully!');
@@ -178,9 +259,6 @@ const FixedExpense = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ EDIT EXPENSE
-  // ============================================
   const handleEditExpense = async () => {
     if (!newExpense.name || !newExpense.amount || !newExpense.dueDate) {
       alert('Please fill all fields');
@@ -217,7 +295,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        await fetchExpenses();
+        await handleRefresh();
         setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
         setShowModal(false);
         setEditingExpense(null);
@@ -233,9 +311,6 @@ const FixedExpense = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ PAY EXPENSE
-  // ============================================
   const handlePayExpense = async () => {
     if (!payAmount || parseInt(payAmount) <= 0) {
       alert('Please enter valid amount');
@@ -269,7 +344,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        await fetchExpenses();
+        await handleRefresh();
         setPayAmount('');
         setShowPayModal(false);
         setSelectedExpense(null);
@@ -285,9 +360,6 @@ const FixedExpense = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ DELETE EXPENSE
-  // ============================================
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this expense?')) {
       return;
@@ -314,7 +386,7 @@ const FixedExpense = () => {
       }
 
       if (data.success) {
-        await fetchExpenses();
+        await handleRefresh();
         alert('✅ Fixed expense deleted successfully!');
       } else {
         alert(data.message || 'Failed to delete expense');
@@ -381,7 +453,7 @@ const FixedExpense = () => {
     setNewExpense({ name: '', amount: '', branch: 1, dueDate: '' });
   };
 
-  const getMonthName = (dateStr) => {
+  const getMonthNameFromDate = (dateStr) => {
     const date = new Date(dateStr.split(' ')[0]);
     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
   };
@@ -402,7 +474,38 @@ const FixedExpense = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
-  // Colorful stat chips
+  const allYears = getAllYears();
+  const allMonths = getAllMonths();
+
+  // ✅ Get available years from expenses (for showing ✓)
+  const getAvailableYears = () => {
+    const years = new Set();
+    const filteredExpenses = userBranch ? expenses.filter(e => e.branch === parseInt(userBranch)) : expenses;
+    filteredExpenses.forEach(exp => {
+      const info = getExpenseMonthYear(exp);
+      if (info) {
+        years.add(info.year);
+      }
+    });
+    return Array.from(years).sort();
+  };
+
+  // ✅ Get available months from expenses (for showing ✓)
+  const getAvailableMonths = () => {
+    const months = new Set();
+    const filteredExpenses = userBranch ? expenses.filter(e => e.branch === parseInt(userBranch)) : expenses;
+    filteredExpenses.forEach(exp => {
+      const info = getExpenseMonthYear(exp);
+      if (info) {
+        months.add(info.month);
+      }
+    });
+    return Array.from(months).sort();
+  };
+
+  const availableYears = getAvailableYears();
+  const availableMonths = getAvailableMonths();
+
   const statChips = [
     { 
       label: `${totalExpenses} Expenses`, 
@@ -434,7 +537,8 @@ const FixedExpense = () => {
     },
   ];
 
-  if (fetching) {
+  // ✅ FAST LOADING - Sirf pehli baar show karega
+  if (fetching && expenses.length === 0) {
     return (
       <div className="fixed-expense-container">
         <div className="loading-state">
@@ -478,13 +582,29 @@ const FixedExpense = () => {
           ))}
         </div>
 
-        {/* ✅ Only show Add button for Manager/Admin */}
-        {canManageExpenses() && (
-          <button className="btn-accent" onClick={openAddModal}>
-            <Plus size={18} />
-            Add Fixed Expense
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {canManageExpenses() && (
+            <button className="btn-accent" onClick={openAddModal}>
+              <Plus size={18} />
+              Add Fixed Expense
+            </button>
+          )}
+          <button className="btn-refresh-small" onClick={handleRefresh} title="Refresh" style={{
+            padding: '8px 12px',
+            background: '#f3f4f6',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#4b5563',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            fontWeight: 600
+          }}>
+            <RefreshCw size={16} />
           </button>
-        )}
+        </div>
       </div>
 
       <div className="expense-controls">
@@ -500,7 +620,70 @@ const FixedExpense = () => {
             }}
           />
         </div>
+
+        <div className="filter-group" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* ✅ YEAR FILTER */}
+          <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="filter-label" style={{ fontSize: '13px', fontWeight: 600, color: '#4b5563' }}>Year:</span>
+            <select
+              className="filter-select"
+              value={yearFilter}
+              onChange={(e) => { setYearFilter(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', background: 'white', cursor: 'pointer', minWidth: '100px', fontWeight: 500 }}
+            >
+              <option value="all">All Years</option>
+              {allYears.map(year => {
+                const hasData = availableYears.includes(year);
+                return (
+                  <option key={year} value={year}>
+                    {year} {hasData ? '✓' : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* ✅ MONTH FILTER */}
+          <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span className="filter-label" style={{ fontSize: '13px', fontWeight: 600, color: '#4b5563' }}>Month:</span>
+            <select
+              className="filter-select"
+              value={monthFilter}
+              onChange={(e) => { setMonthFilter(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', background: 'white', cursor: 'pointer', minWidth: '100px', fontWeight: 500 }}
+            >
+              <option value="all">All Months</option>
+              {allMonths.map(month => {
+                const hasData = availableMonths.includes(month);
+                return (
+                  <option key={month} value={month}>
+                    {getMonthName(month)} {hasData ? '✓' : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        </div>
       </div>
+
+      {/* ✅ FILTER SUMMARY - Show current filter selection */}
+      {(monthFilter !== 'all' || yearFilter !== 'all') && (
+        <div className="filter-summary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#eff6ff', borderRadius: '8px', marginBottom: '12px', border: '1px solid #bfdbfe' }}>
+          <span style={{ fontWeight: 600 }}>
+            Showing: 
+            {yearFilter !== 'all' && ` Year ${yearFilter}`}
+            {monthFilter !== 'all' && ` • ${getMonthName(monthFilter)}`}
+            {yearFilter === 'all' && monthFilter === 'all' && ' All Expenses'}
+          </span>
+          <button 
+            className="btn-clear-filters"
+            onClick={() => { setMonthFilter('all'); setYearFilter('all'); setCurrentPage(1); }}
+            style={{ padding: '4px 14px', background: '#dbeafe', color: '#1e40af', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
       <div className="expense-table-wrap">
         <table className="expense-table">
@@ -518,7 +701,11 @@ const FixedExpense = () => {
           <tbody>
             {currentItems.length === 0 ? (
               <tr>
-                <td colSpan="7" className="no-data">No expenses found for {branchLabel}</td>
+                <td colSpan="7" className="no-data">
+                  {monthFilter !== 'all' || yearFilter !== 'all' 
+                    ? `No expenses found for ${yearFilter !== 'all' ? yearFilter : ''} ${monthFilter !== 'all' ? getMonthName(monthFilter) : ''}`
+                    : `No expenses found for ${branchLabel}`}
+                </td>
               </tr>
             ) : (
               currentItems.map((exp, index) => (
@@ -661,10 +848,13 @@ const FixedExpense = () => {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g., 1st of every month"
+                    placeholder="e.g., 1st of every month or 2026-07-01"
                     value={newExpense.dueDate}
                     onChange={(e) => setNewExpense({ ...newExpense, dueDate: e.target.value })}
                   />
+                  <small className="field-hint" style={{ fontWeight: 500 }}>
+                    Format: "1st of every month" OR "YYYY-MM-DD" (e.g., 2026-07-01)
+                  </small>
                 </div>
               </div>
             </div>
@@ -796,7 +986,7 @@ const FixedExpense = () => {
                   selectedExpense.history.map((item, index) => (
                     <div key={index} className="history-item">
                       <div className="history-left">
-                        <span className="history-date" style={{ fontWeight: 700 }}>{getMonthName(item.date)}</span>
+                        <span className="history-date" style={{ fontWeight: 700 }}>{getMonthNameFromDate(item.date)}</span>
                         <span className="history-date-full">
                           {getDateOnly(item.date)} • {getTimeOnly(item.date)}
                         </span>

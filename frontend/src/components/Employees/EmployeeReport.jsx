@@ -1,14 +1,16 @@
 // src/components/EmployeeReport/EmployeeReport.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, 
   Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, 
   BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle, 
-  AreaChart, ChevronDown, CalendarIcon, BookOpen, AlertTriangle
+  AreaChart, ChevronDown, CalendarIcon, BookOpen, AlertTriangle, RefreshCw,
+  Wallet, Sparkles
 } from 'lucide-react';
 import './EmployeeReport.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 const EmployeeReport = () => {
   const [search, setSearch] = useState('');
@@ -24,6 +26,20 @@ const EmployeeReport = () => {
   const [employees, setEmployees] = useState([]);
   const [summary, setSummary] = useState(null);
 
+  // ✅ CHART FILTER STATE - Simplified: Year + Month only
+  const [chartYearFilter, setChartYearFilter] = useState('all');
+  const [chartMonthFilter, setChartMonthFilter] = useState('all');
+
+  // ✅ Year & Month Filters (for table)
+  const [yearFilter, setYearFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all');
+
+  // ✅ Salary + Advances data
+  const [salaryRecords, setSalaryRecords] = useState([]);
+  const [advanceRecords, setAdvanceRecords] = useState([]);
+  const [monthDetail, setMonthDetail] = useState(null);
+
+  // ✅ Get user data and fetch immediately
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
@@ -33,19 +49,28 @@ const EmployeeReport = () => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  // ✅ useCallback - function memoize
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      
-      const response = await fetch(`${API_URL}/employee-report`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      const data = await response.json();
+      const headers = { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const [reportRes, salRes, advRes] = await Promise.all([
+        fetch(`${API_URL}/employee-report`, { headers }),
+        fetch(`${API_URL}/salary`, { headers }),
+        fetch(`${API_URL}/salary/advances`, { headers })
+      ]);
+
+      const [data, salData, advData] = await Promise.all([
+        reportRes.json(),
+        salRes.json(),
+        advRes.json()
+      ]);
+
       console.log('Employee Report Data:', data);
       
       if (data.success) {
@@ -54,6 +79,8 @@ const EmployeeReport = () => {
         const summaryData = reportData.summary || {};
         
         setSummary(summaryData);
+        setSalaryRecords(salData.success ? salData.data : []);
+        setAdvanceRecords(advData.success ? advData.data : []);
         
         const processedEmployees = employeesList.map(emp => {
           const monthlyData = emp.monthlyData || {};
@@ -83,21 +110,87 @@ const EmployeeReport = () => {
       console.error('Error fetching data:', error);
     }
     setLoading(false);
+  }, []);
+
+  // ✅ Refresh function
+  const handleRefresh = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { 
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      const [reportRes, salRes, advRes] = await Promise.all([
+        fetch(`${API_URL}/employee-report`, { headers }),
+        fetch(`${API_URL}/salary`, { headers }),
+        fetch(`${API_URL}/salary/advances`, { headers })
+      ]);
+
+      const [data, salData, advData] = await Promise.all([
+        reportRes.json(),
+        salRes.json(),
+        advRes.json()
+      ]);
+      
+      if (data.success) {
+        const reportData = data.data;
+        const employeesList = reportData.data || [];
+        const summaryData = reportData.summary || {};
+        
+        setSummary(summaryData);
+        setSalaryRecords(salData.success ? salData.data : []);
+        setAdvanceRecords(advData.success ? advData.data : []);
+        
+        const processedEmployees = employeesList.map(emp => {
+          const monthlyData = emp.monthlyData || {};
+          
+          return {
+            id: emp.id,
+            name: emp.name || 'Unknown',
+            email: emp.email || '',
+            phone: emp.phone || '',
+            branch: emp.branch_id || 1,
+            role: emp.role || 'employee',
+            joiningDate: emp.created_at ? new Date(emp.created_at).toISOString().split('T')[0] : 'N/A',
+            salary: parseFloat(emp.salary || 0),
+            monthlyData: monthlyData,
+            totalAccounts: emp.totalAccounts || 0,
+            totalRecovery: emp.totalRecovery || 0,
+            totalCommission: emp.totalCommission || 0,
+            totalOverdue: emp.totalOverdue || 0,
+          };
+        });
+        
+        setEmployees(processedEmployees);
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
+  }, []);
+
+  // ✅ ALL YEARS - 2020 se current year tak
+  const getAllYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 2020; year <= currentYear; year++) {
+      years.push(String(year));
+    }
+    return years;
   };
 
-  const getUniqueMonths = () => {
-    const months = new Set();
-    employees.forEach(emp => {
-      Object.keys(emp.monthlyData).forEach(month => {
-        months.add(month);
-      });
-    });
-    return Array.from(months).sort();
+  // ✅ ALL MONTHS - January to December
+  const getAllMonths = () => {
+    return ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
   };
-
-  const uniqueMonths = getUniqueMonths();
 
   const getMonthName = (monthStr) => {
+    if (monthStr === 'all') return 'All Months';
+    const date = new Date(2000, parseInt(monthStr) - 1);
+    return date.toLocaleString('default', { month: 'long' });
+  };
+
+  const getMonthNameFromKey = (monthStr) => {
     if (monthStr === 'all') return 'All Months';
     const [year, month] = monthStr.split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -114,6 +207,13 @@ const EmployeeReport = () => {
   const getCurrentMonthKey = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  // ✅ Adds `delta` months to a "YYYY-MM" key (delta can be negative)
+  const addMonthsToKey = (monthKey, delta) => {
+    const [y, m] = monthKey.split('-').map(Number);
+    const date = new Date(y, (m - 1) + delta, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   };
 
   const getFilteredEmployees = () => {
@@ -145,17 +245,100 @@ const EmployeeReport = () => {
   const selectedEmployeeData = getSelectedEmployeeData();
   const displayEmployees = selectedEmployeeData ? [selectedEmployeeData] : filteredEmployees;
 
-  const getEmployeeChartData = (emp) => {
-    const months = Object.keys(emp.monthlyData).sort();
-    const data = {
-      labels: months.map(m => getMonthName(m)),
-      accounts: months.map(m => emp.monthlyData[m].accountsOpened || 0),
-      recovery: months.map(m => emp.monthlyData[m].recoveryAmount || 0),
-      commission: months.map(m => emp.monthlyData[m].commission || 0),
-      overdue: months.map(m => emp.monthlyData[m].overdue || 0),
+  // ✅ GET FILTERED CHART DATA - hamesha 6 months, sahi anchor point ke sath
+  // - Koi filter nahi: aaj ki real date se current month + pichle 5 months (latest-first)
+  //   e.g. July chal raha ho to: July, June, May, April, March, Feb
+  // - Sirf month select kiya (year ho ya na ho): us month se agle 5 months forward (ascending)
+  //   e.g. Feb select kiya to: Feb, March, April, May, June, July
+  // - Sirf year select kiya (month 'all'): us year ke andar last 6 months (ya current year
+  //   ho to current month tak), latest-first
+  const getFilteredChartData = (emp) => {
+    let monthKeys = [];
+
+    if (chartMonthFilter !== 'all') {
+      // Month selected -> anchor month se agle 5 months forward (ascending order)
+      const anchorYear = chartYearFilter !== 'all' ? chartYearFilter : String(new Date().getFullYear());
+      const anchorMonthKey = `${anchorYear}-${chartMonthFilter}`;
+      monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(anchorMonthKey, i));
+    } else if (chartYearFilter !== 'all') {
+      // Sirf year selected -> us year ke last 6 months (agar current year hai to current month tak)
+      const now = new Date();
+      const isCurrentYear = parseInt(chartYearFilter) === now.getFullYear();
+      const endMonthKey = isCurrentYear
+        ? `${chartYearFilter}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        : `${chartYearFilter}-12`;
+      monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(endMonthKey, -i)); // latest-first
+    } else {
+      // Default -> aaj ki real date se current month + pichle 5 months, latest-first
+      const currentKey = getCurrentMonthKey();
+      monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(currentKey, -i));
+    }
+
+    return {
+      labels: monthKeys.map(m => getMonthNameFromKey(m)),
+      accounts: monthKeys.map(m => emp.monthlyData[m]?.accountsOpened || 0),
+      recovery: monthKeys.map(m => emp.monthlyData[m]?.recoveryAmount || 0),
+      commission: monthKeys.map(m => emp.monthlyData[m]?.commission || 0),
+      overdue: monthKeys.map(m => emp.monthlyData[m]?.overdue || 0),
     };
-    return data;
   };
+
+  // ✅ NEW: Kisi employee ke kisi specific month ka pura salary detail
+  const getMonthSalaryDetail = (emp, monthKey) => {
+    const salaryRec = salaryRecords.find(s => s.user_id === emp.id && s.month === monthKey);
+    const monthAdvances = advanceRecords.filter(a => 
+      a.user_id === emp.id && a.date && a.date.slice(0, 7) === monthKey
+    );
+    const totalAdvances = monthAdvances.reduce((sum, a) => sum + parseFloat(a.amount || 0), 0);
+
+    return {
+      baseSalary: emp.salary || 0,
+      commission: salaryRec ? parseFloat(salaryRec.commission || 0) : (emp.monthlyData[monthKey]?.commission || 0),
+      status: salaryRec ? salaryRec.status : 'pending',
+      paidDate: salaryRec ? salaryRec.paid_date : null,
+      totalPaid: salaryRec ? parseFloat(salaryRec.total_paid || 0) : 0,
+      advances: monthAdvances,
+      totalAdvances,
+    };
+  };
+
+  // ✅ EXPORT DATA - Employee Report ke liye
+  const getExportData = () => {
+    return displayEmployees.map(emp => {
+      const currentOverdue = getCurrentMonthOverdue(emp);
+      return {
+        name: emp.name || 'N/A',
+        email: emp.email || 'N/A',
+        phone: emp.phone || 'N/A',
+        branch: emp.branch === 1 ? 'Branch 1' : 'Branch 2',
+        role: emp.role || 'employee',
+        joiningDate: emp.joiningDate || 'N/A',
+        salary: emp.salary || 0,
+        totalAccounts: emp.totalAccounts || 0,
+        totalRecovery: emp.totalRecovery || 0,
+        totalCommission: emp.totalCommission || 0,
+        totalOverdue: emp.totalOverdue || 0,
+        currentMonthOverdue: currentOverdue || 0,
+        currentMonth: getCurrentMonth()
+      };
+    });
+  };
+
+  const exportColumns = [
+    { header: 'Employee Name', key: 'name' },
+    { header: 'Email', key: 'email' },
+    { header: 'Phone', key: 'phone' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'Role', key: 'role' },
+    { header: 'Joining Date', key: 'joiningDate' },
+    { header: 'Salary', key: 'salary' },
+    { header: 'Total Accounts', key: 'totalAccounts' },
+    { header: 'Total Recovery', key: 'totalRecovery' },
+    { header: 'Total Commission', key: 'totalCommission' },
+    { header: 'Total Overdue', key: 'totalOverdue' },
+    { header: 'Current Month Overdue', key: 'currentMonthOverdue' },
+    { header: 'Month', key: 'currentMonth' },
+  ];
 
   const chartTypes = [
     { id: 'bar', label: 'Bar', icon: BarChart },
@@ -168,7 +351,11 @@ const EmployeeReport = () => {
   const renderEmployeeChart = () => {
     if (!selectedEmployee) return null;
     
-    const empData = getEmployeeChartData(selectedEmployee);
+    const empData = getFilteredChartData(selectedEmployee);
+    
+    if (empData.labels.length === 0) {
+      return <div className="chart-empty">No performance data available</div>;
+    }
     
     const maxAccounts = Math.max(...empData.accounts, 1);
     const maxRecovery = Math.max(...empData.recovery.map(v => v/1000), 1);
@@ -425,8 +612,12 @@ const EmployeeReport = () => {
     return null;
   };
 
+  // ✅ Modal khulte hi hamesha 'all'/'all' se start hoga - default logic
+  // ab khud aaj ki real date se sahi 6 months nikal leti hai
   const openDetailModal = (emp) => {
     setSelectedEmployee(emp);
+    setChartYearFilter('all');
+    setChartMonthFilter('all');
     setModalChartType('bar');
     setShowDetailModal(true);
   };
@@ -436,8 +627,10 @@ const EmployeeReport = () => {
     setSelectedEmployee(null);
   };
 
-  const exportReport = () => {
-    alert('Report exported successfully!');
+  // ✅ GET CURRENT MONTH OVERDUE FOR EMPLOYEE
+  const getCurrentMonthOverdue = (emp) => {
+    const key = getCurrentMonthKey();
+    return emp.monthlyData[key]?.overdue || 0;
   };
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
@@ -448,18 +641,8 @@ const EmployeeReport = () => {
   const totalOverdue = displayEmployees.reduce((sum, e) => sum + (e.totalOverdue || 0), 0);
   const totalEmployees = displayEmployees.length;
 
-  const getCurrentMonthAccounts = (emp) => {
-    const key = getCurrentMonthKey();
-    return emp.monthlyData[key]?.accountsOpened || 0;
-  };
-
-  const getCurrentMonthOverdue = (emp) => {
-    const key = getCurrentMonthKey();
-    return emp.monthlyData[key]?.overdue || 0;
-  };
-
   const getEmployeeStats = (emp) => {
-    const currentAccounts = getCurrentMonthAccounts(emp);
+    const currentAccounts = emp.monthlyData[getCurrentMonthKey()]?.accountsOpened || 0;
     const currentOverdue = getCurrentMonthOverdue(emp);
     const monthlyRecovery = emp.monthlyData[getCurrentMonthKey()]?.recoveryAmount || 0;
     const totalOverdueVal = emp.totalOverdue || 0;
@@ -469,9 +652,9 @@ const EmployeeReport = () => {
       { label: `New Accounts (${currentMonth})`, value: currentAccounts || 0, color: '#2563eb' },
       { label: 'Monthly Recovery', value: `PKR ${(monthlyRecovery || 0).toLocaleString()}`, color: '#C9A84C' },
       { label: `Overdue (${currentMonth})`, value: `PKR ${(currentOverdue || 0).toLocaleString()}`, color: '#dc2626' },
+      { label: 'Total Overdue', value: `PKR ${(totalOverdueVal || 0).toLocaleString()}`, color: '#ef4444' },
       { label: 'Salary', value: `PKR ${(emp.salary || 0).toLocaleString()}`, color: '#065f46' },
       { label: 'Total Commission', value: `PKR ${(emp.totalCommission || 0).toLocaleString()}`, color: '#8B5CF6' },
-      { label: 'Total Overdue', value: `PKR ${(totalOverdueVal || 0).toLocaleString()}`, color: '#ef4444' },
     ];
   };
 
@@ -484,9 +667,9 @@ const EmployeeReport = () => {
   ] : [
     { label: 'Total Employees', value: totalEmployees || 0, icon: Users, color: '#1E1B4B', bg: 'rgba(30,27,75,0.08)', className: 'users' },
     { label: 'Total Recovery', value: `PKR ${(totalRecovery || 0).toLocaleString()}`, icon: DollarSign, color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', className: 'recovery' },
-    { label: 'Total Commission', value: `PKR ${(totalCommission || 0).toLocaleString()}`, icon: Award, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', className: 'commission' },
     { label: 'Total Accounts', value: totalAccounts || 0, icon: Briefcase, color: '#2563eb', bg: 'rgba(37,99,235,0.1)', className: 'accounts' },
     { label: 'Total Overdue', value: `PKR ${(totalOverdue || 0).toLocaleString()}`, icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.1)', className: 'overdue' },
+    { label: 'Total Commission', value: `PKR ${(totalCommission || 0).toLocaleString()}`, icon: Award, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', className: 'commission' },
   ];
 
   const getEmployeeName = (id) => {
@@ -494,7 +677,12 @@ const EmployeeReport = () => {
     return emp ? emp.name : 'Select Employee';
   };
 
-  if (loading) {
+  // ✅ ALL YEARS AND MONTHS
+  const allYears = getAllYears();
+  const allMonths = getAllMonths();
+
+  // ✅ FAST LOADING - Sirf pehli baar show karega
+  if (loading && employees.length === 0) {
     return (
       <div className="employee-report-container">
         <div className="loading-state">
@@ -522,10 +710,91 @@ const EmployeeReport = () => {
             </div>
           )}
         </div>
-        <button className="btn-export" onClick={exportReport}>
-          <Download size={18} />
-          Export Report
-        </button>
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportButton
+            data={getExportData()}
+            columns={exportColumns}
+            filename="employee-report"
+            title="Employee Report"
+          />
+          <button className="btn-refresh-small" onClick={handleRefresh} title="Refresh" style={{
+            padding: '8px 12px',
+            background: '#f3f4f6',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#4b5563',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            fontWeight: 600          }}>
+            <RefreshCw size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* ✅ YEAR & MONTH FILTERS */}
+      <div className="report-controls" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+        <div className="search-wrapper" style={{ flex: 1, minWidth: '200px' }}>
+          <Search size={18} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search employee..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="filter-group" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span className="filter-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Year:</span>
+            <select
+              className="filter-select"
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              style={{ padding: '0.35rem 0.7rem', border: '1.5px solid #e5e7eb', borderRadius: '0.4rem', fontSize: '0.8rem', fontWeight: 600, background: 'white', cursor: 'pointer' }}
+            >
+              <option value="all">All Years</option>
+              {allYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span className="filter-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Month:</span>
+            <select
+              className="filter-select"
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              style={{ padding: '0.35rem 0.7rem', border: '1.5px solid #e5e7eb', borderRadius: '0.4rem', fontSize: '0.8rem', fontWeight: 600, background: 'white', cursor: 'pointer' }}
+            >
+              <option value="all">All Months</option>
+              {allMonths.map(month => (
+                <option key={month} value={month}>{getMonthName(month)}</option>
+              ))}
+            </select>
+          </div>
+
+          {(yearFilter !== 'all' || monthFilter !== 'all') && (
+            <button 
+              className="btn-clear-filters"
+              onClick={() => { setYearFilter('all'); setMonthFilter('all'); }}
+              style={{ padding: '0.3rem 0.8rem', background: '#dbeafe', color: '#1e40af', border: 'none', borderRadius: '0.3rem', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {!userBranch && (
+          <div className="branch-filters" style={{ display: 'flex', gap: '0.3rem' }}>
+            <button className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`} onClick={() => setBranchFilter('all')}>All</button>
+            <button className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`} onClick={() => setBranchFilter('1')}>Branch 1</button>
+            <button className={`filter-btn branch-2 ${branchFilter === '2' ? 'active' : ''}`} onClick={() => setBranchFilter('2')}>Branch 2</button>
+          </div>
+        )}
       </div>
 
       {!isEmployee && (
@@ -564,27 +833,6 @@ const EmployeeReport = () => {
                   <span className="dropdown-role">{emp.role}</span>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {!isEmployee && !selectedEmployeeId && (
-        <div className="report-controls">
-          <div className="search-wrapper">
-            <Search size={18} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search employee..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          {!userBranch && (
-            <div className="branch-filters">
-              <button className={`filter-btn ${branchFilter === 'all' ? 'active' : ''}`} onClick={() => setBranchFilter('all')}>All</button>
-              <button className={`filter-btn branch-1 ${branchFilter === '1' ? 'active' : ''}`} onClick={() => setBranchFilter('1')}>Branch 1</button>
-              <button className={`filter-btn branch-2 ${branchFilter === '2' ? 'active' : ''}`} onClick={() => setBranchFilter('2')}>Branch 2</button>
             </div>
           )}
         </div>
@@ -678,7 +926,8 @@ const EmployeeReport = () => {
                       <td>
                         <button className="btn-view-detail" onClick={() => openDetailModal(emp)} style={{ fontWeight: 700 }}>
                           <Eye size={15} />
-                          View                        </button>
+                          View
+                        </button>
                       </td>
                     </tr>
                   );
@@ -714,6 +963,7 @@ const EmployeeReport = () => {
                 </div>
               </div>
 
+              {/* ✅ STATS ORDER CHANGED: Overdue pehle, Commission baad mein */}
               <div className="detail-summary-7">
                 {getEmployeeStats(selectedEmployee).map((stat, index) => (
                   <div 
@@ -730,9 +980,13 @@ const EmployeeReport = () => {
                 ))}
               </div>
 
+              {/* ✅ CHART SECTION - SIMPLIFIED LIKE FIXED EXPENSES */}
               <div className="modal-chart-section">
                 <div className="modal-chart-header">
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Performance Trend (Self-Comparison)</h4>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                    <Sparkles size={18} style={{ color: '#C9A84C', marginRight: '6px' }} />
+                    Performance Trend (Last 6 Months)
+                  </h4>
                   <div className="modal-chart-type-selector">
                     {chartTypes.map((type) => (
                       <button
@@ -747,9 +1001,50 @@ const EmployeeReport = () => {
                     ))}
                   </div>
                 </div>
-                {renderEmployeeChart()}
+
+                {/* ✅ CHART FILTER - Year + Month (like Fixed Expenses) */}
+                {selectedEmployee && Object.keys(selectedEmployee.monthlyData).length > 0 && (
+                  <div className="chart-filter-bar" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.5rem 0', marginBottom: '0.5rem', background: '#f8fafc', borderRadius: '0.5rem', padding: '0.5rem 0.75rem' }}>
+                    <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span className="filter-label" style={{ fontSize: '0.65rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Year:</span>
+                      <select 
+                        className="filter-select"
+                        value={chartYearFilter}
+                        onChange={(e) => setChartYearFilter(e.target.value)}
+                        style={{ padding: '0.25rem 0.5rem', border: '1.5px solid #e5e7eb', borderRadius: '0.3rem', fontSize: '0.75rem', fontWeight: 600, background: 'white', cursor: 'pointer', minWidth: '70px' }}
+                      >
+                        <option value="all">All Years</option>
+                        {allYears.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span className="filter-label" style={{ fontSize: '0.65rem', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase' }}>Month:</span>
+                      <select 
+                        className="filter-select"
+                        value={chartMonthFilter}
+                        onChange={(e) => setChartMonthFilter(e.target.value)}
+                        style={{ padding: '0.25rem 0.5rem', border: '1.5px solid #e5e7eb', borderRadius: '0.3rem', fontSize: '0.75rem', fontWeight: 600, background: 'white', cursor: 'pointer', minWidth: '80px' }}
+                      >
+                        <option value="all">All Months</option>
+                        {allMonths.map(month => (
+                          <option key={month} value={month}>{getMonthName(month)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <span className="chart-range-info" style={{ fontSize: '0.7rem', fontWeight: 600, color: '#6b7280', marginLeft: 'auto' }}>
+                      Showing {getFilteredChartData(selectedEmployee).labels.length} months
+                    </span>
+                  </div>
+                )}
+
+                <div className="modal-chart-container">
+                  {renderEmployeeChart()}
+                </div>
               </div>
 
+              {/* ✅ MONTHLY BREAKDOWN */}
               <div className="monthly-breakdown">
                 <div className="monthly-header">
                   <h4 style={{ fontSize: '1.05rem', fontWeight: 700 }}>Monthly Breakdown</h4>
@@ -762,19 +1057,30 @@ const EmployeeReport = () => {
                         <th style={{ fontWeight: 800 }}>Month</th>
                         <th style={{ fontWeight: 800 }}>Accounts</th>
                         <th style={{ fontWeight: 800 }}>Recovery</th>
-                        <th style={{ fontWeight: 800 }}>Commission</th>
                         <th style={{ fontWeight: 800 }}>Overdue</th>
+                        <th style={{ fontWeight: 800 }}>Commission</th>
+                        <th style={{ fontWeight: 800 }}>Salary</th>
                       </tr>
                     </thead>
                     <tbody>
                       {Object.entries(selectedEmployee.monthlyData).map(([month, data]) => (
                         <tr key={month}>
-                          <td className="month-name" style={{ fontWeight: 600 }}>{getMonthName(month)}</td>
+                          <td className="month-name" style={{ fontWeight: 600 }}>{getMonthNameFromKey(month)}</td>
                           <td className="month-accounts" style={{ fontWeight: 700, color: '#1E1B4B' }}>{data.accountsOpened || 0}</td>
                           <td style={{ fontWeight: 600 }}>PKR {(data.recoveryAmount || 0).toLocaleString()}</td>
-                          <td style={{ fontWeight: 600 }}>PKR {(data.commission || 0).toLocaleString()}</td>
                           <td style={{ fontWeight: 600, color: (data.overdue || 0) > 0 ? '#dc2626' : '#1a1a2e' }}>
                             PKR {(data.overdue || 0).toLocaleString()}
+                          </td>
+                          <td style={{ fontWeight: 600 }}>PKR {(data.commission || 0).toLocaleString()}</td>
+                          <td>
+                            <button 
+                              className="btn-view-detail" 
+                              onClick={() => setMonthDetail({ emp: selectedEmployee, month })}
+                              style={{ fontWeight: 700, padding: '4px 10px' }}
+                            >
+                              <Eye size={14} />
+                              View
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -786,6 +1092,107 @@ const EmployeeReport = () => {
 
             <div className="empreport-modal-footer">
               <button className="empreport-btn-cancel" onClick={closeModal} style={{ fontWeight: 700 }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NEW: Month-wise Salary Detail Modal */}
+      {monthDetail && (
+        <div className="empreport-modal-overlay" onClick={() => setMonthDetail(null)} style={{ zIndex: 1100 }}>
+          <div className="empreport-modal-content empreport-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="empreport-modal-header">
+              <div className="empreport-modal-header-left">
+                <DollarSign size={20} className="empreport-modal-icon" />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
+                  {getMonthNameFromKey(monthDetail.month)} — Salary Detail
+                </h3>
+              </div>
+              <button className="empreport-modal-close" onClick={() => setMonthDetail(null)}>
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="empreport-modal-body">
+              {(() => {
+                const d = getMonthSalaryDetail(monthDetail.emp, monthDetail.month);
+                return (
+                  <>
+                    <div className="employee-detail-header small" style={{ marginBottom: '1rem' }}>
+                      <div className="emp-detail-avatar small" style={{ background: '#1E1B4B' }}>
+                        {monthDetail.emp.name.charAt(0)}
+                      </div>
+                      <div className="emp-detail-info">
+                        <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>{monthDetail.emp.name}</h4>
+                        <span className="emp-detail-branch" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                          Branch {monthDetail.emp.branch}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="history-summary">
+                      <div className="summary-item" style={{ background: 'rgba(30,27,75,0.06)', borderRadius: '0.75rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Salary</span>
+                        <strong style={{ fontSize: '1.05rem', color: '#1E1B4B' }}>PKR {d.baseSalary.toLocaleString()}</strong>
+                      </div>
+                      <div className="summary-item" style={{ background: 'rgba(139,92,246,0.08)', borderRadius: '0.75rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Commission</span>
+                        <strong style={{ fontSize: '1.05rem', color: '#8B5CF6' }}>PKR {d.commission.toLocaleString()}</strong>
+                      </div>
+                      <div className="summary-item" style={{ background: 'rgba(34,197,94,0.08)', borderRadius: '0.75rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Total Paid</span>
+                        <strong style={{ fontSize: '1.05rem', color: '#22c55e' }}>PKR {d.totalPaid.toLocaleString()}</strong>
+                      </div>
+                    </div>
+
+                    {d.advances.length > 0 ? (
+                      <div className="advances-section" style={{ marginTop: '1rem' }}>
+                        <div className="advances-header">
+                          <Wallet size={16} style={{ color: '#92400e' }} />
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#92400e' }}>Advances Taken</h4>
+                          <span className="advances-total" style={{ fontWeight: 700 }}>
+                            Total: PKR {d.totalAdvances.toLocaleString()}
+                          </span>
+                        </div>
+                        <table className="advances-table">
+                          <thead>
+                            <tr>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Amount</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Reason</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {d.advances.map((a, i) => (
+                              <tr key={i}>
+                                <td style={{ fontWeight: 600 }}>{(a.date || '').split(/[T ]/)[0]}</td>
+                                <td style={{ color: '#dc2626', fontWeight: 700 }}>-PKR {parseFloat(a.amount || 0).toLocaleString()}</td>
+                                <td style={{ fontWeight: 500 }}>{a.reason || 'No reason provided'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.85rem' }}>
+                        Is month koi advance nahi liya gaya.
+                      </p>
+                    )}
+
+                    <div style={{ marginTop: '1rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                      Status:{' '}
+                      <span style={{ color: d.status === 'paid' ? '#22c55e' : '#f59e0b' }}>
+                        {d.status === 'paid' ? 'Paid' : 'Pending'}
+                      </span>
+                      {d.paidDate && <span style={{ color: '#6b7280', marginLeft: 8 }}>• Paid on {d.paidDate}</span>}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            <div className="empreport-modal-footer">
+              <button className="empreport-btn-cancel" onClick={() => setMonthDetail(null)} style={{ fontWeight: 700 }}>Close</button>
             </div>
           </div>
         </div>

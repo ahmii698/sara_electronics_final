@@ -70,11 +70,11 @@ const Sidebar = () => {
   ] : [];
 
   // ============================================
-  // ✅ SINGLE ORDERED LIST — exact sequence yahin control hoti hai
+  // ✅ SINGLE ORDERED LIST
   // Dashboard -> Finance -> Extra Expenses -> Employee Report ->
   // Employee Performance -> Users -> Add Account -> Recovery ->
-  // Overdue Installments -> Aging Report -> Employee Leave ->
-  // Add Employees -> System Access
+  // Aging Accounts (was Overdue Installments) -> Overdue Accounts (was Aging Report) ->
+  // Employee Leave -> Add Employees -> System Access
   // ============================================
   const menuItems = [
     {
@@ -110,7 +110,7 @@ const Sidebar = () => {
       type: 'link',
       path: '/employee-performance',
       icon: TrendingUp,
-      label: 'Employee Performance', // ✅ naam change: "My Performance" -> "Employee Performance"
+      label: 'Employee Performance',
       show: isEmployee || isAdmin || isManager
     },
     {
@@ -138,28 +138,28 @@ const Sidebar = () => {
       type: 'link',
       path: '/overdue-installments',
       icon: Clock,
-      label: 'Overdue Installments',
+      label: 'Aging Accounts', // ✅ Changed from "Overdue Installments"
       show: isAdmin || isManager
     },
     {
       type: 'link',
       path: '/aging-report',
       icon: AlertTriangle,
-      label: 'Aging Report',
+      label: 'Overdue Accounts', // ✅ Changed from "Aging Report"
       show: isAdmin || isManager
     },
     {
       type: 'link',
       path: '/apply-leave',
       icon: Calendar,
-      label: 'Employee Leave', // ✅ naam change: "Apply Leave" -> "Employee Leave"
-      show: isEmployee || isAdmin || isManager
+      label: 'Employee Leave',
+      show: isAdmin || isManager
     },
     {
       type: 'link',
       path: '/employees/add',
       icon: UsersIcon,
-      label: 'Add Employees', // ✅ naam change: "Employees" -> "Add Employees"
+      label: 'Add Employees',
       show: isAdmin || isManager
     },
     {

@@ -213,51 +213,68 @@
 .filter-group {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .filter-label {
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: #4b5563;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
-/* ===== MONTH FILTERS ===== */
-.month-filters {
-  display: flex;
-  gap: 0.3rem;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  padding: 0.3rem 0.8rem;
-  border-radius: 0.5rem;
+.filter-select {
+  padding: 0.4rem 0.8rem;
   border: 1.5px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   background: white;
-  color: #6b7280;
+  cursor: pointer;
+  min-width: 100px;
+  color: #1f2937;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #1E1B4B;
+  box-shadow: 0 0 0 3px rgba(30, 27, 75, 0.1);
+}
+
+/* ===== FILTER SUMMARY ===== */
+.filter-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: #eff6ff;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #bfdbfe;
+}
+
+.btn-clear-filters {
+  padding: 0.25rem 0.9rem;
+  background: #dbeafe;
+  color: #1e40af;
+  border: none;
+  border-radius: 0.4rem;
+  cursor: pointer;
   font-size: 0.75rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
+  transition: 0.2s;
 }
 
-.filter-btn:hover {
-  background: #f3f4f6;
-}
-
-.filter-btn.active {
-  background: #1E1B4B;
-  color: white;
-  border-color: #1E1B4B;
-}
-
-.filter-btn.month-btn.active {
-  background: #C9A84C;
-  border-color: #C9A84C;
-  color: white;
+.btn-clear-filters:hover {
+  background: #bfdbfe;
 }
 
 /* ===== TOTALS ===== */
@@ -333,12 +350,22 @@
 }
 
 .month-total-box {
-  padding: 0.3rem 0.8rem;
+  padding: 0.4rem 0.9rem;
   background: white;
   border-radius: 0.5rem;
   border: 1px solid #e5e7eb;
   text-align: center;
-  min-width: 100px;
+  min-width: 80px;
+  transition: all 0.2s;
+}
+
+.month-total-box.has-data {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.month-total-box.no-data {
+  opacity: 0.5;
 }
 
 .month-total-box span {
@@ -351,10 +378,14 @@
 
 .month-total-box strong {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 800;
   color: #1E1B4B;
   margin-top: 0.1rem;
+}
+
+.month-total-box.has-data strong {
+  color: #1e40af;
 }
 
 /* ===== TABLE ===== */
@@ -758,10 +789,6 @@
     align-items: flex-start;
   }
   
-  .month-filters {
-    flex-wrap: wrap;
-  }
-  
   .header-stats {
     gap: 0.3rem;
   }
@@ -796,10 +823,11 @@
   }
   
   .month-total-box {
-    min-width: 80px;
+    min-width: 60px;
+    padding: 0.3rem 0.6rem;
   }
   
   .month-total-box strong {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
 }

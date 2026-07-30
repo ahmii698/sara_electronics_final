@@ -15,7 +15,9 @@ class UserController extends Controller
     public function index(Request $request)
     {
         // ✅ UPDATED: added 'createdBy' relation so System Access page knows who created each account
-        $query = User::with(['branch', 'createdBy']);
+        // ✅ NEW: withCount('employeeAccounts as accounts_count') so Salary page shows real account count per employee
+        $query = User::with(['branch', 'createdBy'])
+            ->withCount('employeeAccounts as accounts_count');
 
         if ($request->email) {
             $query->where('email', $request->email);
@@ -242,7 +244,10 @@ class UserController extends Controller
             'cnic_front' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'cnic_back' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'agreement_form' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120',
-            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',
+            // ✅ FIX: mimes list widen kiya (m4a/wav/mp3 tak limited tha, ab
+            // aac/ogg/webm/3gp/flac/wma bhi allow — mobile recorders aksar
+            // in formats mein save karte hain). max bhi 10MB se 20MB kiya.
+            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a,aac,ogg,oga,webm,3gp,flac,wma|max:20480',
         ]);
 
         if ($validator->fails()) {
@@ -323,7 +328,8 @@ class UserController extends Controller
             'cnic_front' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'cnic_back' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'agreement_form' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:5120',
-            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a|max:10240',
+            // ✅ FIX: same widen as store() above
+            'voice_consent' => 'nullable|file|mimes:mp3,wav,m4a,aac,ogg,oga,webm,3gp,flac,wma|max:20480',
         ]);
 
         if ($validator->fails()) {

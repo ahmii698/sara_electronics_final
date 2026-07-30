@@ -1,10 +1,4 @@
 /* src/components/OverdueInstallments/OverdueInstallments.css */
-/* NOTE: Har class ko 'oi-' prefix diya gaya hai taake kisi bhi
-   global/shared CSS file (dashboard-wide .balance-amount, .paid-amount,
-   .status-badge, .modal-content, wagera) ke saath naam na takraye.
-   Isi wajah se pehle Balance column ka box "floating card" jaisa
-   ajeeb dikh raha tha — koi global rule usi class name par
-   position/shadow/background laga raha tha. */
 
 .oi-container {
   padding: 20px;
@@ -12,14 +6,7 @@
   min-height: 100vh;
 }
 
-/* ===== HARD RESET FOR TABLE CELLS =====
-   Kisi bhi global/shared CSS rule ko is table ke andar position/shadow/
-   transform/float lagane se forcefully roka gaya hai — bina flex/badge/
-   button layouts ko todhe (display/padding/margin ko chhoo nahi raha,
-   sirf position/shadow ko). Ye sabse aakhri "safety net" hai — agar
-   phir bhi floating box nazar aaye to bug is table ki apni CSS mein
-   nahi, balki kisi aur JS component/portal mein hai (dev tools se
-   us box ka class name check karo). */
+/* ===== HARD RESET FOR TABLE CELLS ===== */
 .oi-table-container {
   position: relative;
 }
@@ -89,7 +76,7 @@
   margin: 0;
 }
 
-/* ===== STATS - 2 CARDS ===== */
+/* ===== STATS - 2 CARDS (UNCHANGED) ===== */
 .oi-stats-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -240,7 +227,7 @@
   color: white;
 }
 
-/* ===== TABLE ===== */
+/* ===== TABLE - IMPROVED READABILITY ===== */
 .oi-table-container {
   background: white;
   border-radius: 12px;
@@ -251,13 +238,15 @@
 
 .oi-table-scroll {
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 .oi-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 800px;
+  min-width: 1100px; /* Widen to fit all columns properly */
+  table-layout: fixed; /* Fixed layout for better column control */
 }
 
 .oi-table thead {
@@ -265,27 +254,46 @@
 }
 
 .oi-table th {
-  padding: 14px 16px;
+  padding: 12px 10px;
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
   color: #1e40af;
   border-bottom: 2px solid #dbeafe;
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   white-space: nowrap;
 }
 
+/* ✅ Column widths for better readability */
+.oi-table th:nth-child(1) { width: 40px; }  /* # */
+.oi-table th:nth-child(2) { width: 120px; } /* Customer */
+.oi-table th:nth-child(3) { width: 100px; } /* Case # */
+.oi-table th:nth-child(4) { width: 110px; } /* Next Due Month */
+.oi-table th:nth-child(5) { width: 90px; }  /* Installments */
+.oi-table th:nth-child(6) { width: 90px; }  /* Balance */
+.oi-table th:nth-child(7) { width: 90px; }  /* Mirror */
+.oi-table th:nth-child(8) { width: 100px; } /* Remarks */
+.oi-table th:nth-child(9) { width: 100px; } /* Status */
+.oi-table th:nth-child(10) { width: 80px; } /* Actions */
+
 .oi-table td {
-  padding: 14px 16px;
+  padding: 10px 10px;
   border-bottom: 1px solid #edf2f7;
   color: #1e293b;
   vertical-align: middle;
-  /* Explicitly reset in case a global rule targets bare <td> with
-     position/box-shadow/background — keeps every cell flat & inline. */
   position: static;
   box-shadow: none;
   background-clip: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ✅ Allow customer name to wrap if needed */
+.oi-table td:nth-child(2) {
+  white-space: normal;
+  min-width: 100px;
 }
 
 .oi-table tbody tr {
@@ -312,7 +320,7 @@
 /* ✅ Overdue row with red left border */
 .oi-row td:first-child {
   border-left: 4px solid #dc2626;
-  padding-left: 12px;
+  padding-left: 8px;
 }
 
 .oi-no-data {
@@ -324,27 +332,33 @@
 }
 
 /* ===== COLUMN STYLES ===== */
+.oi-serial {
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+}
+
 .oi-case-number {
   font-weight: 700;
   color: #1d4ed8;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .oi-customer-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 600;
 }
 
 .oi-customer-avatar {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -352,8 +366,8 @@
 .oi-date-info {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 4px;
+  font-size: 12px;
   font-weight: 600;
   color: #4b5563;
 }
@@ -368,14 +382,7 @@
   font-weight: 600;
 }
 
-/* Balance / Paid amount — used both directly on a <td> (main table) and
-   on a <strong> (modal's view-only section), so this class must NOT set
-   `display` at all — that's what let the <td> stop behaving like a table
-   cell (turning it into an inline element detached from the row's layout
-   and vertical centering). Leaving display unset means each tag just
-   keeps its own correct native default (table-cell for <td>, inline for
-   <strong>), and only the color/weight is applied here. That was the
-   actual cause of the "floating box" bug. */
+/* ===== AMOUNT COLORS ===== */
 .oi-paid-amount {
   color: #065f46;
   font-weight: 700;
@@ -399,14 +406,15 @@
   font-weight: 700;
 }
 
+/* ===== STATUS BADGE ===== */
 .oi-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -430,23 +438,35 @@
   color: #1e40af;
 }
 
+/* ===== REMARKS CELL ===== */
+.oi-remarks-cell {
+  font-size: 0.85rem;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #4b5563;
+}
+
 /* ===== ACTION BUTTONS ===== */
 .oi-action-group {
   display: flex;
-  gap: 6px;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
 }
 
 .oi-btn-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: 5px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
 }
 
 .oi-btn-view {
@@ -555,6 +575,7 @@
   background: transparent;
   cursor: pointer;
   color: #64748b;
+  padding: 4px;
 }
 
 .oi-modal-body {
@@ -578,6 +599,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
 }
 
 .oi-emp-detail-branch {
@@ -603,8 +626,15 @@
 .oi-detail-item span {
   font-size: 12px;
   color: #64748b;
+  font-weight: 600;
 }
 
+.oi-detail-item strong {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* ===== INSTALLMENT HISTORY ===== */
 .oi-installment-history {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -625,6 +655,7 @@
   padding: 2px 10px;
   border-radius: 20px;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .oi-history-scroll {
@@ -645,6 +676,8 @@
   padding: 8px 12px;
   text-align: left;
   border-bottom: 1px solid #e2e8f0;
+  font-weight: 700;
+  color: #1e40af;
 }
 
 .oi-history-table td {
@@ -656,6 +689,11 @@
   background: #fff1f2;
 }
 
+.oi-month-cell {
+  font-weight: 600;
+}
+
+/* ===== EDIT FIELDS ===== */
 .oi-edit-fields {
   display: flex;
   flex-direction: column;
@@ -668,22 +706,38 @@
   gap: 6px;
 }
 
+.oi-form-group label {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1e293b;
+}
+
 .oi-form-input {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 13px;
+  font-weight: 500;
+}
+
+.oi-form-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .oi-form-textarea {
   resize: vertical;
+  min-height: 60px;
 }
 
 .oi-field-hint {
   color: #64748b;
   font-size: 11px;
+  font-weight: 500;
 }
 
+/* ===== VIEW ONLY ===== */
 .oi-view-only {
   display: flex;
   flex-direction: column;
@@ -699,6 +753,12 @@
   padding: 10px 12px;
 }
 
+.oi-view-item span {
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* ===== MODAL FOOTER ===== */
 .oi-modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -708,23 +768,36 @@
 }
 
 .oi-btn-cancel {
-  padding: 8px 18px;
+  padding: 8px 20px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: white;
   cursor: pointer;
+  font-weight: 700;
+  color: #4b5563;
+  transition: all 0.2s;
+}
+
+.oi-btn-cancel:hover {
+  background: #f1f5f9;
 }
 
 .oi-btn-save {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 18px;
+  padding: 8px 20px;
   border-radius: 8px;
   border: none;
   background: #2563eb;
   color: white;
   cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.oi-btn-save:hover:not(:disabled) {
+  background: #1d4ed8;
 }
 
 .oi-btn-save:disabled {
@@ -745,9 +818,19 @@
 /* ===== RESPONSIVE ===== */
 /* ============================================ */
 
+@media (max-width: 1200px) {
+  .oi-table {
+    min-width: 900px;
+  }
+}
+
 @media (max-width: 1024px) {
   .oi-stats-grid-2 {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .oi-table {
+    min-width: 800px;
   }
 }
 
@@ -792,13 +875,13 @@
   }
 
   .oi-table {
-    min-width: 650px;
+    min-width: 700px;
     font-size: 12px;
   }
 
   .oi-table th,
   .oi-table td {
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
 }
 
@@ -838,13 +921,13 @@
   }
 
   .oi-table {
-    min-width: 500px;
+    min-width: 550px;
     font-size: 11px;
   }
 
   .oi-table th,
   .oi-table td {
-    padding: 8px 10px;
+    padding: 6px 8px;
   }
 
   .oi-pagination {

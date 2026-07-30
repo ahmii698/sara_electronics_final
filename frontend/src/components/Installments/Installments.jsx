@@ -1,6 +1,6 @@
 // src/components/Installments/Installments.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Calendar, DollarSign, User, CreditCard, Search, 
   Filter, Download, Eye, Clock, CheckCircle, 
@@ -12,7 +12,36 @@ import {
   Save, Trash2, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import './Installments.css';
-import { API_URL } from '../../../config';
+import { API_URL, STORAGE_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
+
+// ============================================
+// ✅ Storage URL helper - file path ko full URL mein convert karta hai
+// ============================================
+const getFileUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${STORAGE_URL}/${path}`;
+};
+
+// ============================================
+// ✅ DocImage - single document image card, click pe full size khulta hai
+// ============================================
+const DocImage = ({ label, src }) => (
+  <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+    <a href={src} target="_blank" rel="noopener noreferrer">
+      <img 
+        src={src} 
+        alt={label} 
+        style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'zoom-in' }} 
+        loading="lazy"
+      />
+    </a>
+    <p style={{ fontSize: '12px', fontWeight: 600, textAlign: 'center', padding: '6px', margin: 0, color: '#374151' }}>
+      {label}
+    </p>
+  </div>
+);
 
 // ============================================
 // ✅ VIEW MODAL - Extracted outside component
@@ -146,30 +175,30 @@ const ViewModal = ({
                 <DollarSign size={20} />
                 <h3>Account Summary</h3>
               </div>
-              <div className="summary-cards">
-                <div className="summary-card">
-                  <span className="summary-label">Total Amount</span>
-                  <span className="summary-value">{formatCurrency(account.total_amount || 0)}</span>
+              <div className="acct-summary-grid">
+                <div className="acct-summary-card">
+                  <span className="acct-summary-label">Total Amount</span>
+                  <span className="acct-summary-value">{formatCurrency(account.total_amount || 0)}</span>
                 </div>
-                <div className="summary-card success">
-                  <span className="summary-label">Total Paid</span>
-                  <span className="summary-value">{formatCurrency(account.paid_amount || 0)}</span>
+                <div className="acct-summary-card success">
+                  <span className="acct-summary-label">Total Paid</span>
+                  <span className="acct-summary-value">{formatCurrency(account.paid_amount || 0)}</span>
                 </div>
-                <div className="summary-card warning">
-                  <span className="summary-label">Remaining Balance</span>
-                  <span className="summary-value">{formatCurrency(account.balance || 0)}</span>
+                <div className="acct-summary-card warning">
+                  <span className="acct-summary-label">Remaining Balance</span>
+                  <span className="acct-summary-value">{formatCurrency(account.balance || 0)}</span>
                 </div>
-                <div className="summary-card info">
-                  <span className="summary-label">Monthly Installment</span>
-                  <span className="summary-value">{formatCurrency(account.monthly_installment || 0)}</span>
+                <div className="acct-summary-card info">
+                  <span className="acct-summary-label">Monthly Installment</span>
+                  <span className="acct-summary-value">{formatCurrency(account.monthly_installment || 0)}</span>
                 </div>
-                <div className="summary-card">
-                  <span className="summary-label">Total Installments</span>
-                  <span className="summary-value">{account.total_installments || 0}</span>
+                <div className="acct-summary-card">
+                  <span className="acct-summary-label">Total Installments</span>
+                  <span className="acct-summary-value">{account.total_installments || 0}</span>
                 </div>
-                <div className="summary-card success">
-                  <span className="summary-label">Installments Paid</span>
-                  <span className="summary-value">{account.installments_paid || 0}</span>
+                <div className="acct-summary-card success">
+                  <span className="acct-summary-label">Installments Paid</span>
+                  <span className="acct-summary-value">{account.installments_paid || 0}</span>
                 </div>
               </div>
             </div>
@@ -254,6 +283,108 @@ const ViewModal = ({
               ) : (
                 <p className="no-data">No guarantors found</p>
               )}
+            </div>
+
+            {/* ============================================ */}
+            {/* ✅ Documents & Original Form Section */}
+            {/* ============================================ */}
+            <div className="modal-section">
+              <div className="section-header">
+                <FileText size={20} />
+                <h3>Original Form Documents</h3>
+              </div>
+
+              {/* Customer CNIC Images */}
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                  Customer CNIC
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                  {customer.cnic_front && (
+                    <DocImage label="CNIC Front" src={getFileUrl(customer.cnic_front)} />
+                  )}
+                  {customer.cnic_back && (
+                    <DocImage label="CNIC Back" src={getFileUrl(customer.cnic_back)} />
+                  )}
+                  {!customer.cnic_front && !customer.cnic_back && (
+                    <p className="no-data">No customer CNIC images found</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Additional Images */}
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                  Additional Documents
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                  {customer.additional_image_1 && (
+                    <DocImage label="Additional Image 1" src={getFileUrl(customer.additional_image_1)} />
+                  )}
+                  {customer.additional_image_2 && (
+                    <DocImage label="Additional Image 2" src={getFileUrl(customer.additional_image_2)} />
+                  )}
+                  {!customer.additional_image_1 && !customer.additional_image_2 && (
+                    <p className="no-data">No additional documents found</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Chalan Images (account se) */}
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                  Chalan
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                  {account.chalan_front && (
+                    <DocImage label="Chalan Front" src={getFileUrl(account.chalan_front)} />
+                  )}
+                  {account.chalan_back && (
+                    <DocImage label="Chalan Back" src={getFileUrl(account.chalan_back)} />
+                  )}
+                  {!account.chalan_front && !account.chalan_back && (
+                    <p className="no-data">No chalan images found</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Voice Consent */}
+              {customer.voice_consent && (
+                <div style={{ marginBottom: '20px' }}>
+                  <h4 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Voice Consent (Raza Mandi)
+                  </h4>
+                  <audio controls style={{ width: '100%' }}>
+                    <source src={getFileUrl(customer.voice_consent)} />
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
+              )}
+
+              {/* Guarantors CNIC Images */}
+              <div>
+                <h4 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                  Guarantors' CNIC Images
+                </h4>
+                {guarantors && guarantors.length > 0 ? (
+                  guarantors.map((g, idx) => (
+                    <div key={idx} style={{ marginBottom: '16px', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>
+                      <p style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px' }}>
+                        {g.name} — {g.cnic}
+                      </p>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                        {g.cnic_front && <DocImage label="CNIC Front" src={getFileUrl(g.cnic_front)} />}
+                        {g.cnic_back && <DocImage label="CNIC Back" src={getFileUrl(g.cnic_back)} />}
+                        {!g.cnic_front && !g.cnic_back && (
+                          <p className="no-data">No CNIC images for this guarantor</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="no-data">No guarantor documents found</p>
+                )}
+              </div>
             </div>
 
             <div className="modal-footer-actions">
@@ -444,13 +575,15 @@ const Installments = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [branchReady, setBranchReady] = useState(false);
   const [totalData, setTotalData] = useState({
     total_installments: 0,
     total_due: 0,
     total_paid: 0,
-    overdue_count: 0
+    aging_count: 0
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -478,6 +611,7 @@ const Installments = () => {
   const [availableMonths, setAvailableMonths] = useState([]);
   const [paymentDate, setPaymentDate] = useState('');
 
+  // ✅ STEP 1: sirf ek dafa user info load karo (koi fetch yahan nahi)
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
@@ -485,39 +619,48 @@ const Installments = () => {
       setUserRole(user.role);
     }
     setPaymentDate(new Date().toISOString().split('T')[0]);
-    fetchInstallments();
+    setBranchReady(true);
   }, []);
 
+  // ✅ STEP 2: sirf yahi se fetch hoga
   useEffect(() => {
+    if (!branchReady) return;
     fetchInstallments();
-  }, [filterStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterStatus, branchReady, userBranch]);
+
+  // ✅ Search debounce
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
 
   // ✅ "2026-07" jaisi do month-strings ke darmiyan farq (months) nikalta hai
-  const monthsBetween = (fromMonth, toMonth) => {
+  const monthsBetween = useCallback((fromMonth, toMonth) => {
     if (!fromMonth || !toMonth) return 0;
     const [fy, fm] = fromMonth.split('-').map(Number);
     const [ty, tm] = toMonth.split('-').map(Number);
     return (ty - fy) * 12 + (tm - fm);
-  };
+  }, []);
 
-  const getCurrentMonthStr = () => {
+  const getCurrentMonthStr = useCallback(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  };
+  }, []);
 
   // ✅ Installment ka due month abhi tak "aa chuka" hai ya nahi (future nahi hai)
-  const isAlreadyDue = (item) => {
+  const isAlreadyDue = useCallback((item) => {
     if (!item.month) return true;
     return monthsBetween(item.month, getCurrentMonthStr()) >= 0;
-  };
+  }, [monthsBetween, getCurrentMonthStr]);
 
-  // ✅ Kitne mahine se overdue hai (0 = abhi due hi nahi hui / future installment)
-  const getOverdueMonths = (item) => {
+  // ✅ Kitne mahine se late hai (0 = abhi due hi nahi hui / future installment)
+  const getAgingMonths = useCallback((item) => {
     if (!item.month) return 1;
     const monthsDiff = monthsBetween(item.month, getCurrentMonthStr());
     if (monthsDiff < 0) return 0;
     return monthsDiff + 1;
-  };
+  }, [monthsBetween, getCurrentMonthStr]);
 
   const fetchInstallments = async () => {
     setLoading(true);
@@ -600,25 +743,28 @@ const Installments = () => {
 
         if (filterStatus === 'unpaid') {
           uniqueInstallments = uniqueInstallments.filter(item =>
-            parseFloat(item.balance || 0) > 0 && getOverdueMonths(item) === 0
+            parseFloat(item.balance || 0) > 0 && getAgingMonths(item) === 0
           );
         }
 
-        if (filterStatus === 'overdue') {
+        // ✅ SWAPPED: 1-2 months late = "Aging" ab yahan filter hoga
+        if (filterStatus === 'aging') {
           uniqueInstallments = uniqueInstallments.filter(item => {
-            const overdueMonths = getOverdueMonths(item);
-            return parseFloat(item.balance || 0) > 0 && overdueMonths >= 1 && overdueMonths < 3;
+            const agingMonths = getAgingMonths(item);
+            return parseFloat(item.balance || 0) > 0 && agingMonths >= 1 && agingMonths < 3;
           });
         }
 
-        if (filterStatus === 'aging') {
+        // ✅ SWAPPED: 3+ months late = "Overdue" ab yahan filter hoga
+        if (filterStatus === 'overdue') {
           uniqueInstallments = uniqueInstallments.filter(item =>
-            parseFloat(item.balance || 0) > 0 && getOverdueMonths(item) >= 3
+            parseFloat(item.balance || 0) > 0 && getAgingMonths(item) >= 3
           );
         }
 
         setInstallments(uniqueInstallments);
         calculateTotals(uniqueInstallments);
+        setCurrentPage(1);
       }
     } catch (error) {
       console.error('Error fetching installments:', error);
@@ -627,21 +773,21 @@ const Installments = () => {
     }
   };
 
-  // ✅ Overdue count - balance > 0 aur month current month tak pohanch chuka hai
+  // ✅ Top card "Aging" count - balance > 0 aur month current month tak pohanch chuka hai (sab due unpaid)
   const calculateTotals = (data) => {
     let totalDue = 0;
     let totalPaid = 0;
-    let overdueCount = 0;
+    let agingCount = 0;
 
     data.forEach(item => {
       totalDue += parseFloat(item.due_amount || 0);
       totalPaid += parseFloat(item.paid_amount || 0);
 
       const balance = parseFloat(item.balance || 0);
-      const isOverdue = balance > 0 && isAlreadyDue(item);
+      const isAging = balance > 0 && isAlreadyDue(item);
 
-      if (isOverdue) {
-        overdueCount++;
+      if (isAging) {
+        agingCount++;
       }
     });
 
@@ -649,10 +795,11 @@ const Installments = () => {
       total_installments: data.length,
       total_due: totalDue,
       total_paid: totalPaid,
-      overdue_count: overdueCount
+      aging_count: agingCount
     });
   };
 
+  // ✅ SWAPPED: 1-2 months late = "Aging (Nm)", 3+ months late = "Overdue"
   const getStatusBadge = (item) => {
     const balance = parseFloat(item.balance || 0);
 
@@ -670,19 +817,24 @@ const Installments = () => {
       return <span className="badge badge-unpaid"><Clock size={14} /> Unpaid</span>;
     }
 
-    const overdueCount = monthsDiff + 1;
+    const agingCount = monthsDiff + 1;
 
-    if (overdueCount >= 3) {
-      return <span className="badge badge-aging"><AlertTriangle size={14} /> Aging</span>;
+    if (agingCount >= 3) {
+      return (
+        <span className="badge badge-overdue">
+          <AlertCircle size={14} /> Overdue
+        </span>
+      );
     }
 
     return (
-      <span className="badge badge-overdue">
-        <AlertCircle size={14} /> Overdue ({overdueCount}m)
+      <span className="badge badge-aging">
+        <AlertTriangle size={14} /> Aging ({agingCount}m)
       </span>
     );
   };
 
+  // ✅ SWAPPED: same logic yahan bhi (account-level status modal ke andar)
   const getAccountCardStatus = (payments, account) => {
     const list = Array.isArray(payments) ? payments : [];
     const totalInstallments = account?.total_installments || list.length;
@@ -709,15 +861,19 @@ const Installments = () => {
     }
 
     const oldestDueMonth = dueUnpaidMonths[0];
-    const overdueCount = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
+    const agingCount = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
 
-    if (overdueCount >= 3) {
-      return <span className="badge badge-aging"><AlertTriangle size={14} /> Aging</span>;
+    if (agingCount >= 3) {
+      return (
+        <span className="badge badge-overdue">
+          <AlertCircle size={14} /> Overdue
+        </span>
+      );
     }
 
     return (
-      <span className="badge badge-overdue">
-        <AlertCircle size={14} /> Overdue ({overdueCount}m)
+      <span className="badge badge-aging">
+        <AlertTriangle size={14} /> Aging ({agingCount}m)
       </span>
     );
   };
@@ -792,35 +948,40 @@ const Installments = () => {
   };
 
   // ✅ SEARCH
-  const filteredInstallments = installments.filter(item => {
-    const search = searchTerm.toLowerCase().trim();
-    if (!search) return true;
+  const filteredInstallments = useMemo(() => {
+    const search = debouncedSearch.toLowerCase().trim();
+    if (!search) return installments;
 
-    const customer = item.customer || item.account?.customer || {};
-    const customerName = (customer.name || item.customer_name || '').toLowerCase();
-    const customerCnic = (customer.cnic || item.cnic || '').toLowerCase();
-    const customerPhone = (customer.phone || item.phone || '').toLowerCase();
-    const customerAddress = (customer.address || '').toLowerCase();
+    return installments.filter(item => {
+      const customer = item.customer || item.account?.customer || {};
+      const customerName = (customer.name || item.customer_name || '').toLowerCase();
+      const customerCnic = (customer.cnic || item.cnic || '').toLowerCase();
+      const customerPhone = (customer.phone || item.phone || '').toLowerCase();
+      const customerAddress = (customer.address || '').toLowerCase();
 
-    const caseNo = (item.account?.case_no || item.case_no || '').toLowerCase();
-    const productName = (item.account?.product_name || '').toLowerCase();
+      const caseNo = (item.account?.case_no || item.case_no || '').toLowerCase();
+      const productName = (item.account?.product_name || '').toLowerCase();
 
-    const creatorName = (item.account?.creator?.name || '').toLowerCase();
-    const employeeName = (item.account?.employeeAccount?.employee?.name || '').toLowerCase();
+      const creatorName = (item.account?.creator?.name || '').toLowerCase();
+      const employeeName = (item.account?.employeeAccount?.employee?.name || '').toLowerCase();
 
-    return customerName.includes(search) ||
-           customerCnic.includes(search) ||
-           customerPhone.includes(search) ||
-           customerAddress.includes(search) ||
-           caseNo.includes(search) ||
-           productName.includes(search) ||
-           creatorName.includes(search) ||
-           employeeName.includes(search);
-  });
+      return customerName.includes(search) ||
+             customerCnic.includes(search) ||
+             customerPhone.includes(search) ||
+             customerAddress.includes(search) ||
+             caseNo.includes(search) ||
+             productName.includes(search) ||
+             creatorName.includes(search) ||
+             employeeName.includes(search);
+    });
+  }, [installments, debouncedSearch]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredInstallments.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = useMemo(
+    () => filteredInstallments.slice(indexOfFirstItem, indexOfLastItem),
+    [filteredInstallments, indexOfFirstItem, indexOfLastItem]
+  );
   const totalPages = Math.ceil(filteredInstallments.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
@@ -1005,9 +1166,58 @@ const Installments = () => {
     }
   };
 
+  // ✅ EXPORT DATA - status label bhi swap ke hisaab se
+  const exportData = useMemo(() => {
+    return filteredInstallments.map(item => {
+      const customer = item.customer || item.account?.customer || {};
+      const account = item.account || {};
+      const creator = account.creator || {};
+      const employeeAccount = getEmployeeAccount(account);
+      const employee = employeeAccount.employee || {};
+
+      return {
+        name: customer.name || item.customer_name || 'N/A',
+        cnic: customer.cnic || item.cnic || 'N/A',
+        phone: customer.phone || item.phone || 'N/A',
+        caseNo: account.case_no || item.case_no || 'N/A',
+        productName: account.product_name || 'N/A',
+        dueAmount: parseFloat(item.due_amount || 0),
+        paidAmount: parseFloat(item.paid_amount || 0),
+        balance: parseFloat(item.balance || 0),
+        totalBalance: parseFloat(account.balance || 0),
+        month: item.month ? new Date(item.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : 'N/A',
+        dueDate: item.due_date ? formatDate(item.due_date) : 'N/A',
+        status: parseFloat(item.balance || 0) <= 0 ? 'Paid' : 
+                getAgingMonths(item) >= 3 ? 'Overdue' : 
+                getAgingMonths(item) >= 1 ? 'Aging' : 'Unpaid',
+        createdBy: creator.name || 'N/A',
+        employee: employee.name || account.employee_name || 'N/A',
+        branch: `Branch ${account.branch_id || item.branch_id || 'N/A'}`
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredInstallments]);
+
+  const exportColumns = [
+    { header: 'Customer Name', key: 'name' },
+    { header: 'CNIC', key: 'cnic' },
+    { header: 'Phone', key: 'phone' },
+    { header: 'Case No', key: 'caseNo' },
+    { header: 'Product', key: 'productName' },
+    { header: 'Due Amount', key: 'dueAmount' },
+    { header: 'Paid Amount', key: 'paidAmount' },
+    { header: 'Installment Balance', key: 'balance' },
+    { header: 'Account Balance', key: 'totalBalance' },
+    { header: 'Month', key: 'month' },
+    { header: 'Due Date', key: 'dueDate' },
+    { header: 'Status', key: 'status' },
+    { header: 'Created By', key: 'createdBy' },
+    { header: 'Employee', key: 'employee' },
+    { header: 'Branch', key: 'branch' }
+  ];
+
   return (
     <div className="installments-page">
-      {/* ✅ Modals rendered outside - no re-render flicker */}
       <ViewModal 
         selectedInstallment={selectedInstallment}
         showModal={showModal}
@@ -1042,12 +1252,20 @@ const Installments = () => {
             <Clock size={12} /> Live
           </span>
         </div>
-        {userBranch && (
-          <div className="branch-badge">
-            <Building size={14} />
-            <span>Branch {userBranch}</span>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportButton
+            data={exportData}
+            columns={exportColumns}
+            filename="recovery-report"
+            title="Recovery Report"
+          />
+          {userBranch && (
+            <div className="branch-badge">
+              <Building size={14} />
+              <span>Branch {userBranch}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="stats-grid-4">
@@ -1079,12 +1297,12 @@ const Installments = () => {
           </div>
         </div>
         <div className="stat-card-4">
-          <div className="stat-card-4-icon overdue">
+          <div className="stat-card-4-icon aging">
             <Clock size={22} />
           </div>
           <div className="stat-card-4-info">
-            <span className="stat-card-4-label">Overdue</span>
-            <span className="stat-card-4-value">{totalData.overdue_count}</span>
+            <span className="stat-card-4-label">Aging</span>
+            <span className="stat-card-4-value">{totalData.aging_count}</span>
           </div>
         </div>
       </div>
@@ -1101,8 +1319,8 @@ const Installments = () => {
               <option value="all">All</option>
               <option value="unpaid">Unpaid</option>
               <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
               <option value="aging">Aging</option>
+              <option value="overdue">Overdue</option>
             </select>
           </div>
         </div>
@@ -1113,7 +1331,10 @@ const Installments = () => {
             type="text"
             placeholder="Search by name, CNIC, phone, address, case no..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             className="search-input"
           />
         </div>
@@ -1182,8 +1403,6 @@ const Installments = () => {
                   const creatorRole = creator.role || '';
                   const employeeName = employee.name || accountData.employee_name || 'N/A';
 
-                  // ✅ Account ka total balance calculate karo
-                  // Agar account data available hai to us se lo, warna item ke account se
                   const accountTotalBalance = accountData.balance || item.balance || 0;
 
                   return (
@@ -1223,7 +1442,6 @@ const Installments = () => {
                       <td className="text-right" style={{color: item.balance > 0 ? '#ef4444' : '#10b981'}}>
                         {formatCurrency(item.balance)}
                       </td>
-                      {/* ✅ NEW BALANCE COLUMN - Account ka total remaining balance */}
                       <td className="text-right" style={{fontWeight: 'bold', color: '#dc2626', fontSize: '14px'}}>
                         {formatCurrency(accountTotalBalance)}
                       </td>

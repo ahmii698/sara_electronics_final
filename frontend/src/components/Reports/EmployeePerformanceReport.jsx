@@ -1,9 +1,44 @@
 // src/components/EmployeePerformanceReport/EmployeePerformanceReport.jsx
 
-import React, { useState, useEffect } from 'react';
-import { Search, User, DollarSign, Users, Calendar, Clock, AlertTriangle, FileText, Eye, X, TrendingUp, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  Search, User, DollarSign, Users, Calendar, Clock, AlertTriangle, 
+  FileText, Eye, X, TrendingUp, ChevronDown, Download, Printer
+} from 'lucide-react';
 import './EmployeePerformanceReport.css';
-import { API_URL } from '../../../config';
+import { API_URL, STORAGE_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
+
+// ============================================
+// ✅ Storage URL helper - file path ko full URL mein convert karta hai
+// ============================================
+const getFileUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${STORAGE_URL}/${path}`;
+};
+
+// ============================================
+// ✅ DocImage - single document image card, click pe full size khulta hai
+// ✅ React.memo + loading="lazy" so images only load when scrolled into view
+// and card doesn't re-render unless its own src/label changes
+// ============================================
+const DocImage = React.memo(({ label, src }) => (
+  <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+    <a href={src} target="_blank" rel="noopener noreferrer">
+      <img 
+        src={src} 
+        alt={label} 
+        loading="lazy"
+        decoding="async"
+        style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'zoom-in' }} 
+      />
+    </a>
+    <p style={{ fontSize: '12px', fontWeight: 600, textAlign: 'center', padding: '6px', margin: 0, color: '#374151' }}>
+      {label}
+    </p>
+  </div>
+));
 
 const EmployeePerformanceReport = () => {
   const [search, setSearch] = useState('');
@@ -12,6 +47,7 @@ const EmployeePerformanceReport = () => {
   const [userId, setUserId] = useState(null);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
+  const [guarantorsLoading, setGuarantorsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('total');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
@@ -61,6 +97,38 @@ const EmployeePerformanceReport = () => {
     }
   };
 
+  // ✅ Function to fetch guarantors for a specific account (used lazily on modal open)
+  const fetchGuarantorsForAccount = async (accountId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/installments/account-details/${accountId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        const accountData = data.data;
+        const customer = accountData.customer || {};
+        if (customer.guarantors && Array.isArray(customer.guarantors)) {
+          return customer.guarantors;
+        }
+        if (accountData.guarantors && Array.isArray(accountData.guarantors)) {
+          return accountData.guarantors;
+        }
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching guarantors:', error);
+      return [];
+    }
+  };
+
+  // ✅ FAST fetchAccounts - ab yahan har account ke liye alag guarantors API call
+  // NAHI hota (jo pehle N+1 calls bana ke page ko slow kar raha tha).
+  // Guarantors ab sirf jab user "View Account Details" click karta hai tab
+  // us ek account ke liye lazy-load hote hain (openAccountModal mein).
   const fetchAccounts = async () => {
     setLoading(true);
     try {
@@ -74,9 +142,24 @@ const EmployeePerformanceReport = () => {
       const data = await response.json();
       if (data.success) {
         const raw = data.data.data || data.data || [];
-        const mapped = raw.map(acc => {
+        
+        // Process each account WITHOUT extra network calls
+        const mapped = raw.map((acc) => {
           const employeeAccount = acc.employee_account || {};
           const employee = employeeAccount.employee || {};
+          
+          const customer = acc.customer || {};
+          
+          // ✅ Get guarantors only from data already present in this response.
+          // If not present, leave empty for now — fetched lazily on modal open.
+          let guarantors = [];
+          if (customer.guarantors && Array.isArray(customer.guarantors) && customer.guarantors.length > 0) {
+            guarantors = customer.guarantors;
+          } else if (acc.guarantors && Array.isArray(acc.guarantors) && acc.guarantors.length > 0) {
+            guarantors = acc.guarantors;
+          } else if (customer.guarantor && Array.isArray(customer.guarantor) && customer.guarantor.length > 0) {
+            guarantors = customer.guarantor;
+          }
           
           // Get current month's installment balance for Mirror column
           const currentMonthStr = getCurrentMonthStr();
@@ -90,7 +173,6 @@ const EmployeePerformanceReport = () => {
           // Get the first unpaid installment for due date
           const firstUnpaid = sortedInstallments.find(p => parseFloat(p.balance || 0) > 0);
           
-          // Get the due date from the unpaid installment's due_date field if available, otherwise from month
           let dueDate = null;
           if (firstUnpaid) {
             dueDate = firstUnpaid.due_date || firstUnpaid.month || null;
@@ -101,10 +183,10 @@ const EmployeePerformanceReport = () => {
           return {
             id: acc.id,
             caseNo: acc.case_no || 'N/A',
-            customer: acc.customer?.name || 'N/A',
-            cnic: acc.customer?.cnic || '',
-            phone: acc.customer?.phone || '',
-            address: acc.customer?.address || '',
+            customer: customer.name || 'N/A',
+            cnic: customer.cnic || '',
+            phone: customer.phone || '',
+            address: customer.address || '',
             product: acc.product_name || 'N/A',
             amount: parseFloat(acc.total_amount) || 0,
             paid: parseFloat(acc.paid_amount) || 0,
@@ -115,11 +197,25 @@ const EmployeePerformanceReport = () => {
             branch: acc.branch_id || 1,
             employeeId: employee.id || acc.created_by || null,
             employeeName: employee.name || 'N/A',
-            guarantors: acc.customer?.guarantors || [],
+            guarantors: guarantors,
+            guarantorsFetched: guarantors.length > 0,
             installments: acc.installments || [],
-            mirror: mirrorAmount // Current month installment balance
+            mirror: mirrorAmount,
+            // ✅ Documents ke liye fields
+            customerObj: customer,
+            accountObj: acc,
+            cnic_front: customer.cnic_front || null,
+            cnic_back: customer.cnic_back || null,
+            additional_image_1: customer.additional_image_1 || null,
+            additional_image_2: customer.additional_image_2 || null,
+            voice_consent: customer.voice_consent || null,
+            chalan_front: acc.chalan_front || null,
+            chalan_back: acc.chalan_back || null,
+            // ✅ Remarks field - empty for now
+            remarks: acc.remarks || '',
           };
         });
+        
         setAccounts(mapped);
       }
     } catch (error) {
@@ -141,8 +237,6 @@ const EmployeePerformanceReport = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
 
-  // ✅ NEW: work out the real due date of an installment using the account's
-  // opening day (e.g. account opened on 24th -> every installment is due on the 24th)
   const getInstallmentDueDate = (account, installmentMonth) => {
     if (!installmentMonth) return null;
     const [y, m] = installmentMonth.split('-').map(Number);
@@ -155,9 +249,6 @@ const EmployeePerformanceReport = () => {
     return new Date(y, m - 1, day);
   };
 
-  // ✅ UPDATED: overdue is now based on the actual due date (day-wise),
-  // not just "month has arrived". So if account opened 24-Jul, the Aug
-  // installment only becomes overdue after 24-Aug, not on 1-Aug.
   const isAccountOverdue = (account) => {
     const list = Array.isArray(account.installments) ? account.installments : [];
     if (list.length === 0) return account.balance > 0;
@@ -178,9 +269,6 @@ const EmployeePerformanceReport = () => {
     return dueUnpaid.length > 0;
   };
 
-  // ✅ NEW: gives the actual remaining (unpaid) amount for the installment(s)
-  // that are currently overdue — e.g. installment is 5,800 but customer paid
-  // 300, so this returns 5,500 instead of the account's total balance.
   const getOverdueAmount = (account) => {
     const list = Array.isArray(account.installments) ? account.installments : [];
     if (list.length === 0) return account.balance > 0 ? account.balance : 0;
@@ -211,30 +299,33 @@ const EmployeePerformanceReport = () => {
     return 0;
   };
 
-  const getFilteredEmployees = () => {
+  // ✅ Memoized: only recomputes when employeesList or userBranch actually change,
+  // instead of on every render (e.g. every keystroke in search, every dropdown toggle)
+  const filteredEmployees = useMemo(() => {
     if (userBranch) {
       return employeesList.filter(emp => parseInt(emp.branch_id || emp.branch) === parseInt(userBranch));
     }
     return employeesList;
-  };
+  }, [employeesList, userBranch]);
 
-  const filteredEmployees = getFilteredEmployees();
-
-  const getBranchScopedAccounts = () => {
+  // ✅ Memoized: branch-scoped accounts, recomputed only when accounts/userBranch change
+  const branchScopedAccounts = useMemo(() => {
     if (userBranch) {
       return accounts.filter(acc => parseInt(acc.branch) === parseInt(userBranch));
     }
     return accounts;
-  };
+  }, [accounts, userBranch]);
 
-  const getEmployeeAccounts = (employeeId) => {
-    const branchScoped = getBranchScopedAccounts();
-    if (!employeeId) return branchScoped;
-    return branchScoped.filter(acc => parseInt(acc.employeeId) === parseInt(employeeId));
-  };
+  const getEmployeeAccounts = useCallback((employeeId) => {
+    if (!employeeId) return branchScopedAccounts;
+    return branchScopedAccounts.filter(acc => parseInt(acc.employeeId) === parseInt(employeeId));
+  }, [branchScopedAccounts]);
 
-  const getEmployeeStats = (employeeId) => {
-    const empAccounts = getEmployeeAccounts(employeeId);
+  // ✅ Memoized: this used to run its filters/reduce over the full account list
+  // on EVERY render (e.g. typing in search, opening the modal, toggling the
+  // dropdown) even though its result only depends on accounts/employeeId/branch.
+  const selectedEmployeeData = useMemo(() => {
+    const empAccounts = getEmployeeAccounts(selectedEmployeeId);
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -258,23 +349,42 @@ const EmployeePerformanceReport = () => {
       overdueList: overdueAccounts,
       accounts: empAccounts
     };
-  };
+  }, [getEmployeeAccounts, selectedEmployeeId]);
 
-  const selectedEmployeeData = getEmployeeStats(selectedEmployeeId);
-  const selectedEmployee = employeesList.find(emp => emp.id === selectedEmployeeId);
+  const selectedEmployee = useMemo(
+    () => employeesList.find(emp => emp.id === selectedEmployeeId),
+    [employeesList, selectedEmployeeId]
+  );
 
-  const filteredAccounts = selectedEmployeeData.accounts.filter(item => {
-    if (!isEmployee && search) {
-      return item.customer.toLowerCase().includes(search.toLowerCase()) ||
-        item.caseNo.toLowerCase().includes(search.toLowerCase()) ||
-        item.product.toLowerCase().includes(search.toLowerCase());
-    }
-    return true;
-  });
+  // ✅ Memoized: recomputed only when the underlying account list or the
+  // search text changes, not on unrelated re-renders
+  const filteredAccounts = useMemo(() => {
+    return selectedEmployeeData.accounts.filter(item => {
+      if (!isEmployee && search) {
+        return item.customer.toLowerCase().includes(search.toLowerCase()) ||
+          item.caseNo.toLowerCase().includes(search.toLowerCase()) ||
+          item.product.toLowerCase().includes(search.toLowerCase());
+      }
+      return true;
+    });
+  }, [selectedEmployeeData.accounts, isEmployee, search]);
 
-  const openAccountModal = (account) => {
+  // ✅ Opens modal instantly, then lazy-loads guarantors only for this one
+  // account (only if we don't already have them) — this is what used to
+  // happen for EVERY account on page load and was slowing things down.
+  const openAccountModal = async (account) => {
     setSelectedAccount(account);
     setShowAccountModal(true);
+
+    if (!account.guarantorsFetched) {
+      setGuarantorsLoading(true);
+      const guarantors = await fetchGuarantorsForAccount(account.id);
+      const updatedAccount = { ...account, guarantors, guarantorsFetched: true };
+
+      setSelectedAccount(updatedAccount);
+      setAccounts(prev => prev.map(a => a.id === account.id ? updatedAccount : a));
+      setGuarantorsLoading(false);
+    }
   };
 
   const getEmployeeName = (id) => {
@@ -282,7 +392,6 @@ const EmployeePerformanceReport = () => {
     return emp ? emp.name : 'All Employees';
   };
 
-  // ✅ Full date formatter with day number
   const formatFullDate = (date) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('en-PK', {
@@ -292,11 +401,9 @@ const EmployeePerformanceReport = () => {
     });
   };
 
-  // ✅ Format due date from month string or full date
   const formatDueDate = (dueDate) => {
     if (!dueDate) return '-';
     
-    // If it's already a full date with day
     if (dueDate.includes('-') && dueDate.split('-').length === 3) {
       return new Date(dueDate).toLocaleDateString('en-PK', {
         day: '2-digit',
@@ -305,7 +412,6 @@ const EmployeePerformanceReport = () => {
       });
     }
     
-    // If it's just month string like "2026-07"
     if (dueDate.includes('-') && dueDate.split('-').length === 2) {
       const date = new Date(dueDate + '-01');
       return date.toLocaleDateString('en-PK', {
@@ -316,6 +422,87 @@ const EmployeePerformanceReport = () => {
     }
     
     return '-';
+  };
+
+  const formatMonth = (month) => {
+    if (!month) return '-';
+    return new Date(month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
+  };
+
+  // ✅ FORMAT CURRENCY WITHOUT PKR PREFIX FOR EXPORT
+  const formatCurrencyForExport = (amount) => {
+    return amount || 0;
+  };
+
+  // ✅ EXPORT DATA - Employee Performance Report ke liye
+  const getExportData = useCallback(() => {
+    const accountsToExport = activeTab === 'total' ? filteredAccounts :
+                            activeTab === 'new' ? selectedEmployeeData.newAccountsList :
+                            activeTab === 'recovery' ? selectedEmployeeData.accounts.filter(acc => getThisMonthDue(acc) > 0) :
+                            activeTab === 'overdue' ? selectedEmployeeData.overdueList :
+                            filteredAccounts;
+
+    return accountsToExport.map(acc => {
+      const status = acc.balance <= 0 ? 'Paid' : 
+                     isAccountOverdue(acc) ? 'Overdue' : 'Active';
+      
+      return {
+        caseNo: acc.caseNo || 'N/A',
+        customer: acc.customer || 'N/A',
+        cnic: acc.cnic || 'N/A',
+        phone: acc.phone || 'N/A',
+        address: acc.address || 'N/A',
+        product: acc.product || 'N/A',
+        amount: formatCurrencyForExport(acc.amount),
+        paid: formatCurrencyForExport(acc.paid),
+        balance: formatCurrencyForExport(acc.balance),
+        monthlyInstallment: formatCurrencyForExport(acc.monthly),
+        mirror: formatCurrencyForExport(acc.mirror),
+        openingDate: formatFullDate(acc.openingDate),
+        dueDate: formatDueDate(acc.dueDate),
+        status: status,
+        employee: acc.employeeName || 'N/A',
+        branch: acc.branch === 1 ? 'Branch 1' : 'Branch 2',
+        remarks: acc.remarks || ''
+      };
+    });
+  }, [activeTab, filteredAccounts, selectedEmployeeData]);
+
+  const exportColumns = useMemo(() => [
+    { header: 'Customer', key: 'customer' },
+    { header: 'Case No', key: 'caseNo' },
+    { header: 'Due Date', key: 'dueDate' },
+    { header: 'Installment', key: 'monthlyInstallment' },
+    { header: 'Balance', key: 'balance' },
+    { header: 'Mirror', key: 'mirror' },
+    { header: 'Remarks', key: 'remarks' },
+    { header: 'Status', key: 'status' },
+    { header: 'Employee', key: 'employee' },
+    { header: 'Branch', key: 'branch' },
+  ], []);
+
+  // ✅ GET EXPORT FILENAME BASED ON ACTIVE TAB
+  const getExportFilename = () => {
+    const employeeName = selectedEmployee ? selectedEmployee.name : 'All-Employees';
+    const tabMap = {
+      'total': 'all-accounts',
+      'new': 'new-accounts',
+      'recovery': 'recovery-due',
+      'overdue': 'overdue-accounts'
+    };
+    return `employee-performance-${tabMap[activeTab] || 'report'}-${employeeName}`;
+  };
+
+  // ✅ GET EXPORT TITLE BASED ON ACTIVE TAB
+  const getExportTitle = () => {
+    const tabMap = {
+      'total': 'All Accounts',
+      'new': 'New Accounts (This Month)',
+      'recovery': 'Recovery Due (This Month)',
+      'overdue': 'Overdue Accounts'
+    };
+    const employeeName = selectedEmployee ? selectedEmployee.name : 'All Employees';
+    return `Employee Performance - ${tabMap[activeTab] || 'Report'} - ${employeeName}`;
   };
 
   const cards = isEmployee ? [
@@ -385,14 +572,13 @@ const EmployeePerformanceReport = () => {
     },
   ];
 
-  // ✅ UPDATED: no more "pending" state - either paid (balance cleared, or
-  // due date hasn't arrived yet) or overdue (due date passed and unpaid)
   const getStatusForAccount = (account) => {
     if (account.balance <= 0) return 'paid';
     if (isAccountOverdue(account)) return 'overdue';
     return 'paid';
   };
 
+  // ✅ RENDER TABLE - NEW SEQUENCE
   const renderTable = () => {
     if (activeTab === 'total' && !isEmployee) {
       return (
@@ -403,34 +589,38 @@ const EmployeePerformanceReport = () => {
               <h3>All Accounts</h3>
               <span className="epr-record-count">{filteredAccounts.length} accounts</span>
             </div>
+            <div className="epr-table-header-right">
+              <ExportButton
+                data={getExportData()}
+                columns={exportColumns}
+                filename={getExportFilename()}
+                title={getExportTitle()}
+              />
+            </div>
           </div>
           <div className="epr-table-scroll">
             <table className="epr-accounts-table">
               <thead>
                 <tr>
-                  <th>Case #</th>
                   <th>Customer</th>
-                  <th>Product</th>
-                  <th>Amount (PKR)</th>
-                  <th>Paid (PKR)</th>
-                  <th>Balance (PKR)</th>
-                  <th>Installment</th>
-                  <th>Mirror</th>
-                  <th>Account Opening</th>
+                  <th>Case #</th>
                   <th>Due Date</th>
+                  <th>Installment</th>
+                  <th>Balance</th>
+                  <th>Mirror</th>
+                  <th>Remarks</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAccounts.length === 0 ? (
-                  <tr><td colSpan="12" className="epr-no-data">No accounts found</td></tr>
+                  <tr><td colSpan="9" className="epr-no-data">No accounts found</td></tr>
                 ) : (
                   filteredAccounts.map((item, index) => {
                     const status = getStatusForAccount(item);
                     return (
                       <tr key={item.id} className={`${status === 'overdue' ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
-                        <td className="epr-case-number">{item.caseNo}</td>
                         <td>
                           <div className="epr-customer-info">
                             <div className="epr-customer-avatar" style={{ background: status === 'paid' ? '#d1fae5' : status === 'overdue' ? '#fee2e2' : '#fef3c7', color: status === 'paid' ? '#065f46' : status === 'overdue' ? '#991b1b' : '#92400e' }}>
@@ -439,27 +629,22 @@ const EmployeePerformanceReport = () => {
                             {item.customer}
                           </div>
                         </td>
-                        <td>{item.product}</td>
-                        <td className="epr-amount">PKR {item.amount.toLocaleString()}</td>
-                        <td className="epr-paid-amount">PKR {item.paid.toLocaleString()}</td>
-                        <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
-                          PKR {item.balance.toLocaleString()}
-                        </td>
-                        <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
-                        <td className={item.mirror > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
-                          PKR {item.mirror.toLocaleString()}
-                        </td>
-                        <td>
-                          <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
-                            <Calendar size={12} />
-                            {formatFullDate(item.openingDate)}
-                          </div>
-                        </td>
+                        <td className="epr-case-number">{item.caseNo}</td>
                         <td>
                           <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
                             <Calendar size={12} />
                             {formatDueDate(item.dueDate)}
                           </div>
+                        </td>
+                        <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
+                        <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
+                          PKR {item.balance.toLocaleString()}
+                        </td>
+                        <td className={item.mirror > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
+                          PKR {item.mirror.toLocaleString()}
+                        </td>
+                        <td>
+                          <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                         </td>
                         <td>
                           <span className={`epr-status-badge epr-${status}`}>
@@ -494,55 +679,56 @@ const EmployeePerformanceReport = () => {
               <h3>New Accounts (This Month)</h3>
               <span className="epr-record-count">{list.length} accounts</span>
             </div>
+            <div className="epr-table-header-right">
+              <ExportButton
+                data={getExportData()}
+                columns={exportColumns}
+                filename={getExportFilename()}
+                title={getExportTitle()}
+              />
+            </div>
           </div>
           <div className="epr-table-scroll">
             <table className="epr-accounts-table">
               <thead>
                 <tr>
-                  <th>Case #</th>
                   <th>Customer</th>
-                  <th>Product</th>
-                  <th>Amount (PKR)</th>
+                  <th>Case #</th>
+                  <th>Due Date</th>
                   <th>Installment</th>
                   <th>Mirror</th>
-                  <th>Account Opening</th>
-                  <th>Due Date</th>
+                  <th>Remarks</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="10" className="epr-no-data">No new accounts this month</td></tr>
+                  <tr><td colSpan="8" className="epr-no-data">No new accounts this month</td></tr>
                 ) : (
                   list.map((item, index) => {
                     const status = getStatusForAccount(item);
                     return (
                       <tr key={item.id} className={index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}>
-                        <td className="epr-case-number">{item.caseNo}</td>
                         <td>
                           <div className="epr-customer-info">
                             <div className="epr-customer-avatar">{item.customer.charAt(0)}</div>
                             {item.customer}
                           </div>
                         </td>
-                        <td>{item.product}</td>
-                        <td className="epr-amount">PKR {item.amount.toLocaleString()}</td>
-                        <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
-                        <td className={item.mirror > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
-                          PKR {item.mirror.toLocaleString()}
-                        </td>
-                        <td>
-                          <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
-                            <Calendar size={12} />
-                            {formatFullDate(item.openingDate)}
-                          </div>
-                        </td>
+                        <td className="epr-case-number">{item.caseNo}</td>
                         <td>
                           <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
                             <Calendar size={12} />
                             {formatDueDate(item.dueDate)}
                           </div>
+                        </td>
+                        <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
+                        <td className={item.mirror > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
+                          PKR {item.mirror.toLocaleString()}
+                        </td>
+                        <td>
+                          <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                         </td>
                         <td>
                           <span className={`epr-status-badge epr-${status}`}>
@@ -577,6 +763,14 @@ const EmployeePerformanceReport = () => {
               <h3>Recovery Due (This Month)</h3>
               <span className="epr-record-count">{list.length} customers</span>
             </div>
+            <div className="epr-table-header-right">
+              <ExportButton
+                data={getExportData()}
+                columns={exportColumns}
+                filename={getExportFilename()}
+                title={getExportTitle()}
+              />
+            </div>
           </div>
           <div className="epr-table-scroll">
             <table className="epr-accounts-table">
@@ -584,17 +778,16 @@ const EmployeePerformanceReport = () => {
                 <tr>
                   <th>Customer</th>
                   <th>Case #</th>
-                  <th>Installment</th>
+                  <th>Due Date</th>
                   <th>Mirror</th>
                   <th>Balance</th>
-                  <th>Account Opening</th>
-                  <th>Due Date</th>
+                  <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="8" className="epr-no-data">No recovery due this month</td></tr>
+                  <tr><td colSpan="7" className="epr-no-data">No recovery due this month</td></tr>
                 ) : (
                   list.map((item, index) => (
                     <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
@@ -605,20 +798,16 @@ const EmployeePerformanceReport = () => {
                         </div>
                       </td>
                       <td className="epr-case-number">{item.caseNo}</td>
-                      <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
-                      <td className="epr-balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
-                      <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
-                      <td>
-                        <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
-                          <Calendar size={12} />
-                          {formatFullDate(item.openingDate)}
-                        </div>
-                      </td>
                       <td>
                         <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
                           <Calendar size={12} />
                           {formatDueDate(item.dueDate)}
                         </div>
+                      </td>
+                      <td className="epr-balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
+                      <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                      <td>
+                        <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                       </td>
                       <td>
                         <div className="epr-action-group">
@@ -647,6 +836,14 @@ const EmployeePerformanceReport = () => {
               <h3>Overdue Accounts</h3>
               <span className="epr-record-count">{list.length} customers</span>
             </div>
+            <div className="epr-table-header-right">
+              <ExportButton
+                data={getExportData()}
+                columns={exportColumns}
+                filename={getExportFilename()}
+                title={getExportTitle()}
+              />
+            </div>
           </div>
           <div className="epr-table-scroll">
             <table className="epr-accounts-table">
@@ -654,17 +851,16 @@ const EmployeePerformanceReport = () => {
                 <tr>
                   <th>Customer</th>
                   <th>Case #</th>
-                  <th>Installment</th>
+                  <th>Due Date</th>
                   <th>Mirror</th>
                   <th>Balance</th>
-                  <th>Account Opening</th>
-                  <th>Due Date</th>
+                  <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="8" className="epr-no-data">No overdue accounts</td></tr>
+                  <tr><td colSpan="7" className="epr-no-data">No overdue accounts</td></tr>
                 ) : (
                   list.map((item, index) => (
                     <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
@@ -675,20 +871,16 @@ const EmployeePerformanceReport = () => {
                         </div>
                       </td>
                       <td className="epr-case-number">{item.caseNo}</td>
-                      <td>{item.monthly > 0 ? `PKR ${item.monthly.toLocaleString()}` : '---'}</td>
-                      <td className="epr-balance-amount">PKR {getOverdueAmount(item).toLocaleString()}</td>
-                      <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
-                      <td>
-                        <div className="epr-date-info" style={{ color: '#2563eb', fontWeight: 500 }}>
-                          <Calendar size={12} />
-                          {formatFullDate(item.openingDate)}
-                        </div>
-                      </td>
                       <td>
                         <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
                           <Calendar size={12} />
                           {formatDueDate(item.dueDate)}
                         </div>
+                      </td>
+                      <td className="epr-balance-amount">PKR {getOverdueAmount(item).toLocaleString()}</td>
+                      <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                      <td>
+                        <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                       </td>
                       <td>
                         <div className="epr-action-group">
@@ -901,23 +1093,128 @@ const EmployeePerformanceReport = () => {
                 </div>
               </div>
 
+              {/* ============================================ */}
+              {/* ✅ DOCUMENTS SECTION */}
+              {/* ============================================ */}
+              <div className="epr-documents-section" style={{ marginTop: '20px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
+                <div className="epr-section-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <FileText size={20} style={{ color: '#374151' }} />
+                  <h4 style={{ fontWeight: 700, fontSize: '15px', margin: 0, color: '#1f2937' }}>Original Form Documents</h4>
+                </div>
+
+                {/* Customer CNIC Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Customer CNIC
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedAccount.cnic_front && (
+                      <DocImage label="CNIC Front" src={getFileUrl(selectedAccount.cnic_front)} />
+                    )}
+                    {selectedAccount.cnic_back && (
+                      <DocImage label="CNIC Back" src={getFileUrl(selectedAccount.cnic_back)} />
+                    )}
+                    {!selectedAccount.cnic_front && !selectedAccount.cnic_back && (
+                      <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No customer CNIC images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Additional Documents
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedAccount.additional_image_1 && (
+                      <DocImage label="Additional Image 1" src={getFileUrl(selectedAccount.additional_image_1)} />
+                    )}
+                    {selectedAccount.additional_image_2 && (
+                      <DocImage label="Additional Image 2" src={getFileUrl(selectedAccount.additional_image_2)} />
+                    )}
+                    {!selectedAccount.additional_image_1 && !selectedAccount.additional_image_2 && (
+                      <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No additional documents found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chalan Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Chalan
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedAccount.chalan_front && (
+                      <DocImage label="Chalan Front" src={getFileUrl(selectedAccount.chalan_front)} />
+                    )}
+                    {selectedAccount.chalan_back && (
+                      <DocImage label="Chalan Back" src={getFileUrl(selectedAccount.chalan_back)} />
+                    )}
+                    {!selectedAccount.chalan_front && !selectedAccount.chalan_back && (
+                      <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No chalan images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Voice Consent */}
+                {selectedAccount.voice_consent && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h5 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                      Voice Consent (Raza Mandi)
+                    </h5>
+                    <audio controls preload="none" style={{ width: '100%' }}>
+                      <source src={getFileUrl(selectedAccount.voice_consent)} />
+                      Your browser does not support audio playback.
+                    </audio>
+                  </div>
+                )}
+
+                {/* ✅ Guarantors' CNIC Images */}
+                <div>
+                  <h5 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Guarantors' CNIC Images
+                  </h5>
+                  {guarantorsLoading ? (
+                    <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>Loading guarantors...</p>
+                  ) : selectedAccount.guarantors && selectedAccount.guarantors.length > 0 ? (
+                    selectedAccount.guarantors.map((g, idx) => (
+                      <div key={idx} style={{ marginBottom: '16px', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>
+                        <p style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px' }}>
+                          {g.name || g.guarantor_name || 'N/A'} — {g.cnic || g.guarantor_cnic || 'N/A'}
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                          {g.cnic_front && <DocImage label="CNIC Front" src={getFileUrl(g.cnic_front)} />}
+                          {g.cnic_back && <DocImage label="CNIC Back" src={getFileUrl(g.cnic_back)} />}
+                          {!g.cnic_front && !g.cnic_back && (
+                            <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No CNIC images for this guarantor</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No guarantor documents found</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ===== Guarantors Section (Text Info) ===== */}
               {selectedAccount.guarantors && selectedAccount.guarantors.length > 0 && (
-                <div className="epr-guarantors-section">
-                  <h4 style={{ fontWeight: 700 }}>Guarantors</h4>
+                <div className="epr-guarantors-section" style={{ marginTop: '20px', borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
+                  <h4 style={{ fontWeight: 700 }}>Guarantors Information</h4>
                   {selectedAccount.guarantors.map((g, index) => (
                     <div key={index} className="epr-guarantor-item">
                       <div className="epr-guarantor-info">
-                        <span style={{ fontWeight: 600 }}>Name: {g.name}</span>
-                        <span style={{ fontWeight: 600 }}>CNIC: {g.cnic}</span>
-                        <span style={{ fontWeight: 600 }}>Phone: {g.phone}</span>
-                        <span style={{ fontWeight: 600 }}>Address: {g.address}</span>
+                        <span style={{ fontWeight: 600 }}>Name: {g.name || g.guarantor_name || 'N/A'}</span>
+                        <span style={{ fontWeight: 600 }}>CNIC: {g.cnic || g.guarantor_cnic || 'N/A'}</span>
+                        <span style={{ fontWeight: 600 }}>Phone: {g.phone || g.guarantor_phone || 'N/A'}</span>
+                        <span style={{ fontWeight: 600 }}>Address: {g.address || g.guarantor_address || 'N/A'}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <div className="epr-installment-details-section">
+              <div className="epr-installment-details-section" style={{ marginTop: '20px', borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
                 <div className="epr-section-header">
                   <h4 style={{ fontWeight: 700 }}>Installment Payment History</h4>
                 </div>
@@ -942,7 +1239,7 @@ const EmployeePerformanceReport = () => {
                           return (
                             <tr key={inst.id} className={`${balanceAmount > 0 ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
                               <td style={{ fontWeight: 700 }}>{index + 1}</td>
-                              <td style={{ fontWeight: 600 }}>{inst.month ? new Date(inst.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-'}</td>
+                              <td style={{ fontWeight: 600 }}>{formatMonth(inst.month)}</td>
                               <td style={{ fontWeight: 600 }}>PKR {dueAmount.toLocaleString()}</td>
                               <td className="epr-paid-amount" style={{ fontWeight: 700 }}>PKR {paidAmount.toLocaleString()}</td>
                               <td className={balanceAmount > 0 ? 'epr-balance-amount' : 'epr-paid-amount'} style={{ fontWeight: 700 }}>

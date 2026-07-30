@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, X, Calendar, DollarSign, Building, Filter } from 'lucide-react';
+// src/components/ExtraExpense/ExtraExpense.jsx
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Edit, Trash2, X, Calendar, DollarSign, Building, Filter, RefreshCw, ChevronDown } from 'lucide-react';
 import './ExtraExpense.css';
 import { API_URL } from '../../../config';
 
 const ExtraExpense = () => {
   const [search, setSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -13,36 +16,31 @@ const ExtraExpense = () => {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [expenses, setExpenses] = useState([]);
   const itemsPerPage = 10;
 
+  // ✅ Get user data and fetch immediately
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
       setUserBranch(user.branch);
+      fetchExpenses(user.branch);
+    } else {
+      fetchExpenses(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    fetchExpenses();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userBranch]);
-
-  const [expenses, setExpenses] = useState([]);
-
-  // ============================================
-  // ✅ FETCH REAL DATA FROM BACKEND
-  // Pehle yahan hardcoded demo array tha jo kabhi refresh hi nahi hota tha.
-  // Ab yeh GET /expenses/extra?branch_id=... call karta hai — jo backend
-  // mein pehle se maujood hai — aur asal database ka data laata hai.
-  // ============================================
-  const fetchExpenses = async () => {
+  // ✅ useCallback - function memoize
+  const fetchExpenses = useCallback(async (branch) => {
     setFetching(true);
     try {
       const token = localStorage.getItem('token');
       let url = `${API_URL}/expenses/extra`;
-      if (userBranch) {
-        url += `?branch_id=${userBranch}`;
+      const effectiveBranch = branch || userBranch;
+      if (effectiveBranch) {
+        url += `?branch_id=${effectiveBranch}`;
       }
 
       const response = await fetch(url, {
@@ -71,7 +69,40 @@ const ExtraExpense = () => {
       setExpenses([]);
     }
     setFetching(false);
-  };
+  }, [userBranch]);
+
+  // ✅ Refresh function - no full loading state
+  const handleRefresh = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      let url = `${API_URL}/expenses/extra`;
+      if (userBranch) {
+        url += `?branch_id=${userBranch}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const mapped = (data.data || []).map(exp => ({
+          id: exp.id,
+          description: exp.description,
+          amount: parseFloat(exp.amount) || 0,
+          branch: exp.branch_id,
+          date: exp.date
+        }));
+        setExpenses(mapped);
+      }
+    } catch (error) {
+      console.error('Error refreshing expenses:', error);
+    }
+  }, [userBranch]);
 
   const [newExpense, setNewExpense] = useState({
     description: '',
@@ -80,21 +111,52 @@ const ExtraExpense = () => {
     date: '',
   });
 
-  const getUniqueMonths = () => {
-    const months = new Set();
-    const filteredExpenses = userBranch ? expenses.filter(e => e.branch === parseInt(userBranch)) : expenses;
-    filteredExpenses.forEach(exp => {
-      const month = exp.date.substring(0, 7);
-      months.add(month);
-    });
-    return Array.from(months).sort();
+  // ✅ ALL YEARS - 2020 se current year tak
+  const getAllYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = 2020; year <= currentYear; year++) {
+      years.push(String(year));
+    }
+    return years;
+  };
+
+  // ✅ ALL MONTHS - January to December
+  const getAllMonths = () => {
+    return ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
   };
 
   const getMonthName = (monthStr) => {
     if (monthStr === 'all') return 'All Months';
-    const [year, month] = monthStr.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const date = new Date(2000, parseInt(monthStr) - 1);
+    return date.toLocaleString('default', { month: 'long' });
+  };
+
+  const getYearName = (yearStr) => {
+    if (yearStr === 'all') return 'All Years';
+    return yearStr;
+  };
+
+  // ✅ Get available years from expenses (for showing which have data)
+  const getAvailableYears = () => {
+    const years = new Set();
+    const filteredExpenses = userBranch ? expenses.filter(e => e.branch === parseInt(userBranch)) : expenses;
+    filteredExpenses.forEach(exp => {
+      const year = exp.date.substring(0, 4);
+      years.add(year);
+    });
+    return Array.from(years).sort();
+  };
+
+  // ✅ Get available months from expenses (for showing which have data)
+  const getAvailableMonths = () => {
+    const months = new Set();
+    const filteredExpenses = userBranch ? expenses.filter(e => e.branch === parseInt(userBranch)) : expenses;
+    filteredExpenses.forEach(exp => {
+      const month = exp.date.substring(5, 7);
+      months.add(month);
+    });
+    return Array.from(months).sort();
   };
 
   const filtered = expenses.filter(e => {
@@ -108,11 +170,17 @@ const ExtraExpense = () => {
     
     let monthMatch = true;
     if (monthFilter !== 'all') {
-      const expMonth = e.date.substring(0, 7);
+      const expMonth = e.date.substring(5, 7);
       monthMatch = expMonth === monthFilter;
     }
     
-    return searchMatch && branchMatch && monthMatch;
+    let yearMatch = true;
+    if (yearFilter !== 'all') {
+      const expYear = e.date.substring(0, 4);
+      yearMatch = expYear === yearFilter;
+    }
+    
+    return searchMatch && branchMatch && monthMatch && yearMatch;
   });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
@@ -124,24 +192,16 @@ const ExtraExpense = () => {
     return now.toISOString().split('T')[0];
   };
 
-  // ============================================
-  // ✅ CHECK IF USER CAN ADD EXPENSE
-  // Only Manager or Admin can add
-  // ============================================
   const canAddExpense = () => {
     return userRole === 'admin' || userRole === 'manager';
   };
 
-  // ============================================
-  // ✅ ADD EXPENSE - SEND TO API
-  // ============================================
   const handleAddExpense = async () => {
     if (!newExpense.description || !newExpense.amount) {
       alert('Please fill all required fields');
       return;
     }
 
-    // ✅ Branch automatically set - Manager ki branch use hogi
     const branch = userBranch ? parseInt(userBranch) : parseInt(newExpense.branch);
     const date = newExpense.date || getCurrentDate();
     
@@ -173,7 +233,7 @@ const ExtraExpense = () => {
       }
 
       if (data.success) {
-        await fetchExpenses();
+        await handleRefresh();
         setNewExpense({ description: '', amount: '', branch: 1, date: '' });
         setShowModal(false);
         alert('✅ Expense added successfully!');
@@ -188,11 +248,6 @@ const ExtraExpense = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ UPDATE EXPENSE
-  // ✅ NOTE: yeh call ab kaam karega — backend mein PUT /expenses/extra/{id}
-  // route + updateExtra() function add kar diya gaya hai (pehle missing tha).
-  // ============================================
   const handleEditExpense = async () => {
     if (!newExpense.description || !newExpense.amount) {
       alert('Please fill all required fields');
@@ -229,7 +284,7 @@ const ExtraExpense = () => {
       }
 
       if (data.success) {
-        await fetchExpenses();
+        await handleRefresh();
         setNewExpense({ description: '', amount: '', branch: 1, date: '' });
         setShowModal(false);
         setEditingExpense(null);
@@ -245,9 +300,6 @@ const ExtraExpense = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ DELETE EXPENSE
-  // ============================================
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this expense?')) {
       return;
@@ -274,7 +326,7 @@ const ExtraExpense = () => {
       }
 
       if (data.success) {
-        await fetchExpenses();
+        await handleRefresh();
         alert('✅ Expense deleted successfully!');
       } else {
         alert(data.message || 'Failed to delete expense');
@@ -288,7 +340,6 @@ const ExtraExpense = () => {
   };
 
   const openAddModal = () => {
-    // ✅ Only manager or admin can open add modal
     if (!canAddExpense()) {
       alert('Only managers and admins can add expenses');
       return;
@@ -305,7 +356,6 @@ const ExtraExpense = () => {
   };
 
   const openEditModal = (expense) => {
-    // ✅ Only manager or admin can edit
     if (!canAddExpense()) {
       alert('Only managers and admins can edit expenses');
       return;
@@ -342,16 +392,10 @@ const ExtraExpense = () => {
       .reduce((sum, e) => sum + e.amount, 0);
   };
 
-  const getMonthTotal = (month) => {
-    return filtered
-      .filter(e => {
-        const expMonth = e.date.substring(0, 7);
-        return expMonth === month;
-      })
-      .reduce((sum, e) => sum + e.amount, 0);
-  };
-
-  const uniqueMonths = getUniqueMonths();
+  const allYears = getAllYears();
+  const allMonths = getAllMonths();
+  const availableYears = getAvailableYears();
+  const availableMonths = getAvailableMonths();
 
   const totalExpenses = filtered.length;
   const totalAmount = filtered.reduce((sum, e) => sum + e.amount, 0);
@@ -361,7 +405,6 @@ const ExtraExpense = () => {
 
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
-  // Colorful stat chips
   const statChips = [
     { 
       label: `${totalExpenses} Expenses`, 
@@ -379,7 +422,8 @@ const ExtraExpense = () => {
     },
   ];
 
-  if (fetching) {
+  // ✅ FAST LOADING - Sirf pehli baar show karega
+  if (fetching && expenses.length === 0) {
     return (
       <div className="extra-expense-container">
         <div className="loading-state">
@@ -423,13 +467,29 @@ const ExtraExpense = () => {
           ))}
         </div>
 
-        {/* ✅ Only show Add button for Manager/Admin */}
-        {canAddExpense() && (
-          <button className="btn-accent" onClick={openAddModal}>
-            <Plus size={18} />
-            Add Expense
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {canAddExpense() && (
+            <button className="btn-accent" onClick={openAddModal}>
+              <Plus size={18} />
+              Add Expense
+            </button>
+          )}
+          <button className="btn-refresh-small" onClick={handleRefresh} title="Refresh" style={{
+            padding: '8px 12px',
+            background: '#f3f4f6',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#4b5563',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            fontWeight: 600
+          }}>
+            <RefreshCw size={16} />
           </button>
-        )}
+        </div>
       </div>
 
       {/* ===== BRANCH TOTALS CARDS ===== */}
@@ -475,26 +535,68 @@ const ExtraExpense = () => {
         </div>
 
         <div className="filter-group">
-          <span className="filter-label">Month:</span>
-          <div className="month-filters">
-            <button 
-              className={`filter-btn month-btn ${monthFilter === 'all' ? 'active' : ''}`}
-              onClick={() => { setMonthFilter('all'); setCurrentPage(1); }}
+          {/* ✅ YEAR FILTER - All years 2020 to current */}
+          <div className="filter-item">
+            <span className="filter-label">Year:</span>
+            <select
+              className="filter-select"
+              value={yearFilter}
+              onChange={(e) => { setYearFilter(e.target.value); setCurrentPage(1); }}
+              style={{ fontWeight: 500 }}
             >
-              All
-            </button>
-            {uniqueMonths.map(month => (
-              <button 
-                key={month}
-                className={`filter-btn month-btn ${monthFilter === month ? 'active' : ''}`}
-                onClick={() => { setMonthFilter(month); setCurrentPage(1); }}
-              >
-                {getMonthName(month)}
-              </button>
-            ))}
+              <option value="all">All Years</option>
+              {allYears.map(year => {
+                const hasData = availableYears.includes(year);
+                return (
+                  <option key={year} value={year}>
+                    {year} {hasData ? '✓' : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* ✅ MONTH FILTER - All months January to December */}
+          <div className="filter-item">
+            <span className="filter-label">Month:</span>
+            <select
+              className="filter-select"
+              value={monthFilter}
+              onChange={(e) => { setMonthFilter(e.target.value); setCurrentPage(1); }}
+              style={{ fontWeight: 500 }}
+            >
+              <option value="all">All Months</option>
+              {allMonths.map(month => {
+                const hasData = availableMonths.includes(month);
+                return (
+                  <option key={month} value={month}>
+                    {getMonthName(month)} {hasData ? '✓' : ''}
+                  </option>
+                );
+              })}
+            </select>
           </div>
         </div>
       </div>
+
+      {/* ✅ FILTER SUMMARY - Show current filter selection */}
+      {(monthFilter !== 'all' || yearFilter !== 'all') && (
+        <div className="filter-summary">
+          <span style={{ fontWeight: 600 }}>
+            Showing: 
+            {yearFilter !== 'all' && ` Year ${yearFilter}`}
+            {monthFilter !== 'all' && ` • ${getMonthName(monthFilter)}`}
+            {yearFilter === 'all' && monthFilter === 'all' && ' All Expenses'}
+          </span>
+          <button 
+            className="btn-clear-filters"
+            onClick={() => { setMonthFilter('all'); setYearFilter('all'); setCurrentPage(1); }}
+            style={{ fontWeight: 600 }}
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
       <div className="totals-container">
         <div className="total-box total-all">
@@ -515,16 +617,7 @@ const ExtraExpense = () => {
         )}
       </div>
 
-      {uniqueMonths.length > 0 && (
-        <div className="monthly-totals">
-          {uniqueMonths.map(month => (
-            <div key={month} className="month-total-box">
-              <span>{getMonthName(month)}</span>
-              <strong>PKR {getMonthTotal(month).toLocaleString()}</strong>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ✅ MONTHLY TOTALS - REMOVED (Extra Expenses mein nahi chahiye) */}
 
       <div className="extra-table-wrap">
         <table className="extra-table">
@@ -540,7 +633,11 @@ const ExtraExpense = () => {
           <tbody>
             {currentItems.length === 0 ? (
               <tr>
-                <td colSpan="5" className="no-data">No expenses found for {branchLabel}</td>
+                <td colSpan="5" className="no-data">
+                  {monthFilter !== 'all' || yearFilter !== 'all' 
+                    ? `No expenses found for ${yearFilter !== 'all' ? yearFilter : ''} ${monthFilter !== 'all' ? getMonthName(monthFilter) : ''}`
+                    : `No expenses found for ${branchLabel}`}
+                </td>
               </tr>
             ) : (
               currentItems.map((exp, index) => (

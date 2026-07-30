@@ -704,37 +704,44 @@
   margin-top: 2px;
 }
 
-/* ===== SUMMARY CARDS ===== */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+/* ===== ACCOUNT SUMMARY CARDS (renamed, brand-new classes) =====
+   Renamed from .summary-cards / .summary-card / .summary-value
+   to .acct-summary-grid / .acct-summary-card / .acct-summary-value
+   so there is zero chance of an old cached rule or another
+   stylesheet with a matching class name still applying.
+   Fixed to exactly 3 cards per row, value always on one line. */
+.acct-summary-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
   gap: 12px;
 }
 
-.summary-card {
-  padding: 14px 16px;
+.acct-summary-card {
+  padding: 14px 12px;
   background: #f8fafc;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   text-align: center;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
-.summary-card.success {
+.acct-summary-card.success {
   background: #f0fdf4;
   border-color: #86efac;
 }
 
-.summary-card.warning {
+.acct-summary-card.warning {
   background: #fef3c7;
   border-color: #fcd34d;
 }
 
-.summary-card.info {
+.acct-summary-card.info {
   background: #eff6ff;
   border-color: #93c5fd;
 }
 
-.summary-label {
+.acct-summary-label {
   font-size: 11px;
   font-weight: 600;
   color: #64748b;
@@ -742,12 +749,15 @@
   letter-spacing: 0.5px;
 }
 
-.summary-value {
-  font-size: 18px;
+.acct-summary-value {
+  font-size: clamp(12px, 1.4vw, 18px) !important;
   font-weight: 700;
   color: #1e293b;
   display: block;
   margin-top: 4px;
+  white-space: nowrap !important;
+  overflow: visible;
+  line-height: 1.25;
 }
 
 /* ===== HISTORY TABLE ===== */
@@ -971,8 +981,8 @@
     grid-template-columns: 1fr;
   }
 
-  .summary-cards {
-    grid-template-columns: repeat(2, 1fr);
+  .acct-summary-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
   }
 
   .guarantors-grid {
@@ -1025,17 +1035,19 @@
     border-radius: 0;
   }
 
-  .summary-cards {
-    grid-template-columns: 1fr 1fr;
+  .acct-summary-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
     gap: 8px;
   }
 
-  .summary-card {
-    padding: 10px 12px;
+  .acct-summary-card {
+    padding: 10px 8px;
   }
 
-  .summary-value {
-    font-size: 14px;
+  .acct-summary-value {
+    font-size: clamp(10px, 3vw, 14px) !important;
+    white-space: nowrap !important;
+    overflow: visible;
   }
 }
 

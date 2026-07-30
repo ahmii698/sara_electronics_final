@@ -54,7 +54,7 @@ class ReportController extends Controller
     }
 
     // ============================================
-    // ✅ DASHBOARD - DYNAMIC DATA
+    // ✅ DASHBOARD - DYNAMIC DATA (with month filters)
     // ============================================
     public function dashboard(Request $request)
     {
@@ -90,24 +90,64 @@ class ReportController extends Controller
                     });
                 })
                 ->sum('paid_amount');
-            
+
+            // ============================================
+            // ✅ NEW: Build list of months based on filter params
+            // Priority: single "month" param > "start"+"end" range > default last 6 months
+            //
+            // ✅ FIXED: Carbon date-overflow bug removed.
+            // Previously createFromFormat('Y-m', ...) let Carbon fill in the
+            // missing "day" with TODAY's day-of-month (e.g. 30). For short
+            // months like February that overflowed into March before
+            // startOfMonth() could trim it, causing duplicate/missing months.
+            // Fix: always pin day=1 explicitly via 'Y-m-d' + '-01', and for
+            // the rolling 6-month default, lock to startOfMonth() BEFORE
+            // subtracting months (not after).
+            // ============================================
+            $monthsToShow = [];
+
+            if ($request->filled('month')) {
+                // Single month mode e.g. ?month=2026-03
+                $monthsToShow[] = \Carbon\Carbon::createFromFormat('Y-m-d', $request->get('month') . '-01')->startOfDay();
+            } elseif ($request->filled('start') && $request->filled('end')) {
+                // Custom range mode e.g. ?start=2022-01&end=2022-06
+                $start = \Carbon\Carbon::createFromFormat('Y-m-d', $request->get('start') . '-01')->startOfDay();
+                $end = \Carbon\Carbon::createFromFormat('Y-m-d', $request->get('end') . '-01')->startOfDay();
+
+                // Safety: agar start end se bada ho tw swap kardo
+                if ($start->greaterThan($end)) {
+                    [$start, $end] = [$end, $start];
+                }
+
+                $cursor = $start->copy();
+                while ($cursor->lessThanOrEqualTo($end)) {
+                    $monthsToShow[] = $cursor->copy();
+                    $cursor->addMonth();
+                }
+            } else {
+                // Default: last 6 months including current month
+                $base = now()->copy()->startOfMonth();
+                for ($i = 5; $i >= 0; $i--) {
+                    $monthsToShow[] = $base->copy()->subMonths($i);
+                }
+            }
+
             $performanceData = [];
-            for ($i = 5; $i >= 0; $i--) {
-                $month = now()->subMonths($i);
-                $monthName = $month->format('M');
-                
+            foreach ($monthsToShow as $month) {
+                $monthLabel = $month->format('M y'); // e.g. "Jul 26" - unique across years
+
                 $monthAccounts = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
                     return $q->where('branch_id', $branchId);
                 })->whereMonth('created_at', $month->month)
                   ->whereYear('created_at', $month->year)
                   ->count();
-                
+
                 $monthSales = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
                     return $q->where('branch_id', $branchId);
                 })->whereMonth('created_at', $month->month)
                   ->whereYear('created_at', $month->year)
                   ->sum('total_amount');
-                
+
                 $monthRecovery = Installment::whereMonth('payment_date', $month->month)
                     ->whereYear('payment_date', $month->year)
                     ->when($branchId && !$isAdmin, function($q) use ($branchId) {
@@ -116,9 +156,9 @@ class ReportController extends Controller
                         });
                     })
                     ->sum('paid_amount');
-                
+
                 $performanceData[] = [
-                    'month' => $monthName,
+                    'month' => $monthLabel,
                     'accounts' => $monthAccounts,
                     'sales' => $monthSales,
                     'recovery' => $monthRecovery,

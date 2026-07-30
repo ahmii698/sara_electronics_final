@@ -1,10 +1,37 @@
 // src/components/OverdueInstallments/OverdueInstallments.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, Edit, Save, X, DollarSign, Calendar, User, Building, AlertTriangle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
+import { Search, Eye, Edit, Save, X, DollarSign, Calendar, User, Building, AlertTriangle, CheckCircle, Clock, RefreshCw, FileText, Users } from 'lucide-react';
 import './OverdueInstallments.css';
-import { API_URL } from '../../../config';
+import { API_URL, STORAGE_URL } from '../../../config';
 import ExportButton from '../common/ExportButton';
+
+// ============================================
+// ✅ Storage URL helper - file path ko full URL mein convert karta hai
+// ============================================
+const getFileUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${STORAGE_URL}/${path}`;
+};
+
+// ============================================
+// ✅ DocImage - single document image card, click pe full size khulta hai
+// ============================================
+const DocImage = ({ label, src }) => (
+  <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+    <a href={src} target="_blank" rel="noopener noreferrer">
+      <img 
+        src={src} 
+        alt={label} 
+        style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'zoom-in' }} 
+      />
+    </a>
+    <p style={{ fontSize: '12px', fontWeight: 600, textAlign: 'center', padding: '6px', margin: 0, color: '#374151' }}>
+      {label}
+    </p>
+  </div>
+);
 
 const OverdueInstallments = () => {
   const [search, setSearch] = useState('');
@@ -96,7 +123,7 @@ const OverdueInstallments = () => {
 
         const overdueList = [];
 
-        grouped.forEach((list, accId) => {
+        for (const [accId, list] of grouped) {
           const sample = list[0];
           const account = sample.account || {};
 
@@ -108,7 +135,7 @@ const OverdueInstallments = () => {
             monthsBetween(i.month, currentMonth) >= 0
           );
 
-          if (dueUnpaid.length === 0) return;
+          if (dueUnpaid.length === 0) continue;
 
           const totalOverdue = dueUnpaid.reduce((sum, i) => sum + parseFloat(i.balance || 0), 0);
           const nextPayable = dueUnpaid[0] || null;
@@ -118,9 +145,51 @@ const OverdueInstallments = () => {
             overdueMonths = monthsBetween(dueUnpaid[0].month, currentMonth) + 1;
           }
 
-          if (overdueMonths > 3) return;
+          if (overdueMonths > 3) continue;
 
           const customer = account.customer || {};
+
+          // ✅ GUARANTORS KO PROPERLY FETCH KARO - Multiple possible paths
+          let guarantors = [];
+          
+          if (customer.guarantors && Array.isArray(customer.guarantors)) {
+            guarantors = customer.guarantors;
+          }
+          else if (account.guarantors && Array.isArray(account.guarantors)) {
+            guarantors = account.guarantors;
+          }
+          else if (sample.guarantors && Array.isArray(sample.guarantors)) {
+            guarantors = sample.guarantors;
+          }
+          else if (customer.guarantor && Array.isArray(customer.guarantor)) {
+            guarantors = customer.guarantor;
+          }
+          else if (account.guarantor && Array.isArray(account.guarantor)) {
+            guarantors = account.guarantor;
+          }
+
+          if (guarantors.length === 0 && accId) {
+            try {
+              const detailResponse = await fetch(`${API_URL}/installments/account-details/${accId}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Accept': 'application/json'
+                }
+              });
+              const detailData = await detailResponse.json();
+              if (detailData.success && detailData.data) {
+                const accDetail = detailData.data;
+                const cust = accDetail.customer || {};
+                if (cust.guarantors && Array.isArray(cust.guarantors)) {
+                  guarantors = cust.guarantors;
+                } else if (accDetail.guarantors && Array.isArray(accDetail.guarantors)) {
+                  guarantors = accDetail.guarantors;
+                }
+              }
+            } catch (err) {
+              console.error('Error fetching account details for guarantors:', err);
+            }
+          }
 
           overdueList.push({
             accountId: accId,
@@ -136,9 +205,12 @@ const OverdueInstallments = () => {
             overdueMonths,
             nextPayableInstallment: nextPayable,
             installments: sortedInstallments,
-            remarks: account.remarks || customer.remarks || ''
+            remarks: account.remarks || customer.remarks || '',
+            customer: customer,
+            account: account,
+            guarantors: guarantors,
           });
-        });
+        }
 
         overdueList.sort((a, b) => b.totalOverdue - a.totalOverdue);
         setOverdueAccounts(overdueList);
@@ -182,9 +254,18 @@ const OverdueInstallments = () => {
     return new Date(month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
   };
 
-  const getOverdueLabel = (months) => {
-    if (!months || months <= 0) return 'Overdue';
-    return months === 1 ? 'Overdue - 1 Month' : `Overdue - ${months} Months`;
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-PK', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const getAgingLabel = (months) => {
+    if (!months || months <= 0) return 'Aging';
+    return months === 1 ? 'Aging - 1 Month' : `Aging - ${months} Months`;
   };
 
   const getInstallmentRowStatus = (inst) => {
@@ -205,7 +286,7 @@ const OverdueInstallments = () => {
       className: 'oi-balance-card'
     },
     {
-      label: 'Total Overdue',
+      label: 'Total Aging',
       value: `PKR ${totalOverdueSum.toLocaleString()}`,
       icon: Clock,
       color: '#dc2626',
@@ -264,13 +345,13 @@ const OverdueInstallments = () => {
 
       const data = await response.json();
       if (data.success) {
-        alert('✅ Payment recorded successfully!');
+        alert('Payment recorded successfully!');
         setShowEditModal(false);
         setSelectedRecord(null);
         const user = JSON.parse(localStorage.getItem('user'));
         fetchOverdueAccounts(user?.branch_id || null, user?.role || null);
       } else {
-        alert('❌ Failed to record payment: ' + (data.message || 'Unknown error'));
+        alert('Failed to record payment: ' + (data.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving payment:', error);
@@ -287,8 +368,8 @@ const OverdueInstallments = () => {
     nextDueMonth: formatMonth(item.nextDueMonth),
     monthlyInstallment: item.monthlyInstallment,
     balance: item.balance,
-    totalOverdue: item.totalOverdue,
-    status: getOverdueLabel(item.overdueMonths),
+    totalAging: item.totalOverdue,
+    status: getAgingLabel(item.overdueMonths),
     remarks: item.remarks || ''
   }));
 
@@ -299,7 +380,7 @@ const OverdueInstallments = () => {
     { header: 'Next Due Month', key: 'nextDueMonth' },
     { header: 'Monthly', key: 'monthlyInstallment' },
     { header: 'Balance', key: 'balance' },
-    { header: 'Total Overdue', key: 'totalOverdue' },
+    { header: 'Total Aging', key: 'totalAging' },
     { header: 'Status', key: 'status' },
     { header: 'Remarks', key: 'remarks' },
   ];
@@ -309,18 +390,18 @@ const OverdueInstallments = () => {
       <div className="oi-header">
         <div className="oi-header-left">
           <div className="oi-header-title-group">
-            <h2>Overdue Installments</h2>
+            <h2>Aging Accounts</h2>
             <span className="oi-live-badge">
               <Clock size={12} /> Live
             </span>
           </div>
-          <p className="oi-subtitle">Accounts whose oldest due installment is 1-3 months overdue</p>
+          <p className="oi-subtitle">Accounts whose oldest due installment is 1-3 months aging</p>
         </div>
         <ExportButton
           data={exportData}
           columns={exportColumns}
-          filename="overdue-installments"
-          title="Overdue Installments Report"
+          filename="aging-accounts"
+          title="Aging Accounts Report"
         />
       </div>
 
@@ -363,7 +444,7 @@ const OverdueInstallments = () => {
             onClick={() => setMonthFilter('all')}
             style={{ fontWeight: 600 }}
           >
-            All Overdue
+            All Aging
           </button>
           <button
             className={`oi-filter-btn ${monthFilter === '1' ? 'active' : ''}`}
@@ -426,7 +507,7 @@ const OverdueInstallments = () => {
                 <th style={{ fontWeight: 800 }}>Next Due Month</th>
                 <th style={{ fontWeight: 800 }}>Installments</th>
                 <th style={{ fontWeight: 800 }}>Balance (PKR)</th>
-                <th style={{ fontWeight: 800 }}>Mirror</th>
+                <th style={{ fontWeight: 800 }}>Aging</th>
                 <th style={{ fontWeight: 800 }}>Remarks</th>
                 <th style={{ fontWeight: 800 }}>Status</th>
                 <th style={{ fontWeight: 800 }}>Actions</th>
@@ -434,9 +515,13 @@ const OverdueInstallments = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="10" className="oi-no-data">Loading overdue accounts...</td></tr>
+                <tr>
+                  <td colSpan="10" className="oi-no-data">Loading aging accounts...</td>
+                </tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan="10" className="oi-no-data">No overdue records found for {branchLabel}</td></tr>
+                <tr>
+                  <td colSpan="10" className="oi-no-data">No aging records found for {branchLabel}</td>
+                </tr>
               ) : (
                 filtered.map((item, index) => (
                   <tr key={item.accountId} className={`oi-row ${index % 2 === 0 ? 'oi-even-row' : 'oi-odd-row'}`}>
@@ -471,7 +556,7 @@ const OverdueInstallments = () => {
                     </td>
                     <td>
                       <span className="oi-status-badge oi-overdue-badge" style={{ fontWeight: 700 }}>
-                        {getOverdueLabel(item.overdueMonths)}
+                        {getAgingLabel(item.overdueMonths)}
                       </span>
                     </td>
                     <td>
@@ -536,6 +621,10 @@ const OverdueInstallments = () => {
                   <strong style={{ fontWeight: 700 }}>{selectedRecord.customerName}</strong>
                 </div>
                 <div className="oi-detail-item">
+                  <span style={{ fontWeight: 700 }}>CNIC</span>
+                  <strong style={{ fontWeight: 700 }}>{selectedRecord.customerCnic || 'N/A'}</strong>
+                </div>
+                <div className="oi-detail-item">
                   <span style={{ fontWeight: 700 }}>Next Due Month</span>
                   <strong style={{ fontWeight: 600 }}>{formatMonth(selectedRecord.nextDueMonth)}</strong>
                 </div>
@@ -544,20 +633,128 @@ const OverdueInstallments = () => {
                   <strong style={{ fontWeight: 700 }}>PKR {selectedRecord.monthlyInstallment.toLocaleString()}</strong>
                 </div>
                 <div className="oi-detail-item">
-                  <span style={{ fontWeight: 700 }}>Total Overdue</span>
+                  <span style={{ fontWeight: 700 }}>Total Aging</span>
                   <strong className="oi-overdue-amount" style={{ fontWeight: 800, color: '#dc2626' }}>
                     PKR {selectedRecord.totalOverdue.toLocaleString()}
                   </strong>
                 </div>
                 <div className="oi-detail-item">
-                  <span style={{ fontWeight: 700 }}>Overdue Since</span>
+                  <span style={{ fontWeight: 700 }}>Aging Since</span>
                   <strong style={{ fontWeight: 700, color: '#dc2626' }}>
-                    {getOverdueLabel(selectedRecord.overdueMonths)}
+                    {getAgingLabel(selectedRecord.overdueMonths)}
+                  </strong>
+                </div>
+                <div className="oi-detail-item">
+                  <span style={{ fontWeight: 700 }}>Account Opening</span>
+                  <strong style={{ fontWeight: 600 }}>
+                    {formatDate(selectedRecord.account?.created_at)}
                   </strong>
                 </div>
               </div>
 
-              <div className="oi-installment-history">
+              {/* ============================================ */}
+              {/* DOCUMENTS SECTION */}
+              {/* ============================================ */}
+              <div className="oi-documents-section" style={{ marginTop: '20px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
+                <div className="oi-section-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <FileText size={20} style={{ color: '#374151' }} />
+                  <h4 style={{ fontWeight: 700, fontSize: '16px', margin: 0, color: '#1f2937' }}>Original Form Documents</h4>
+                </div>
+
+                {/* Customer CNIC Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Customer CNIC
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedRecord.customer?.cnic_front && (
+                      <DocImage label="CNIC Front" src={getFileUrl(selectedRecord.customer.cnic_front)} />
+                    )}
+                    {selectedRecord.customer?.cnic_back && (
+                      <DocImage label="CNIC Back" src={getFileUrl(selectedRecord.customer.cnic_back)} />
+                    )}
+                    {!selectedRecord.customer?.cnic_front && !selectedRecord.customer?.cnic_back && (
+                      <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No customer CNIC images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Additional Documents
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedRecord.customer?.additional_image_1 && (
+                      <DocImage label="Additional Image 1" src={getFileUrl(selectedRecord.customer.additional_image_1)} />
+                    )}
+                    {selectedRecord.customer?.additional_image_2 && (
+                      <DocImage label="Additional Image 2" src={getFileUrl(selectedRecord.customer.additional_image_2)} />
+                    )}
+                    {!selectedRecord.customer?.additional_image_1 && !selectedRecord.customer?.additional_image_2 && (
+                      <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No additional documents found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chalan Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Chalan
+                  </h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedRecord.account?.chalan_front && (
+                      <DocImage label="Chalan Front" src={getFileUrl(selectedRecord.account.chalan_front)} />
+                    )}
+                    {selectedRecord.account?.chalan_back && (
+                      <DocImage label="Chalan Back" src={getFileUrl(selectedRecord.account.chalan_back)} />
+                    )}
+                    {!selectedRecord.account?.chalan_front && !selectedRecord.account?.chalan_back && (
+                      <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No chalan images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Voice Consent */}
+                {selectedRecord.customer?.voice_consent && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                      Voice Consent (Raza Mandi)
+                    </h5>
+                    <audio controls style={{ width: '100%' }}>
+                      <source src={getFileUrl(selectedRecord.customer.voice_consent)} />
+                      Your browser does not support audio playback.
+                    </audio>
+                  </div>
+                )}
+
+                {/* Guarantors' CNIC Images */}
+                <div>
+                  <h5 style={{ fontWeight: 700, fontSize: '14px', marginBottom: '10px', color: '#374151' }}>
+                    Guarantors' CNIC Images
+                  </h5>
+                  {selectedRecord.guarantors && selectedRecord.guarantors.length > 0 ? (
+                    selectedRecord.guarantors.map((g, idx) => (
+                      <div key={idx} style={{ marginBottom: '16px', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>
+                        <p style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px' }}>
+                          {g.name || g.guarantor_name || 'N/A'} — {g.cnic || g.guarantor_cnic || 'N/A'}
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                          {g.cnic_front && <DocImage label="CNIC Front" src={getFileUrl(g.cnic_front)} />}
+                          {g.cnic_back && <DocImage label="CNIC Back" src={getFileUrl(g.cnic_back)} />}
+                          {!g.cnic_front && !g.cnic_back && (
+                            <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No CNIC images for this guarantor</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>No guarantor documents found</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="oi-installment-history" style={{ marginTop: '20px' }}>
                 <div className="oi-history-header">
                   <h4 style={{ fontWeight: 700 }}>Installment History</h4>
                   <span className="oi-history-badge" style={{ fontWeight: 600 }}>{selectedRecord.installments.length} Months</span>
@@ -569,7 +766,7 @@ const OverdueInstallments = () => {
                         <th style={{ fontWeight: 800 }}>Month</th>
                         <th style={{ fontWeight: 800 }}>Due (PKR)</th>
                         <th style={{ fontWeight: 800 }}>Paid (PKR)</th>
-                        <th style={{ fontWeight: 800 }}>Overdue</th>
+                        <th style={{ fontWeight: 800 }}>Aging</th>
                       </tr>
                     </thead>
                     <tbody>

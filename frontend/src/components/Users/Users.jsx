@@ -1,14 +1,45 @@
 // src/components/UsersManagement/UsersManagement.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Search, Users as UsersIcon, UserPlus, User, Building, Calendar, 
   CheckCircle, Clock, Edit, Trash2, Eye, 
   Award, Briefcase,
-  DollarSign, AlertCircle, AlertTriangle, X
+  DollarSign, AlertCircle, AlertTriangle, X, FileText
 } from 'lucide-react';
 import './Users.css';
-import { API_URL } from '../../../config';
+import { API_URL, STORAGE_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
+
+// ============================================
+// ✅ Storage URL helper - file path ko full URL mein convert karta hai
+// ============================================
+const getFileUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${STORAGE_URL}/${path}`;
+};
+
+// ============================================
+// ✅ DocImage - single document image card, click pe full size khulta hai
+// ✅ React.memo + loading="lazy" so images only load when in view
+// ============================================
+const DocImage = React.memo(({ label, src }) => (
+  <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+    <a href={src} target="_blank" rel="noopener noreferrer">
+      <img 
+        src={src} 
+        alt={label} 
+        loading="lazy"
+        decoding="async"
+        style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'zoom-in' }} 
+      />
+    </a>
+    <p style={{ fontSize: '12px', fontWeight: 600, textAlign: 'center', padding: '6px', margin: 0, color: '#374151' }}>
+      {label}
+    </p>
+  </div>
+));
 
 const UsersManagement = () => {
   const [search, setSearch] = useState('');
@@ -22,6 +53,7 @@ const UsersManagement = () => {
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [guarantorsLoading, setGuarantorsLoading] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -29,6 +61,7 @@ const UsersManagement = () => {
       setUserRole(user.role);
       setUserBranch(user.branch);
     }
+    // ✅ Independent requests, already run in parallel (neither awaits the other)
     fetchClients();
     fetchEmployees();
   }, []);
@@ -51,6 +84,47 @@ const UsersManagement = () => {
     }
   };
 
+  // ✅ Function to fetch guarantors for a specific account (now called lazily,
+  // only for the one account whose modal the user opens)
+  const fetchGuarantorsForAccount = async (accountId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/installments/account-details/${accountId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        const accountData = data.data;
+        const customer = accountData.customer || {};
+        // Try multiple paths for guarantors
+        if (customer.guarantors && Array.isArray(customer.guarantors)) {
+          return customer.guarantors;
+        }
+        if (accountData.guarantors && Array.isArray(accountData.guarantors)) {
+          return accountData.guarantors;
+        }
+        if (customer.guarantor && Array.isArray(customer.guarantor)) {
+          return customer.guarantor;
+        }
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching guarantors for account:', error);
+      return [];
+    }
+  };
+
+  // ✅ FAST fetchClients - pehle yahan har account ke liye Promise.all ke andar
+  // `await fetchGuarantorsForAccount(account.id)` chal raha tha jab bhi guarantors
+  // customer/account object mein already nahi hote the — matlab 100+ clients pe
+  // 100+ EXTRA network requests page load ke waqt, aur poora page un sab ke
+  // complete hone ka wait karta tha. Ab guarantors sirf usi data se liye jate
+  // hain jo /accounts response mein already mojood hai; agar nahi milte to
+  // empty rehte hain aur "View Details" click karne par sirf usi client ke
+  // liye lazy-fetch hote hain (neeche viewDetail mein).
   const fetchClients = async () => {
     setLoading(true);
     try {
@@ -64,18 +138,33 @@ const UsersManagement = () => {
       const data = await response.json();
       if (data.success) {
         const accounts = data.data.data || data.data || [];
-        const clientsData = accounts.map(account => {
+        
+        // ✅ Synchronous map now — no per-account network calls here
+        const clientsData = accounts.map((account) => {
           const installments = account.installments || [];
           const currentMonthStr = getCurrentMonthStr();
           const currentMonthInstallment = installments.find(p => p.month === currentMonthStr);
           const mirrorAmount = currentMonthInstallment ? parseFloat(currentMonthInstallment.balance || 0) : 0;
           
+          const customer = account.customer || {};
+          
+          // ✅ Get guarantors only from data already present in this response.
+          // If not present, leave empty for now — fetched lazily on "View Details".
+          let guarantors = [];
+          if (customer.guarantors && Array.isArray(customer.guarantors) && customer.guarantors.length > 0) {
+            guarantors = customer.guarantors;
+          } else if (account.guarantors && Array.isArray(account.guarantors) && account.guarantors.length > 0) {
+            guarantors = account.guarantors;
+          } else if (customer.guarantor && Array.isArray(customer.guarantor) && customer.guarantor.length > 0) {
+            guarantors = customer.guarantor;
+          }
+
           return {
             id: account.id,
-            name: account.customer?.name || 'N/A',
-            phone: account.customer?.phone || '',
-            cnic: account.customer?.cnic || '',
-            address: account.customer?.address || '',
+            name: customer.name || 'N/A',
+            phone: customer.phone || '',
+            cnic: customer.cnic || '',
+            address: customer.address || '',
             branch: account.branch_id || 1,
             accountStatus: account.status || 'active',
             totalAmount: parseFloat(account.total_amount) || 0,
@@ -96,9 +185,23 @@ const UsersManagement = () => {
             creatorName: account.creator?.name || null,
             creatorRole: account.creator?.role || null,
             installments: account.installments || [],
-            mirror: mirrorAmount
+            mirror: mirrorAmount,
+            // ✅ Documents ke liye fields - customer se direct
+            customer: customer,
+            account: account,
+            guarantors: guarantors,
+            guarantorsFetched: guarantors.length > 0, // ✅ tracks whether we still need to lazy-fetch
+            // Direct document fields for easy access
+            cnic_front: customer.cnic_front || null,
+            cnic_back: customer.cnic_back || null,
+            additional_image_1: customer.additional_image_1 || null,
+            additional_image_2: customer.additional_image_2 || null,
+            voice_consent: customer.voice_consent || null,
+            chalan_front: account.chalan_front || null,
+            chalan_back: account.chalan_back || null,
           };
         });
+        
         setClients(clientsData);
       }
     } catch (error) {
@@ -124,7 +227,7 @@ const UsersManagement = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
 
-  const getClientCategoryInfo = (client) => {
+  const getClientCategoryInfo = useCallback((client) => {
     const list = Array.isArray(client.installments) ? client.installments : [];
     const totalInstallments = client.totalInstallments || list.length;
     const fullyPaidCount = list.filter(p => parseFloat(p.balance || 0) <= 0).length;
@@ -161,7 +264,7 @@ const UsersManagement = () => {
     }
 
     return { category: 'overdue', months: overdueCount };
-  };
+  }, []);
 
   const getRowColorClass = (client) => {
     const { category } = getClientCategoryInfo(client);
@@ -190,7 +293,15 @@ const UsersManagement = () => {
     }
   };
 
-  const getFilteredData = () => {
+  // ✅ Memoized: category is computed once per client per accounts-change,
+  // instead of being recomputed 5x per client (total/aging/overdue/paid/clear)
+  // on every single render (every keystroke in search, every filter click)
+  const categorizedClients = useMemo(() => {
+    return clients.map(c => ({ client: c, category: getClientCategoryInfo(c).category }));
+  }, [clients, getClientCategoryInfo]);
+
+  // ✅ Memoized: only recomputes when clients/filters/branch actually change
+  const filteredData = useMemo(() => {
     let filtered = clients;
 
     if (userBranch) {
@@ -233,29 +344,63 @@ const UsersManagement = () => {
     }
 
     return filtered;
-  };
+  }, [clients, userBranch, search, categoryFilter, dateFilter, getClientCategoryInfo]);
 
-  const filteredData = getFilteredData();
-
-  const totalClients = clients.length;
-  const totalAging = clients.filter(c => getClientCategoryInfo(c).category === 'aging').length;
-  const totalOverdue = clients.filter(c => getClientCategoryInfo(c).category === 'overdue').length;
-  const totalPaid = clients.filter(c => getClientCategoryInfo(c).category === 'paid').length;
-  const totalClear = clients.filter(c => getClientCategoryInfo(c).category === 'clear').length;
-  const totalBalance = clients.reduce((sum, c) => sum + c.balance, 0);
+  // ✅ Memoized: derived once from categorizedClients instead of looping
+  // the full client list 5 separate times on every render
+  const { totalClients, totalAging, totalOverdue, totalPaid, totalClear, totalBalance } = useMemo(() => {
+    let aging = 0, overdue = 0, paid = 0, clear = 0, balance = 0;
+    for (const { client, category } of categorizedClients) {
+      if (category === 'aging') aging++;
+      else if (category === 'overdue') overdue++;
+      else if (category === 'paid') paid++;
+      else if (category === 'clear') clear++;
+      balance += client.balance;
+    }
+    return {
+      totalClients: categorizedClients.length,
+      totalAging: aging,
+      totalOverdue: overdue,
+      totalPaid: paid,
+      totalClear: clear,
+      totalBalance: balance
+    };
+  }, [categorizedClients]);
 
   // ✅ Format currency WITHOUT "PKR" prefix
   const formatCurrency = (amount) => {
     return amount.toLocaleString();
   };
 
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('en-PK', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
   const getBranchName = (branchId) => {
     return branchId === 1 ? 'Branch 1' : 'Branch 2';
   };
 
-  const viewDetail = (item) => {
+  // ✅ Opens modal instantly, then lazy-loads guarantors only for this one
+  // client (only if we don't already have them from the initial /accounts
+  // response) — this used to happen for EVERY client on page load.
+  const viewDetail = async (item) => {
     setSelectedUser(item);
     setShowDetailModal(true);
+
+    if (!item.guarantorsFetched) {
+      setGuarantorsLoading(true);
+      const guarantors = await fetchGuarantorsForAccount(item.id);
+      const updatedItem = { ...item, guarantors, guarantorsFetched: true };
+
+      setSelectedUser(updatedItem);
+      setClients(prev => prev.map(c => c.id === item.id ? updatedItem : c));
+      setGuarantorsLoading(false);
+    }
   };
 
   const editUser = (item) => {
@@ -287,6 +432,58 @@ const UsersManagement = () => {
       }
     }
   };
+
+  // ✅ EXPORT DATA - Account Holders ke liye
+  const getExportData = useCallback(() => {
+    return filteredData.map(client => {
+      const categoryInfo = getClientCategoryInfo(client);
+      return {
+        name: client.name || 'N/A',
+        phone: client.phone || 'N/A',
+        cnic: client.cnic || 'N/A',
+        address: client.address || 'N/A',
+        caseNo: client.caseNo || 'N/A',
+        product: client.product || 'N/A',
+        branch: getBranchName(client.branch),
+        totalAmount: client.totalAmount || 0,
+        paidAmount: client.paidAmount || 0,
+        balance: client.balance || 0,
+        monthlyInstallment: client.monthlyInstallment || 0,
+        mirror: client.mirror || 0,
+        installmentsPaid: client.installmentsPaid || 0,
+        totalInstallments: client.totalInstallments || 0,
+        nextDueDate: client.nextDueDate || 'N/A',
+        joiningDate: client.joiningDate || 'N/A',
+        lastPaymentDate: client.lastPaymentDate || 'N/A',
+        status: categoryInfo.category.charAt(0).toUpperCase() + categoryInfo.category.slice(1),
+        createdBy: client.creatorName || 'N/A',
+        employee: client.employeeName || 'N/A'
+      };
+    });
+  }, [filteredData, getClientCategoryInfo]);
+
+  const exportColumns = useMemo(() => [
+    { header: 'Name', key: 'name' },
+    { header: 'Phone', key: 'phone' },
+    { header: 'CNIC', key: 'cnic' },
+    { header: 'Address', key: 'address' },
+    { header: 'Case No', key: 'caseNo' },
+    { header: 'Product', key: 'product' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'Total Amount', key: 'totalAmount' },
+    { header: 'Paid Amount', key: 'paidAmount' },
+    { header: 'Balance', key: 'balance' },
+    { header: 'Monthly Installment', key: 'monthlyInstallment' },
+    { header: 'Mirror', key: 'mirror' },
+    { header: 'Installments Paid', key: 'installmentsPaid' },
+    { header: 'Total Installments', key: 'totalInstallments' },
+    { header: 'Next Due Date', key: 'nextDueDate' },
+    { header: 'Joining Date', key: 'joiningDate' },
+    { header: 'Last Payment', key: 'lastPaymentDate' },
+    { header: 'Status', key: 'status' },
+    { header: 'Created By', key: 'createdBy' },
+    { header: 'Employee', key: 'employee' }
+  ], []);
 
   const isAdmin = userRole === 'admin';
   const isManager = userRole === 'manager';
@@ -451,9 +648,13 @@ const UsersManagement = () => {
           </div>
           <p className="subtitle" style={{ fontWeight: 600 }}>Manage all customers with accounts</p>
         </div>
-        {/* ✅ Add Client button REMOVED */}
         <div className="header-actions">
-          {/* Empty - no button here */}
+          <ExportButton
+            data={getExportData()}
+            columns={exportColumns}
+            filename="account-holders-report"
+            title="Account Holders Report"
+          />
         </div>
       </div>
 
@@ -564,16 +765,16 @@ const UsersManagement = () => {
                     <strong style={{ fontWeight: 600 }}>{selectedUser.cnic}</strong>
                   </div>
                   <div className="user-detail-item">
-                    <span style={{ fontWeight: 700 }}>Address</span>
-                    <strong style={{ fontWeight: 600 }}>{selectedUser.address}</strong>
+                    <span style={{ fontWeight: 700 }}>Case No</span>
+                    <strong style={{ fontWeight: 700 }}>{selectedUser.caseNo}</strong>
                   </div>
                   <div className="user-detail-item">
                     <span style={{ fontWeight: 700 }}>Product</span>
                     <strong style={{ fontWeight: 600 }}>{selectedUser.product}</strong>
                   </div>
                   <div className="user-detail-item">
-                    <span style={{ fontWeight: 700 }}>Case No</span>
-                    <strong style={{ fontWeight: 700 }}>{selectedUser.caseNo}</strong>
+                    <span style={{ fontWeight: 700 }}>Address</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.address}</strong>
                   </div>
                 </div>
               </div>
@@ -638,6 +839,110 @@ const UsersManagement = () => {
                       {selectedUser.employeeName || selectedUser.employeeAccount?.employee?.name || 'N/A'}
                     </strong>
                   </div>
+                </div>
+              </div>
+
+              {/* ============================================ */}
+              {/* ✅ DOCUMENTS SECTION - Same as Installments.jsx */}
+              {/* ============================================ */}
+              <div className="detail-section" style={{ borderTop: '2px solid #e5e7eb', paddingTop: '20px', marginTop: '10px' }}>
+                <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <FileText size={20} style={{ color: '#374151' }} />
+                  <h5 style={{ fontWeight: 700, fontSize: '15px', margin: 0, color: '#1f2937' }}>Original Form Documents</h5>
+                </div>
+
+                {/* Customer CNIC Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Customer CNIC
+                  </h6>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedUser.cnic_front && (
+                      <DocImage label="CNIC Front" src={getFileUrl(selectedUser.cnic_front)} />
+                    )}
+                    {selectedUser.cnic_back && (
+                      <DocImage label="CNIC Back" src={getFileUrl(selectedUser.cnic_back)} />
+                    )}
+                    {!selectedUser.cnic_front && !selectedUser.cnic_back && (
+                      <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No customer CNIC images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Additional Documents
+                  </h6>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedUser.additional_image_1 && (
+                      <DocImage label="Additional Image 1" src={getFileUrl(selectedUser.additional_image_1)} />
+                    )}
+                    {selectedUser.additional_image_2 && (
+                      <DocImage label="Additional Image 2" src={getFileUrl(selectedUser.additional_image_2)} />
+                    )}
+                    {!selectedUser.additional_image_1 && !selectedUser.additional_image_2 && (
+                      <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No additional documents found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Chalan Images */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Chalan
+                  </h6>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                    {selectedUser.chalan_front && (
+                      <DocImage label="Chalan Front" src={getFileUrl(selectedUser.chalan_front)} />
+                    )}
+                    {selectedUser.chalan_back && (
+                      <DocImage label="Chalan Back" src={getFileUrl(selectedUser.chalan_back)} />
+                    )}
+                    {!selectedUser.chalan_front && !selectedUser.chalan_back && (
+                      <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No chalan images found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Voice Consent */}
+                {selectedUser.voice_consent && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                      Voice Consent (Raza Mandi)
+                    </h6>
+                    <audio controls preload="none" style={{ width: '100%' }}>
+                      <source src={getFileUrl(selectedUser.voice_consent)} />
+                      Your browser does not support audio playback.
+                    </audio>
+                  </div>
+                )}
+
+                {/* ✅ GUARANTORS' CNIC IMAGES - lazy loaded on modal open */}
+                <div>
+                  <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
+                    Guarantors' CNIC Images
+                  </h6>
+                  {guarantorsLoading ? (
+                    <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>Loading guarantors...</p>
+                  ) : selectedUser.guarantors && selectedUser.guarantors.length > 0 ? (
+                    selectedUser.guarantors.map((g, idx) => (
+                      <div key={idx} style={{ marginBottom: '16px', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>
+                        <p style={{ fontWeight: 700, marginBottom: '8px', fontSize: '13px' }}>
+                          {g.name || g.guarantor_name || 'N/A'} — {g.cnic || g.guarantor_cnic || 'N/A'}
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                          {g.cnic_front && <DocImage label="CNIC Front" src={getFileUrl(g.cnic_front)} />}
+                          {g.cnic_back && <DocImage label="CNIC Back" src={getFileUrl(g.cnic_back)} />}
+                          {!g.cnic_front && !g.cnic_back && (
+                            <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No CNIC images for this guarantor</p>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>No guarantor documents found</p>
+                  )}
                 </div>
               </div>
 
