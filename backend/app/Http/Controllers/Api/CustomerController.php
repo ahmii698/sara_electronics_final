@@ -305,11 +305,12 @@ class CustomerController extends Controller
             $employeeId = $request->created_by;
             Log::info('✅ Employee ID from request:', ['employee_id' => $employeeId]);
 
-            if (count($validGuarantors) < 2) {
+            // ✅ CHANGED: Minimum 1 guarantor required (pehle 2 tha)
+            if (count($validGuarantors) < 1) {
                 return response()->json([
                     'success' => false,
                     'errors' => [
-                        'guarantors' => ['Minimum 2 guarantors are required. Found: ' . count($validGuarantors)]
+                        'guarantors' => ['Minimum 1 guarantor is required. Found: ' . count($validGuarantors)]
                     ]
                 ], 422);
             }
@@ -419,6 +420,33 @@ class CustomerController extends Controller
             }
 
             // ============================================
+            // ✅ NEW: Bill Images Upload
+            // ============================================
+            $billImage1Path = null;
+            if ($request->hasFile('bill_image_1')) {
+                $file = $request->file('bill_image_1');
+                $destinationPath = public_path('storage/customers/bill_images');
+                if (!file_exists($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $filename = time() . '_bill1_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move($destinationPath, $filename);
+                $billImage1Path = 'customers/bill_images/' . $filename;
+            }
+
+            $billImage2Path = null;
+            if ($request->hasFile('bill_image_2')) {
+                $file = $request->file('bill_image_2');
+                $destinationPath = public_path('storage/customers/bill_images');
+                if (!file_exists($destinationPath)) {
+                    mkdir($destinationPath, 0777, true);
+                }
+                $filename = time() . '_bill2_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move($destinationPath, $filename);
+                $billImage2Path = 'customers/bill_images/' . $filename;
+            }
+
+            // ============================================
             // ✅ Chalan Images Upload (NEW)
             // ============================================
             $chalanFrontPath = null;
@@ -464,6 +492,8 @@ class CustomerController extends Controller
                     'voice_consent' => $voiceConsentPath,
                     'additional_image_1' => $additionalImage1Path,
                     'additional_image_2' => $additionalImage2Path,
+                    'bill_image_1' => $billImage1Path,   // ✅ ADDED
+                    'bill_image_2' => $billImage2Path,   // ✅ ADDED
                 ]);
 
                 Log::info('✅ Customer created:', ['id' => $customer->id, 'created_by' => $employeeId]);

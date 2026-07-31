@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Salary;
 use App\Models\SalaryAdvance;
+use App\Models\Loan;
+use App\Models\LoanPayment;
 use App\Models\EmployeeLeave;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -130,6 +132,9 @@ class SalaryController extends Controller
 
     // ============================================
     // PAY SALARY
+    // ✅ Loans ab "running balance" hain — jitni amount
+    // available hai utni hi kategi, baaki agle mahine
+    // carry hogi. Har deduction loan_payments mein log hota hai.
     // ============================================
     public function paySalary($id)
     {
@@ -142,7 +147,47 @@ class SalaryController extends Controller
                 ], 404);
             }
 
-            $totalPaid = $salary->salary_amount + $salary->commission - $salary->advances;
+            // ✅ Advances minus karne ke baad jo bacha wahi loans ke liye available hai
+            $availableForLoans = $salary->salary_amount + $salary->commission - $salary->advances;
+            if ($availableForLoans < 0) {
+                $availableForLoans = 0;
+            }
+
+            // ✅ Sab pending loans (purani pehle) — partial deduction
+            $pendingLoans = Loan::where('user_id', $salary->user_id)
+                ->whereColumn('paid_amount', '<', 'amount')
+                ->orderBy('date', 'asc')
+                ->get();
+
+            $totalLoanDeducted = 0;
+
+            foreach ($pendingLoans as $loan) {
+                if ($availableForLoans <= 0) {
+                    break;
+                }
+
+                $loanRemaining = $loan->amount - $loan->paid_amount;
+                $deductNow = min($loanRemaining, $availableForLoans);
+
+                if ($deductNow > 0) {
+                    $loan->paid_amount = $loan->paid_amount + $deductNow;
+                    $loan->deducted = $loan->paid_amount >= $loan->amount;
+                    $loan->save();
+
+                    // ✅ Log entry — full loan history
+                    LoanPayment::create([
+                        'loan_id' => $loan->id,
+                        'user_id' => $salary->user_id,
+                        'amount' => $deductNow,
+                        'date' => now()
+                    ]);
+
+                    $availableForLoans -= $deductNow;
+                    $totalLoanDeducted += $deductNow;
+                }
+            }
+
+            $totalPaid = $salary->salary_amount + $salary->commission - $salary->advances - $totalLoanDeducted;
 
             $salary->update([
                 'status' => 'paid',
@@ -158,7 +203,8 @@ class SalaryController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Salary paid successfully',
-                'data' => $salary->load(['user', 'leaves'])
+                'data' => $salary->load(['user', 'leaves']),
+                'loan_deducted' => $totalLoanDeducted
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -218,6 +264,7 @@ class SalaryController extends Controller
 
             // Check if user has enough salary remaining
             $user = User::find($request->user_id);
+
             $totalAdvances = SalaryAdvance::where('user_id', $request->user_id)
                 ->where('deducted', false)
                 ->sum('amount');
@@ -308,6 +355,147 @@ class SalaryController extends Controller
     }
 
     // ============================================
+    // GET ALL LOANS (with full payment log)
+    // ============================================
+    public function loans(Request $request)
+    {
+        try {
+            $query = Loan::with(['user', 'payments']);
+
+            if ($request->user_id) {
+                $query->where('user_id', $request->user_id);
+            }
+
+            if ($request->deducted !== null) {
+                $query->where('deducted', $request->deducted);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $query->orderBy('date', 'desc')->get()
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch loans: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ============================================
+    // CREATE LOAN
+    // ✅ Koi salary-cap restriction nahi — employee
+    // jitni chahe loan amount le sakta hai
+    // ============================================
+    public function storeLoan(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|exists:users,id',
+                'amount' => 'required|numeric|min:1',
+                'reason' => 'nullable|string',
+                'date' => 'nullable|date'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $data = $request->all();
+            $data['date'] = $request->date ?? now();
+            $data['paid_amount'] = 0;
+            $data['deducted'] = false;
+
+            $loan = Loan::create($data);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Loan added successfully',
+                'data' => $loan
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add loan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ============================================
+    // DEDUCT LOAN (manually mark fully paid off)
+    // ============================================
+    public function deductLoan($id)
+    {
+        try {
+            $loan = Loan::find($id);
+            if (!$loan) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Loan not found'
+                ], 404);
+            }
+
+            $remaining = $loan->amount - $loan->paid_amount;
+
+            if ($remaining > 0) {
+                LoanPayment::create([
+                    'loan_id' => $loan->id,
+                    'user_id' => $loan->user_id,
+                    'amount' => $remaining,
+                    'date' => now()
+                ]);
+            }
+
+            $loan->update([
+                'paid_amount' => $loan->amount,
+                'deducted' => true
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Loan deducted from salary',
+                'data' => $loan
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to deduct loan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ============================================
+    // DELETE LOAN
+    // ============================================
+    public function deleteLoan($id)
+    {
+        try {
+            $loan = Loan::find($id);
+            if (!$loan) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Loan not found'
+                ], 404);
+            }
+
+            $loan->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Loan deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete loan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ============================================
     // GET EMPLOYEE LEAVES
     // ============================================
     public function getLeaves(Request $request)
@@ -381,7 +569,7 @@ class SalaryController extends Controller
                     ->where('month', $data['month'])
                     ->where('status', 'approved')
                     ->count();
-                
+
                 $salary->update(['leave_count' => $leaveCount]);
             }
 
@@ -424,7 +612,7 @@ class SalaryController extends Controller
                     ->where('month', $leave->month)
                     ->where('status', 'approved')
                     ->count();
-                
+
                 $salary->update(['leave_count' => $leaveCount]);
             }
 
@@ -470,7 +658,7 @@ class SalaryController extends Controller
                     ->where('month', $month)
                     ->where('status', 'approved')
                     ->count();
-                
+
                 $salary->update(['leave_count' => $leaveCount]);
             }
 

@@ -174,7 +174,12 @@ const UsersManagement = () => {
             installmentsPaid: account.installments_paid || 0,
             totalInstallments: account.total_installments || 0,
             nextDueDate: account.next_due_date || account.due_date || 'N/A',
+            // ✅ Display-only formatted date (locale string) — DO NOT use this for filtering/parsing.
             joiningDate: account.created_at ? new Date(account.created_at).toLocaleDateString() : 'N/A',
+            // ✅ FIX: raw ISO date kept separately so date-range filtering is reliable.
+            // Locale strings (e.g. "7/31/2026") are ambiguous to re-parse with `new Date()`
+            // across browsers/locales and were producing Invalid Date -> filters always empty.
+            joiningDateRaw: account.created_at || null,
             lastPaymentDate: account.last_payment_date || 'N/A',
             product: account.product_name || 'N/A',
             caseNo: account.case_no || 'N/A',
@@ -227,6 +232,11 @@ const UsersManagement = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
 
+  // ============================================
+  // ✅ UPDATED NAMING (logic same, sirf labels swap):
+  // Month 1, 2, 3 (no payment) -> "aging" (1a, 2a, 3a)
+  // Month 4+ (no payment)      -> "overdue"
+  // ============================================
   const getClientCategoryInfo = useCallback((client) => {
     const list = Array.isArray(client.installments) ? client.installments : [];
     const totalInstallments = client.totalInstallments || list.length;
@@ -259,11 +269,12 @@ const UsersManagement = () => {
     const oldestDueMonth = dueUnpaidMonths[0];
     const overdueCount = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
 
+    // ✅ SWAPPED: pehle 1-3 months "aging", 4+ months "overdue"
     if (overdueCount >= 4) {
-      return { category: 'aging', months: overdueCount };
+      return { category: 'overdue', months: overdueCount };
     }
 
-    return { category: 'overdue', months: overdueCount };
+    return { category: 'aging', months: overdueCount };
   }, []);
 
   const getRowColorClass = (client) => {
@@ -277,13 +288,14 @@ const UsersManagement = () => {
     }
   };
 
+  // ✅ UPDATED: aging ab "1a / 2a / 3a" format mein, overdue "4m" jaisa raha
   const getCategoryBadge = (client) => {
     const { category, months } = getClientCategoryInfo(client);
     switch (category) {
-      case 'aging':
-        return <span className="client-badge aging" style={{ fontWeight: 700 }}><AlertTriangle size={12} /> Aging ({months}m)</span>;
       case 'overdue':
-        return <span className="client-badge overdue" style={{ fontWeight: 700 }}><AlertCircle size={12} /> Overdue ({months}m)</span>;
+        return <span className="client-badge overdue" style={{ fontWeight: 700 }}><AlertTriangle size={12} /> Overdue ({months}m)</span>;
+      case 'aging':
+        return <span className="client-badge aging" style={{ fontWeight: 700 }}><AlertCircle size={12} /> Aging ({months}a)</span>;
       case 'paid':
         return <span className="client-badge paid" style={{ fontWeight: 700 }}><CheckCircle size={12} /> Active</span>;
       case 'clear':
@@ -292,13 +304,6 @@ const UsersManagement = () => {
         return null;
     }
   };
-
-  // ✅ Memoized: category is computed once per client per accounts-change,
-  // instead of being recomputed 5x per client (total/aging/overdue/paid/clear)
-  // on every single render (every keystroke in search, every filter click)
-  const categorizedClients = useMemo(() => {
-    return clients.map(c => ({ client: c, category: getClientCategoryInfo(c).category }));
-  }, [clients, getClientCategoryInfo]);
 
   // ✅ Memoized: only recomputes when clients/filters/branch actually change
   const filteredData = useMemo(() => {
@@ -323,10 +328,16 @@ const UsersManagement = () => {
     if (dateFilter !== 'all') {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
+
       filtered = filtered.filter(item => {
-        const joinDate = new Date(item.joiningDate);
-        
+        // ✅ FIX: parse from the RAW ISO `created_at` string, not the
+        // locale-formatted `joiningDate` display string. `new Date(item.joiningDate)`
+        // (e.g. "7/31/2026") is ambiguous across browsers/locales and was
+        // frequently returning Invalid Date -> every date filter matched 0 rows.
+        if (!item.joiningDateRaw) return false;
+        const joinDate = new Date(item.joiningDateRaw);
+        if (isNaN(joinDate.getTime())) return false;
+
         switch(dateFilter) {
           case 'daily':
             return joinDate >= new Date(today.getTime() - 24 * 60 * 60 * 1000);
@@ -346,8 +357,19 @@ const UsersManagement = () => {
     return filtered;
   }, [clients, userBranch, search, categoryFilter, dateFilter, getClientCategoryInfo]);
 
-  // ✅ Memoized: derived once from categorizedClients instead of looping
-  // the full client list 5 separate times on every render
+  // ✅ CHANGED: ab yeh `clients` (poori list) se nahi, `filteredData` se banta hai.
+  // Isi wajah se neeche stat cards (Total Clients, Clear, Active, Overdue,
+  // Aging, Total Balance) ab search/category/date filter ke hisaab se
+  // dynamically update hote hain — "Today" select karoge to sirf aaj wale
+  // clients ka breakdown dikhega, "Aging" select karoge to sirf aging
+  // clients ka. Category is computed once per filtered client instead of
+  // being recomputed 5x per client on every render.
+  const categorizedClients = useMemo(() => {
+    return filteredData.map(c => ({ client: c, category: getClientCategoryInfo(c).category }));
+  }, [filteredData, getClientCategoryInfo]);
+
+  // ✅ Memoized: derived once from categorizedClients (ab filtered) instead of
+  // looping the full client list 5 separate times on every render
   const { totalClients, totalAging, totalOverdue, totalPaid, totalClear, totalBalance } = useMemo(() => {
     let aging = 0, overdue = 0, paid = 0, clear = 0, balance = 0;
     for (const { client, category } of categorizedClients) {
@@ -514,20 +536,22 @@ const UsersManagement = () => {
       className: 'paid'
     },
     { 
-      label: 'Overdue', 
-      value: totalOverdue, 
+      // ✅ SWAPPED: color/position kept, ab yeh "Aging" (1-3 months) ko show karega
+      label: 'Aging', 
+      value: totalAging, 
       icon: Clock, 
       color: '#3b82f6', 
       bg: 'rgba(59,130,246,0.12)',
-      className: 'overdue'
+      className: 'aging'
     },
     { 
-      label: 'Aging', 
-      value: totalAging, 
+      // ✅ SWAPPED: ab yeh "Overdue" (4+ months) ko show karega
+      label: 'Overdue', 
+      value: totalOverdue, 
       icon: AlertTriangle, 
       color: '#ef4444', 
       bg: 'rgba(239,68,68,0.12)',
-      className: 'aging'
+      className: 'overdue'
     },
     { 
       label: 'Total Balance', 
@@ -615,14 +639,9 @@ const UsersManagement = () => {
                         <Eye size={15} />
                       </button>
                       {isAdmin && (
-                        <>
-                          <button className="btn-edit" onClick={() => editUser(client)} title="Edit Client" style={{ fontWeight: 700 }}>
-                            <Edit size={15} />
-                          </button>
-                          <button className="btn-delete" onClick={() => deleteUser(client.id)} title="Delete Client" style={{ fontWeight: 700 }}>
-                            <Trash2 size={15} />
-                          </button>
-                        </>
+                        <button className="btn-delete" onClick={() => deleteUser(client.id)} title="Delete Client" style={{ fontWeight: 700 }}>
+                          <Trash2 size={15} />
+                        </button>
                       )}
                     </div>
                   </td>
@@ -697,8 +716,8 @@ const UsersManagement = () => {
             <option value="all">All Clients</option>
             <option value="clear">Clear Account</option>
             <option value="paid">Active</option>
-            <option value="overdue">Overdue</option>
             <option value="aging">Aging</option>
+            <option value="overdue">Overdue</option>
           </select>
           <select className="filter-select date-filter" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={{ fontWeight: 500 }}>
             <option value="all">All Time</option>

@@ -5,7 +5,7 @@ import {
   Users, Package, DollarSign, TrendingUp, BarChart, 
   LineChart, PieChart, Activity, Award, AlertTriangle, 
   Calendar, ChevronDown, ChevronUp, RefreshCw, Sparkles,
-  CheckCircle, Clock, AlertCircle, Building, Filter
+  CheckCircle, Clock, AlertCircle, Building, Filter, ExternalLink
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -19,17 +19,15 @@ import { API_URL } from '../../../config';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i); // last 6 years
+const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
 
 const formatYYYYMM = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
-// last 6 calendar months ka start date (chalu month ko include karte hue)
 const getLast6MonthsStart = () => {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth() - 5, 1);
 };
 
-// startDate se le kar 'count' months ke labels generate karo (unique - year sath)
 const generateMonthLabels = (startDate, count) => {
   const labels = [];
   for (let i = 0; i < count; i++) {
@@ -48,10 +46,13 @@ const Dashboard = () => {
   const [selectedChart, setSelectedChart] = useState('bar');
   const [showBranchOverview, setShowBranchOverview] = useState(false);
   const [upcomingExpenses, setUpcomingExpenses] = useState([]);
+  
+  // ✅ Dismissed reminders state
+  const [dismissedReminders, setDismissedReminders] = useState([]);
 
-  // ===== NEW: Chart Filter State =====
-  const [filterMode, setFilterMode] = useState('last6'); // 'last6' | 'single' | 'custom'
-  const [singleMonth, setSingleMonth] = useState(new Date().getMonth() + 1); // 1-12
+  // ===== Chart Filter State =====
+  const [filterMode, setFilterMode] = useState('last6');
+  const [singleMonth, setSingleMonth] = useState(new Date().getMonth() + 1);
   const [singleYear, setSingleYear] = useState(CURRENT_YEAR);
   const [customMonth, setCustomMonth] = useState(new Date().getMonth() + 1);
   const [customYear, setCustomYear] = useState(CURRENT_YEAR);
@@ -63,6 +64,13 @@ const Dashboard = () => {
       setUserRole(user.role);
       setUserBranch(user.branch_id || user.branch);
     }
+    
+    // ✅ Load dismissed reminders from localStorage
+    const savedDismissed = localStorage.getItem('dismissedReminders');
+    if (savedDismissed) {
+      setDismissedReminders(JSON.parse(savedDismissed));
+    }
+    
     fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -89,7 +97,6 @@ const Dashboard = () => {
       params.set('start', formatYYYYMM(start));
       params.set('end', formatYYYYMM(end));
     }
-    // 'last6' => koi extra param nahi, backend apna default (last 6 months) return karega
 
     return params.toString();
   }, [appliedFilter]);
@@ -164,6 +171,14 @@ const Dashboard = () => {
     fetchAllData();
   }, [fetchAllData]);
 
+  // ✅ Handle dismiss reminder (OK button)
+  const handleDismissReminder = (expenseId) => {
+    const updatedDismissed = [...dismissedReminders, expenseId];
+    setDismissedReminders(updatedDismissed);
+    localStorage.setItem('dismissedReminders', JSON.stringify(updatedDismissed));
+  };
+
+  // ✅ Handle mark as paid
   const handleMarkAsPaid = async (expenseId) => {
     try {
       const token = localStorage.getItem('token');
@@ -179,6 +194,7 @@ const Dashboard = () => {
       const data = await response.json();
       if (data.success) {
         setUpcomingExpenses(prev => prev.filter(e => e.id !== expenseId));
+        handleDismissReminder(expenseId);
         alert('✅ Expense marked as paid!');
         handleRefresh();
       } else {
@@ -189,6 +205,17 @@ const Dashboard = () => {
       alert('Network error. Please try again.');
     }
   };
+
+  // ✅ FIXED: Handle redirect to Fixed Expenses (inside Finance)
+  const handleRedirectToFixedExpenses = () => {
+    // ✅ CORRECT PATH - Match with App.jsx route
+    window.location.href = '/finance/fixed';
+  };
+
+  // ✅ Filter out dismissed expenses
+  const visibleUpcomingExpenses = upcomingExpenses.filter(
+    expense => !dismissedReminders.includes(expense.id)
+  );
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-PK', {
@@ -233,7 +260,6 @@ const Dashboard = () => {
     </div>
   );
 
-  // ===== Backend ab khud sahi month label bhejta hai, isliye yahan sirf pass-through =====
   const chartData = useMemo(() => {
     return dashboardData?.performance_data || [];
   }, [dashboardData]);
@@ -489,7 +515,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* ===== NEW: Chart Filter Bar ===== */}
+        {/* ===== Chart Filter Bar ===== */}
         <div className="chart-filter-bar">
           <div className="filter-mode-selector">
             <button className={`filter-mode-btn ${filterMode === 'last6' ? 'active' : ''}`}
@@ -627,20 +653,49 @@ const Dashboard = () => {
       </div>
 
       {/* ===== UPCOMING FIXED EXPENSES ===== */}
-      {upcomingExpenses.length > 0 && (
+      {visibleUpcomingExpenses.length > 0 && (
         <div className="upcoming-expenses-section">
           <div className="upcoming-expenses-header">
             <div className="header-left">
               <AlertCircle size={18} className="warning-icon" />
               <h3>⚠️ Upcoming Fixed Expenses (Tomorrow)</h3>
-              <span className="expense-count">{upcomingExpenses.length} due tomorrow</span>
+              <span className="expense-count">{visibleUpcomingExpenses.length} due tomorrow</span>
             </div>
-            <button className="btn-view-all" onClick={() => window.location.href = '/fixed-expenses'}>
-              View All
-            </button>
+            <div className="header-right" style={{ display: 'flex', gap: '10px' }}>
+              {/* ✅ VIEW ALL EXPENSES - Redirect to Finance > Fixed Expenses */}
+              <button 
+                className="btn-view-all" 
+                onClick={handleRedirectToFixedExpenses}
+                style={{
+                  padding: '8px 18px',
+                  background: '#1E1B4B',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#312e81';
+                  e.target.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#1E1B4B';
+                  e.target.style.transform = 'scale(1)';
+                }}
+              >
+                <ExternalLink size={16} />
+                View All Expenses
+              </button>
+            </div>
           </div>
           <div className="upcoming-expenses-grid">
-            {upcomingExpenses.map((expense) => (
+            {visibleUpcomingExpenses.map((expense) => (
               <div key={expense.id} className="expense-card urgent">
                 <div className="expense-card-left">
                   <div className="expense-icon"><DollarSign size={16} /></div>
@@ -655,9 +710,67 @@ const Dashboard = () => {
                     Due: {expense.dueDateObj.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
-                <div className="expense-card-right">
-                  <button className="btn-mark-paid" onClick={() => handleMarkAsPaid(expense.id)} title="Mark as Paid">
-                    <CheckCircle size={18} /> Paid
+                <div className="expense-card-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {/* ✅ PAID BUTTON */}
+                  <button 
+                    className="btn-mark-paid" 
+                    onClick={() => handleMarkAsPaid(expense.id)} 
+                    title="Mark as Paid"
+                    style={{
+                      padding: '6px 14px',
+                      background: '#22c55e',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = '#16a34a';
+                      e.target.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = '#22c55e';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  >
+                    <CheckCircle size={16} /> Paid
+                  </button>
+
+                  {/* ✅ OK BUTTON - Dismiss Reminder */}
+                  <button 
+                    className="btn-ok-reminder" 
+                    onClick={() => handleDismissReminder(expense.id)}
+                    title="Dismiss Reminder"
+                    style={{
+                      padding: '6px 18px',
+                      background: '#2563eb',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = '#1d4ed8';
+                      e.target.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = '#2563eb';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  >
+                    OK
                   </button>
                 </div>
               </div>

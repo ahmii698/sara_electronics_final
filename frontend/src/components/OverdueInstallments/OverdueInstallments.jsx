@@ -35,7 +35,6 @@ const DocImage = ({ label, src }) => (
 
 const OverdueInstallments = () => {
   const [search, setSearch] = useState('');
-  const [branchFilter, setBranchFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -59,12 +58,9 @@ const OverdueInstallments = () => {
 
     if (user) {
       role = user.role;
-      branch = user.branch_id;
+      branch = user.branch;
       setUserRole(role);
       setUserBranch(branch);
-      if (branch) {
-        setBranchFilter(String(branch));
-      }
     }
 
     fetchOverdueAccounts(branch, role);
@@ -90,6 +86,7 @@ const OverdueInstallments = () => {
       
       let url = `${API_URL}/installments?status=all`;
       
+      // ✅ Sirf admin ko sab dikhega, baaki ko sirf apna branch
       if (branch && role !== 'admin') {
         url += `&branch_id=${branch}`;
       }
@@ -229,25 +226,21 @@ const OverdueInstallments = () => {
     const searchMatch = item.customerName.toLowerCase().includes(search.toLowerCase()) ||
       item.caseNo.toLowerCase().includes(search.toLowerCase());
 
-    let branchMatch = true;
-    if (userBranch) {
-      branchMatch = parseInt(item.branch) === parseInt(userBranch);
-    } else if (branchFilter !== 'all') {
-      branchMatch = parseInt(item.branch) === parseInt(branchFilter);
-    }
+    // ✅ Branch filter hata diya - sirf logged-in user ka branch show hoga
+    // Admin ko sab dikhega (kyunki fetch mein admin ke liye branch filter nahi lagta)
 
     let monthMatch = true;
     if (monthFilter !== 'all') {
       monthMatch = item.overdueMonths === parseInt(monthFilter);
     }
 
-    return searchMatch && branchMatch && monthMatch;
+    return searchMatch && monthMatch;
   });
 
   const totalBalance = filtered.reduce((sum, item) => sum + item.balance, 0);
   const totalOverdueSum = filtered.reduce((sum, item) => sum + item.totalOverdue, 0);
 
-  const branchLabel = userBranch ? `Branch ${userBranch}` : (branchFilter !== 'all' ? `Branch ${branchFilter}` : 'All Branches');
+  const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
   const formatMonth = (month) => {
     if (!month) return '-';
@@ -349,7 +342,7 @@ const OverdueInstallments = () => {
         setShowEditModal(false);
         setSelectedRecord(null);
         const user = JSON.parse(localStorage.getItem('user'));
-        fetchOverdueAccounts(user?.branch_id || null, user?.role || null);
+        fetchOverdueAccounts(user?.branch || null, user?.role || null);
       } else {
         alert('Failed to record payment: ' + (data.message || 'Unknown error'));
       }
@@ -395,7 +388,10 @@ const OverdueInstallments = () => {
               <Clock size={12} /> Live
             </span>
           </div>
-          <p className="oi-subtitle">Accounts whose oldest due installment is 1-3 months aging</p>
+          <p className="oi-subtitle">
+            Accounts whose oldest due installment is 1-3 months aging
+            {userBranch && <span style={{ fontWeight: 600, marginLeft: '8px', color: '#4b5563' }}>• Branch {userBranch}</span>}
+          </p>
         </div>
         <ExportButton
           data={exportData}
@@ -469,31 +465,7 @@ const OverdueInstallments = () => {
           </button>
         </div>
 
-        {!userBranch && (
-          <div className="oi-branch-filters">
-            <button 
-              className={`oi-filter-btn ${branchFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setBranchFilter('all')}
-              style={{ fontWeight: 600 }}
-            >
-              All
-            </button>
-            <button 
-              className={`oi-filter-btn oi-branch-1 ${branchFilter === '1' ? 'active' : ''}`}
-              onClick={() => setBranchFilter('1')}
-              style={{ fontWeight: 600 }}
-            >
-              Branch 1
-            </button>
-            <button 
-              className={`oi-filter-btn oi-branch-2 ${branchFilter === '2' ? 'active' : ''}`}
-              onClick={() => setBranchFilter('2')}
-              style={{ fontWeight: 600 }}
-            >
-              Branch 2
-            </button>
-          </div>
-        )}
+        {/* ✅ BRANCH FILTER BUTTONS COMPLETELY REMOVED */}
       </div>
 
       <div className="oi-table-container">

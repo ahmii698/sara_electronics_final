@@ -529,9 +529,10 @@ const AddAccount = () => {
       newErrors.guarantors = 'Duplicate CNIC found in guarantors. Each guarantor must have a unique CNIC.';
     }
     
+    // ✅ CHANGED: Minimum 1 complete guarantor required (pehle 2 tha)
     const completeGuarantors = formData.guarantors.filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim() && g.address.trim() && g.cnicFront !== null && g.cnicBack !== null);
-    if (completeGuarantors.length < 2) {
-      newErrors.guarantors = 'Minimum 2 complete guarantors required';
+    if (completeGuarantors.length < 1) {
+      newErrors.guarantors = 'Minimum 1 complete guarantor required';
     }
 
     if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
@@ -770,7 +771,7 @@ const AddAccount = () => {
         
         const empName = getSelectedEmployeeName() || user?.name || 'N/A';
         
-        alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${createdAccount?.case_no || 'N/A'}\nStatus: ACTIVE\nPayment Type: ${formData.paymentType.toUpperCase()}\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
+        alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${createdAccount?.case_no || 'N/A'}\nStatus: ACTIVE\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
         
         // Reset form
         setFormData({
@@ -1352,7 +1353,7 @@ const AddAccount = () => {
               <div className="section-header">
                 <Users size={18} style={{ color: '#92400e' }} />
                 <h4 style={{ fontWeight: 700 }}>Guarantors</h4>
-                <span className="required-badge" style={{ fontWeight: 700 }}>Minimum 2 Required</span>
+                <span className="required-badge" style={{ fontWeight: 700 }}>Minimum 1 Required</span>
               </div>
               <p className="guarantor-count" style={{ fontWeight: 600 }}>Complete: {getGuarantorCount()}/3</p>
               {formData.guarantors.map((g, index) => (
@@ -1448,6 +1449,7 @@ const AddAccount = () => {
                 <select name="productType" className="form-input" value={formData.productType} onChange={handleChange} style={{ fontWeight: 500 }}>
                   <option value="new">New</option>
                   <option value="used">Used</option>
+                  <option value="cash">Cash</option>
                 </select>
               </div>
               <div className="form-group">
@@ -1503,24 +1505,6 @@ const AddAccount = () => {
                 </div>
                 <small className="field-hint" style={{ fontWeight: 500 }}>Calculation: (Invoice - Advance) / Number of Installments</small>
               </div>
-            </div>
-
-            {/* ✅ PAYMENT TYPE DROPDOWN */}
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label style={{ fontWeight: 700 }}>Payment Type *</label>
-              <select
-                name="paymentType"
-                className="form-input"
-                value={formData.paymentType}
-                onChange={handleChange}
-                style={{ fontWeight: 500 }}
-              >
-                <option value="cash">Cash</option>
-                <option value="bank">Bank Transfer</option>
-                <option value="cheque">Cheque</option>
-                <option value="online">Online Payment</option>
-                <option value="other">Other</option>
-              </select>
             </div>
 
             <div className="image-section" style={{ border: '1px solid #d1fae5', background: '#f0fdf4' }}>

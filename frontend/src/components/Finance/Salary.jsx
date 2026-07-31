@@ -1,7 +1,7 @@
 // src/components/Salary/Salary.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, Edit, DollarSign, RefreshCw, X, Wallet, Users, Calendar, Clock, Award, Building, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
+import { Search, Eye, Edit, DollarSign, RefreshCw, X, Wallet, Users, Calendar, Clock, Award, Building, CheckCircle, AlertCircle, TrendingUp, Landmark } from 'lucide-react';
 import './Salary.css';
 import { API_URL } from '../../../config';
 
@@ -11,15 +11,19 @@ const Salary = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+  const [showLoanModal, setShowLoanModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceReason, setAdvanceReason] = useState('');
+  const [loanAmount, setLoanAmount] = useState('');
+  const [loanReason, setLoanReason] = useState('');
   const [userBranch, setUserBranch] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [salaryData, setSalaryData] = useState([]);
   const [advanceData, setAdvanceData] = useState([]);
+  const [loanData, setLoanData] = useState([]);
 
   // ✅ Pehle branch set karo, phir data fetch karo
   useEffect(() => {
@@ -56,6 +60,26 @@ const Salary = () => {
     }
   };
 
+  // ✅ Loan record ko normalize karo — remaining = amount - paid_amount
+  const mapLoan = (l) => {
+    const amount = parseFloat(l.amount) || 0;
+    const paidAmount = parseFloat(l.paid_amount) || 0;
+    const remaining = Math.max(amount - paidAmount, 0);
+    return {
+      id: l.id,
+      date: l.date,
+      amount: amount,
+      paidAmount: paidAmount,
+      remaining: remaining,
+      reason: l.reason,
+      deducted: l.deducted,
+      payments: (l.payments || []).map(p => ({
+        date: p.date,
+        amount: parseFloat(p.amount) || 0
+      }))
+    };
+  };
+
   // ============================================
   // ✅ OPTIMIZED: PARALLEL API CALLS - 3x FAST
   // ============================================
@@ -65,7 +89,7 @@ const Salary = () => {
       const token = localStorage.getItem('token');
       
       // ✅ PARALLEL API CALLS - Sab ek saath
-      const [empRes, salRes, advRes] = await Promise.all([
+      const [empRes, salRes, advRes, loanRes] = await Promise.all([
         fetch(`${API_URL}/users?role=employee`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -74,14 +98,18 @@ const Salary = () => {
         }),
         fetch(`${API_URL}/salary/advances`, {
           headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/loans`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
 
       // ✅ PARALLEL JSON PARSING - Sab ek saath
-      const [empData, salData, advData] = await Promise.all([
+      const [empData, salData, advData, loanRespData] = await Promise.all([
         empRes.json(),
         salRes.json(),
-        advRes.json()
+        advRes.json(),
+        loanRes.json()
       ]);
 
       if (empData.success) {
@@ -99,6 +127,9 @@ const Salary = () => {
             
             const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
             const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
+            const loans = loanRespData.success
+              ? loanRespData.data.filter(l => l.user_id === emp.id).map(mapLoan)
+              : [];
             
             const totalAdvances = advances
               .filter(a => !a.deducted)
@@ -107,6 +138,9 @@ const Salary = () => {
             const deductedAdvances = advances
               .filter(a => a.deducted)
               .reduce((sum, a) => sum + parseFloat(a.amount), 0);
+
+            // ✅ Total pending loan balance = sum of remaining across all loans
+            const totalLoans = loans.reduce((sum, l) => sum + l.remaining, 0);
 
             return {
               id: emp.id,
@@ -118,6 +152,7 @@ const Salary = () => {
               lastPaid: salary ? salary.paid_date : 'Never',
               totalAdvances: totalAdvances,
               deductedAdvances: deductedAdvances,
+              totalLoans: totalLoans,
               accountCount: accountCount,
               history: salary ? [{
                 date: salary.paid_date || '2026-06-01',
@@ -131,6 +166,7 @@ const Salary = () => {
                 reason: a.reason,
                 deducted: a.deducted
               })),
+              loans: loans,
               salaryRecord: salary,
               currentMonth: new Date().toISOString().slice(0, 7)
             };
@@ -140,6 +176,7 @@ const Salary = () => {
         setEmployees(employeesWithCounts);
         setSalaryData(salData.success ? salData.data : []);
         setAdvanceData(advData.success ? advData.data : []);
+        setLoanData(loanRespData.success ? loanRespData.data : []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -152,7 +189,7 @@ const Salary = () => {
     try {
       const token = localStorage.getItem('token');
       
-      const [empRes, salRes, advRes] = await Promise.all([
+      const [empRes, salRes, advRes, loanRes] = await Promise.all([
         fetch(`${API_URL}/users?role=employee`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -161,13 +198,17 @@ const Salary = () => {
         }),
         fetch(`${API_URL}/salary/advances`, {
           headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/loans`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
 
-      const [empData, salData, advData] = await Promise.all([
+      const [empData, salData, advData, loanRespData] = await Promise.all([
         empRes.json(),
         salRes.json(),
-        advRes.json()
+        advRes.json(),
+        loanRes.json()
       ]);
 
       if (empData.success) {
@@ -183,10 +224,15 @@ const Salary = () => {
             
             const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
             const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
+            const loans = loanRespData.success
+              ? loanRespData.data.filter(l => l.user_id === emp.id).map(mapLoan)
+              : [];
             
             const totalAdvances = advances
               .filter(a => !a.deducted)
               .reduce((sum, a) => sum + parseFloat(a.amount), 0);
+
+            const totalLoans = loans.reduce((sum, l) => sum + l.remaining, 0);
 
             return {
               id: emp.id,
@@ -198,6 +244,7 @@ const Salary = () => {
               lastPaid: salary ? salary.paid_date : 'Never',
               totalAdvances: totalAdvances,
               deductedAdvances: 0,
+              totalLoans: totalLoans,
               accountCount: accountCount,
               history: salary ? [{
                 date: salary.paid_date || '2026-06-01',
@@ -211,6 +258,7 @@ const Salary = () => {
                 reason: a.reason,
                 deducted: a.deducted
               })),
+              loans: loans,
               salaryRecord: salary,
               currentMonth: new Date().toISOString().slice(0, 7)
             };
@@ -220,6 +268,7 @@ const Salary = () => {
         setEmployees(employeesWithCounts);
         setSalaryData(salData.success ? salData.data : []);
         setAdvanceData(advData.success ? advData.data : []);
+        setLoanData(loanRespData.success ? loanRespData.data : []);
       }
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -267,6 +316,7 @@ const Salary = () => {
       
       let response;
       if (salaryRecord) {
+        // ✅ Backend khud loan ko partial-deduct karta hai aur log banata hai
         response = await fetch(`${API_URL}/salary/${salaryRecord.id}/pay`, {
           method: 'POST',
           headers: {
@@ -312,7 +362,12 @@ const Salary = () => {
         }
 
         await handleRefresh();
-        alert('✅ Salary paid successfully!');
+
+        if (salaryRecord && data.loan_deducted > 0) {
+          alert(`✅ Salary paid successfully! PKR ${Number(data.loan_deducted).toLocaleString()} loan deducted.`);
+        } else {
+          alert('✅ Salary paid successfully!');
+        }
       } else {
         alert(data.message || 'Failed to pay salary');
       }
@@ -360,6 +415,54 @@ const Salary = () => {
         alert('✅ Advance added successfully!');
       } else {
         alert(data.message || 'Failed to add advance');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+    setLoading(false);
+  };
+
+  // ============================================
+  // ✅ ADD LOAN — koi cap nahi, employee jitni chahe le sakta hai
+  // ============================================
+  const handleAddLoan = async (id) => {
+    if (!loanAmount || parseInt(loanAmount) <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    const amount = parseInt(loanAmount);
+    const reason = loanReason.trim() || 'No reason provided';
+    
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/loans`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: id,
+          amount: amount,
+          reason: reason,
+          date: new Date().toISOString().slice(0, 19).replace('T', ' ')
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        await handleRefresh();
+        setLoanAmount('');
+        setLoanReason('');
+        setShowLoanModal(false);
+        alert('✅ Loan added successfully!');
+      } else {
+        alert(data.message || 'Failed to add loan');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -518,6 +621,13 @@ const Salary = () => {
     setShowAdvanceModal(true);
   };
 
+  const openLoanModal = (emp) => {
+    setSelectedEmployee(emp);
+    setLoanAmount('');
+    setLoanReason('');
+    setShowLoanModal(true);
+  };
+
   const getDateOnly = (dateStr) => {
     if (!dateStr) return '';
     return dateStr.split(' ')[0];
@@ -649,6 +759,7 @@ const Salary = () => {
               <th>Commission</th>
               <th>Accounts</th>
               <th>Advances</th>
+              <th>Loans</th>
               <th>Balance (PKR)</th>
               <th>Status</th>
               <th>Last Paid</th>
@@ -658,14 +769,16 @@ const Salary = () => {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="9" className="no-data">No employees found for {branchLabel}</td>
+                <td colSpan="10" className="no-data">No employees found for {branchLabel}</td>
               </tr>
             ) : (
               filtered.map(emp => {
-                // ✅ FIX: Balance calculation - if paid, show 0, else show actual balance
+                // ✅ Monthly balance = salary + commission - advances (loans is a
+                // separate running balance shown in its own column, not part of
+                // "this month's" balance, since it carries across months)
                 let balance;
                 if (emp.paid) {
-                  balance = 0; // ✅ Paid employees ka balance 0
+                  balance = 0;
                 } else {
                   balance = emp.salary + emp.commission - emp.totalAdvances;
                 }
@@ -706,6 +819,15 @@ const Salary = () => {
                         <span className="no-value">—</span>
                       )}
                     </td>
+                    <td>
+                      {emp.totalLoans > 0 ? (
+                        <span className="loan-badge" style={{ background: '#fee2e2', color: '#991b1b', fontWeight: 700 }}>
+                          PKR {emp.totalLoans.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="no-value">—</span>
+                      )}
+                    </td>
                     <td className="balance-amount" style={{ 
                       fontWeight: 800, 
                       color: balance === 0 ? '#22c55e' : (balance > 0 ? '#1E1B4B' : '#dc2626')
@@ -732,6 +854,9 @@ const Salary = () => {
                             </button>
                             <button className="btn-advance" onClick={() => openAdvanceModal(emp)} title="Give Advance">
                               <Wallet size={15} />
+                            </button>
+                            <button className="btn-loan" onClick={() => openLoanModal(emp)} title="Give Loan">
+                              <Landmark size={15} />
                             </button>
                             {emp.paid ? (
                               <button className="btn-reset" onClick={() => handleReset(emp.id)} title="Reset">
@@ -782,7 +907,6 @@ const Salary = () => {
                 </div>
               </div>
 
-              {/* ✅ FIX: Total Paid -> Remaining Salary */}
               <div className="history-summary">
                 <div className="summary-item" style={{ background: 'rgba(30, 27, 75, 0.06)', borderRadius: '0.75rem' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>Salary</span>
@@ -846,6 +970,87 @@ const Salary = () => {
                       PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}
                     </strong>
                   </div>
+                </div>
+              )}
+
+              {/* ✅ LOANS — har loan ka amount, kitna kata, kitna baaki, aur poora payment log */}
+              {selectedEmployee.loans.length > 0 && (
+                <div className="advances-section">
+                  <div className="advances-header">
+                    <Landmark size={16} style={{ color: '#991b1b' }} />
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#991b1b' }}>Loans</h4>
+                    <span className="advances-total" style={{ fontWeight: 700 }}>
+                      Pending: PKR {selectedEmployee.totalLoans.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="advances-table-wrap">
+                    <table className="advances-table">
+                      <thead>
+                        <tr>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Loan Amount</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Paid</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Remaining</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedEmployee.loans.map((item, index) => (
+                          <tr key={index}>
+                            <td>
+                              <div className="advance-date-time">
+                                <span className="adv-date" style={{ fontWeight: 600 }}>{getDateOnly(item.date)}</span>
+                                <span className="adv-time" style={{ fontSize: '0.6rem' }}>{getTimeOnly(item.date)}</span>
+                              </div>
+                            </td>
+                            <td style={{ fontWeight: 700 }}>PKR {item.amount.toLocaleString()}</td>
+                            <td style={{ color: '#22c55e', fontWeight: 700 }}>PKR {item.paidAmount.toLocaleString()}</td>
+                            <td style={{ color: item.remaining > 0 ? '#dc2626' : '#22c55e', fontWeight: 700 }}>
+                              PKR {item.remaining.toLocaleString()}
+                            </td>
+                            <td className="advance-reason-cell" style={{ fontWeight: 500 }}>{item.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* ✅ Full payment log — har mahine jo bhi kata wo yahan */}
+                  {selectedEmployee.loans.some(l => l.payments.length > 0) && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1E1B4B', marginBottom: '0.4rem' }}>
+                        Loan Payment Log
+                      </h4>
+                      <div className="advances-table-wrap">
+                        <table className="advances-table">
+                          <thead>
+                            <tr>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Amount Deducted</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedEmployee.loans
+                              .flatMap(l => l.payments)
+                              .sort((a, b) => new Date(b.date) - new Date(a.date))
+                              .map((p, index) => (
+                                <tr key={index}>
+                                  <td>
+                                    <div className="advance-date-time">
+                                      <span className="adv-date" style={{ fontWeight: 600 }}>{getDateOnly(p.date)}</span>
+                                      <span className="adv-time" style={{ fontSize: '0.6rem' }}>{getTimeOnly(p.date)}</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ color: '#22c55e', fontWeight: 700 }}>
+                                    -PKR {p.amount.toLocaleString()}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -976,6 +1181,97 @@ const Salary = () => {
               <button className="btn-cancel" onClick={() => setShowAdvanceModal(false)}>Cancel</button>
               <button className="btn-advance-save" onClick={() => handleAddAdvance(selectedEmployee.id)} disabled={loading}>
                 {loading ? 'Saving...' : 'Give Advance'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== LOAN MODAL — koi max cap nahi ===== */}
+      {showLoanModal && selectedEmployee && (
+        <div className="salary-modal-overlay" onClick={() => setShowLoanModal(false)}>
+          <div className="salary-modal-content salary-modal-advance" onClick={(e) => e.stopPropagation()}>
+            <div className="salary-modal-header">
+              <div className="salary-modal-header-left">
+                <Landmark size={20} className="salary-modal-icon" />
+                <h3 style={{ fontSize: '1.3rem' }}>Give Loan</h3>
+              </div>
+              <button className="salary-modal-close" onClick={() => setShowLoanModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="salary-modal-body">
+              <div className="employee-detail-header small">
+                <div className="emp-detail-avatar small" style={{ background: '#1E1B4B' }}>
+                  {selectedEmployee.name.charAt(0)}
+                </div>
+                <div className="emp-detail-info">
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>{selectedEmployee.name}</h4>
+                  <span className="emp-detail-branch" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Branch {selectedEmployee.branch}</span>
+                </div>
+              </div>
+
+              <div className="advance-info-box">
+                <div className="advance-info-row" style={{ fontWeight: 600 }}>
+                  <span>Salary</span>
+                  <strong style={{ color: '#1E1B4B' }}>PKR {selectedEmployee.salary.toLocaleString()}</strong>
+                </div>
+                <div className="advance-info-row" style={{ fontWeight: 600 }}>
+                  <span>Commission</span>
+                  <strong className="commission-highlight" style={{ color: '#8B5CF6' }}>
+                    PKR {selectedEmployee.commission.toLocaleString()}
+                  </strong>
+                </div>
+                <div className="advance-info-row" style={{ fontWeight: 600 }}>
+                  <span>Loans Pending (already)</span>
+                  <strong className="advance-taken" style={{ color: '#dc2626' }}>
+                    PKR {selectedEmployee.totalLoans.toLocaleString()}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontSize: '0.9rem', fontWeight: 700 }}>Loan Amount (PKR) *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="Enter amount"
+                  value={loanAmount}
+                  onChange={(e) => setLoanAmount(e.target.value)}
+                  min="1"
+                  style={{ fontSize: '1rem', fontWeight: 600 }}
+                />
+                <small className="field-hint" style={{ fontWeight: 600 }}>
+                  Koi limit nahi — jitni chahe amount de sakte hain
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontSize: '0.9rem', fontWeight: 700 }}>Reason</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Enter reason..."
+                  value={loanReason}
+                  onChange={(e) => setLoanReason(e.target.value)}
+                  style={{ fontSize: '1rem', fontWeight: 500 }}
+                />
+                <small className="field-hint" style={{ fontWeight: 600 }}>e.g., Personal Loan, Emergency</small>
+              </div>
+
+              <div className="advance-note-box">
+                <Clock size={16} className="advance-icon" />
+                <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                  Har salary payment mein jitni amount available hogi utni is loan se kategi — baaki agle mahine carry hogi
+                </p>
+              </div>
+            </div>
+
+            <div className="salary-modal-footer">
+              <button className="btn-cancel" onClick={() => setShowLoanModal(false)}>Cancel</button>
+              <button className="btn-advance-save" onClick={() => handleAddLoan(selectedEmployee.id)} disabled={loading}>
+                {loading ? 'Saving...' : 'Give Loan'}
               </button>
             </div>
           </div>

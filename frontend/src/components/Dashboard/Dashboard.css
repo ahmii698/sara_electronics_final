@@ -1800,3 +1800,80 @@
     flex: 1;
   }
 }
+
+
+/* src/components/Dashboard/Dashboard.css */
+
+.btn-ok-reminder {
+  padding: 6px 16px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-ok-reminder:hover {
+  background: #1d4ed8;
+  transform: scale(1.02);
+}
+
+.btn-ok-reminder:active {
+  transform: scale(0.95);
+}
+
+.btn-mark-paid {
+  padding: 6px 14px;
+  background: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-mark-paid:hover {
+  background: #16a34a;
+  transform: scale(1.02);
+}
+
+.btn-mark-paid:active {
+  transform: scale(0.95);
+}
+
+.expense-card-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-view-all {
+  padding: 8px 16px;
+  background: #1E1B4B;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-view-all:hover {
+  background: #312e81;
+  transform: scale(1.02);
+}

@@ -508,7 +508,7 @@ const EmployeePerformanceReport = () => {
   const cards = isEmployee ? [
     {
       key: 'new',
-      label: 'New Accounts (This Month)',
+      label: 'Current Month Accounts',
       value: selectedEmployeeData.newAccountsList.length,
       icon: TrendingUp,
       color: '#2563eb',
@@ -526,7 +526,7 @@ const EmployeePerformanceReport = () => {
     },
     {
       key: 'overdue',
-      label: 'Overdue',
+      label: 'Aging',
       value: selectedEmployeeData.overdueList.length,
       icon: AlertTriangle,
       color: '#dc2626',
@@ -545,7 +545,7 @@ const EmployeePerformanceReport = () => {
     },
     {
       key: 'new',
-      label: 'New Accounts (This Month)',
+      label: 'Current Month Accounts',
       value: selectedEmployeeData.newAccountsList.length,
       icon: TrendingUp,
       color: '#2563eb',
@@ -563,7 +563,7 @@ const EmployeePerformanceReport = () => {
     },
     {
       key: 'overdue',
-      label: 'Overdue',
+      label: 'Aging',
       value: selectedEmployeeData.overdueList.length,
       icon: AlertTriangle,
       color: '#dc2626',
@@ -696,6 +696,7 @@ const EmployeePerformanceReport = () => {
                   <th>Case #</th>
                   <th>Due Date</th>
                   <th>Installment</th>
+                  <th>Balance</th>
                   <th>Mirror</th>
                   <th>Remarks</th>
                   <th>Status</th>
@@ -704,7 +705,7 @@ const EmployeePerformanceReport = () => {
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="8" className="epr-no-data">No new accounts this month</td></tr>
+                  <tr><td colSpan="9" className="epr-no-data">No new accounts this month</td></tr>
                 ) : (
                   list.map((item, index) => {
                     const status = getStatusForAccount(item);
@@ -724,6 +725,9 @@ const EmployeePerformanceReport = () => {
                           </div>
                         </td>
                         <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
+                        <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
+                          PKR {item.balance.toLocaleString()}
+                        </td>
                         <td className={item.mirror > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>
                           PKR {item.mirror.toLocaleString()}
                         </td>
@@ -779,15 +783,16 @@ const EmployeePerformanceReport = () => {
                   <th>Customer</th>
                   <th>Case #</th>
                   <th>Due Date</th>
-                  <th>Mirror</th>
+                  <th>Installment</th>
                   <th>Balance</th>
+                  <th>Mirror</th>
                   <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="7" className="epr-no-data">No recovery due this month</td></tr>
+                  <tr><td colSpan="8" className="epr-no-data">No recovery due this month</td></tr>
                 ) : (
                   list.map((item, index) => (
                     <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
@@ -804,8 +809,9 @@ const EmployeePerformanceReport = () => {
                           {formatDueDate(item.dueDate)}
                         </div>
                       </td>
-                      <td className="epr-balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
+                      <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
                       <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                      <td className="epr-balance-amount">PKR {getThisMonthDue(item).toLocaleString()}</td>
                       <td>
                         <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                       </td>
@@ -852,15 +858,16 @@ const EmployeePerformanceReport = () => {
                   <th>Customer</th>
                   <th>Case #</th>
                   <th>Due Date</th>
-                  <th>Mirror</th>
+                  <th>Installment</th>
                   <th>Balance</th>
+                  <th>Mirror</th>
                   <th>Remarks</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="7" className="epr-no-data">No overdue accounts</td></tr>
+                  <tr><td colSpan="8" className="epr-no-data">No overdue accounts</td></tr>
                 ) : (
                   list.map((item, index) => (
                     <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
@@ -877,8 +884,9 @@ const EmployeePerformanceReport = () => {
                           {formatDueDate(item.dueDate)}
                         </div>
                       </td>
-                      <td className="epr-balance-amount">PKR {getOverdueAmount(item).toLocaleString()}</td>
+                      <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
                       <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                      <td className="epr-balance-amount">PKR {getOverdueAmount(item).toLocaleString()}</td>
                       <td>
                         <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                       </td>

@@ -22,6 +22,8 @@ class Customer extends Model
         'cnic_front', 'cnic_back', 'voice_consent',
         'additional_image_1',
         'additional_image_2',
+        'bill_image_1',
+        'bill_image_2',
         'status', 'created_by',
         'is_unlimited', // ✅ Special/VIP flag — dono limits (2-account, 1-lakh) skip
     ];
@@ -122,6 +124,23 @@ class Customer extends Model
     {
         if ($this->additional_image_2 && Storage::disk('public')->exists($this->additional_image_2)) {
             return asset('storage/' . $this->additional_image_2);
+        }
+        return null;
+    }
+
+    // ✅ NEW: Bill Images
+    public function getBillImage1UrlAttribute()
+    {
+        if ($this->bill_image_1 && Storage::disk('public')->exists($this->bill_image_1)) {
+            return asset('storage/' . $this->bill_image_1);
+        }
+        return null;
+    }
+
+    public function getBillImage2UrlAttribute()
+    {
+        if ($this->bill_image_2 && Storage::disk('public')->exists($this->bill_image_2)) {
+            return asset('storage/' . $this->bill_image_2);
         }
         return null;
     }

@@ -799,7 +799,7 @@ const Installments = () => {
     });
   };
 
-  // ✅ SWAPPED: 1-2 months late = "Aging (Nm)", 3+ months late = "Overdue"
+  // ✅ UPDATED: ab 1-3 months late = "Aging (Nm)", sirf 4+ months late pe "Overdue"
   const getStatusBadge = (item) => {
     const balance = parseFloat(item.balance || 0);
 
@@ -819,7 +819,7 @@ const Installments = () => {
 
     const agingCount = monthsDiff + 1;
 
-    if (agingCount >= 3) {
+    if (agingCount >= 4) {
       return (
         <span className="badge badge-overdue">
           <AlertCircle size={14} /> Overdue

@@ -138,6 +138,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/salary/advances/{id}/deduct', [SalaryController::class, 'deductAdvance']);
     Route::delete('/salary/advances/{id}', [SalaryController::class, 'deleteAdvance']);
 
+    // ✅ Loan Routes
+    Route::get('/loans', [SalaryController::class, 'loans']);
+    Route::post('/loans', [SalaryController::class, 'storeLoan']);
+    Route::post('/loans/{id}/deduct', [SalaryController::class, 'deductLoan']);
+    Route::delete('/loans/{id}', [SalaryController::class, 'deleteLoan']);
+
     // ✅ Employee Leaves Routes
     Route::get('/employee-leaves', [SalaryController::class, 'getLeaves']);
     Route::post('/employee-leaves', [SalaryController::class, 'storeLeave']);

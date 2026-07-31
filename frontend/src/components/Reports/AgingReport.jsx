@@ -127,7 +127,8 @@ const AgingReport = () => {
   //   - Clear   -> every installment (up to total_installments) fully paid
   //   - Active  -> no due-and-unpaid installment at all
   //   - Overdue -> oldest due-unpaid installment is 1-3 months behind
-  //   - Aging   -> oldest due-unpaid installment is 4+ months behind
+  //   - Aging   -> oldest due-unpaid installment is 4+ months behind (internal
+  //                classification key only — displayed to the user as "Overdue")
   // ============================================
   const getAccountAgingInfo = (list, account) => {
     const totalInstallments = account?.total_installments || list.length;
@@ -165,6 +166,8 @@ const AgingReport = () => {
 
   // ✅ Per-installment row status — used inside the month-by-month history table.
   // Mirrors Installments.jsx's getStatusBadge logic (month-aware), not just paid/partial/unpaid.
+  // NOTE: internal key stays 'aging' for 4m+ (used for styling), but the LABEL shown
+  // to the user is always "Overdue" now, never "Aging".
   const getInstallmentRowStatus = (inst) => {
     const balance = parseFloat(inst.balance || 0);
     if (balance <= 0) return { key: 'paid', label: 'Paid' };
@@ -175,8 +178,56 @@ const AgingReport = () => {
     if (monthsDiff < 0) return { key: 'unpaid', label: 'Unpaid' }; // future month, not due yet
 
     const overdueCount = monthsDiff + 1;
-    if (overdueCount >= 4) return { key: 'aging', label: 'Aging' };
+    if (overdueCount >= 4) return { key: 'aging', label: `Overdue (${overdueCount}m)` };
     return { key: 'overdue', label: `Overdue (${overdueCount}m)` };
+  };
+
+  // ============================================
+  // ✅ Due Date / Mirror helpers for the main table row (same idea as
+  // EmployeePerformanceReport.jsx) — computed from item.installments,
+  // do NOT touch anything inside the detail modal.
+  // ============================================
+  const getItemDueDate = (item) => {
+    const list = Array.isArray(item.installments) ? item.installments : [];
+    const sorted = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+    const firstUnpaid = sorted.find(p => parseFloat(p.balance || 0) > 0);
+    if (firstUnpaid) {
+      return firstUnpaid.due_date || firstUnpaid.month || null;
+    }
+    if (sorted.length > 0) {
+      return sorted[0].due_date || sorted[0].month || null;
+    }
+    return null;
+  };
+
+  const getItemMirror = (item) => {
+    const list = Array.isArray(item.installments) ? item.installments : [];
+    const currentMonthStr = getCurrentMonthStr();
+    const currentInst = list.find(p => p.month === currentMonthStr);
+    return currentInst ? parseFloat(currentInst.balance || 0) : 0;
+  };
+
+  const formatDueDate = (dueDate) => {
+    if (!dueDate) return '-';
+
+    if (dueDate.includes('-') && dueDate.split('-').length === 3) {
+      return new Date(dueDate).toLocaleDateString('en-PK', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+
+    if (dueDate.includes('-') && dueDate.split('-').length === 2) {
+      const date = new Date(dueDate + '-01');
+      return date.toLocaleDateString('en-PK', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    }
+
+    return '-';
   };
 
   // ============================================
@@ -203,7 +254,7 @@ const AgingReport = () => {
         const sample = list[0];
         const account = sample.account || {};
 
-        // ✅ Only accounts whose status is actually "Aging" (4+ months behind)
+        // ✅ Only accounts whose status is actually "Aging" internally (4+ months behind)
         const { statusKey, overdueMonths } = getAccountAgingInfo(list, account);
         if (statusKey !== 'aging') continue;
 
@@ -284,6 +335,8 @@ const AgingReport = () => {
           customer: customer,
           account: account,
           guarantors: guarantors,
+          // ✅ Remarks field - empty for now
+          remarks: account.remarks || '',
         });
       }
 
@@ -362,7 +415,7 @@ const AgingReport = () => {
     </svg>
   );
 
-  // ✅ Cards now reflect ONLY aging accounts
+  // ✅ Cards now reflect ONLY aging accounts (4m+), label kept as "Aging Accounts" for the report title
   const statCards = [
     {
       label: 'Aging Accounts',
@@ -396,11 +449,14 @@ const AgingReport = () => {
     customerName: item.customerName,
     customerCnic: item.customerCnic,
     description: item.description,
-    balance: item.balance,
+    dueDate: formatDueDate(getItemDueDate(item)),
     monthlyInstallment: item.monthlyInstallment,
+    balance: item.balance,
+    mirror: getItemMirror(item),
+    remarks: item.remarks || '',
     overdueMonths: item.overdueMonths,
     lastPaymentDate: item.lastPaymentDate ? formatDate(item.lastPaymentDate) : '-',
-    status: 'Aging'
+    status: 'Overdue'
   }));
 
   const exportColumns = [
@@ -408,8 +464,11 @@ const AgingReport = () => {
     { header: 'Customer', key: 'customerName' },
     { header: 'CNIC', key: 'customerCnic' },
     { header: 'Description', key: 'description' },
+    { header: 'Due Date', key: 'dueDate' },
+    { header: 'Installment', key: 'monthlyInstallment' },
     { header: 'Balance', key: 'balance' },
-    { header: 'Monthly', key: 'monthlyInstallment' },
+    { header: 'Mirror', key: 'mirror' },
+    { header: 'Remarks', key: 'remarks' },
     { header: 'Months Overdue', key: 'overdueMonths' },
     { header: 'Last Payment', key: 'lastPaymentDate' },
     { header: 'Status', key: 'status' },
@@ -519,13 +578,13 @@ const AgingReport = () => {
           <table className="aging-table">
             <thead>
               <tr>
-                <th style={{ fontWeight: 800 }}>Case #</th>
                 <th style={{ fontWeight: 800 }}>Customer</th>
-                <th style={{ fontWeight: 800 }}>Description</th>
+                <th style={{ fontWeight: 800 }}>Case #</th>
+                <th style={{ fontWeight: 800 }}>Due Date</th>
+                <th style={{ fontWeight: 800 }}>Installment</th>
                 <th style={{ fontWeight: 800 }}>Balance</th>
-                <th style={{ fontWeight: 800 }}>Monthly</th>
-                <th style={{ fontWeight: 800 }}>Months Overdue</th>
-                <th style={{ fontWeight: 800 }}>Last Payment</th>
+                <th style={{ fontWeight: 800 }}>Mirror</th>
+                <th style={{ fontWeight: 800 }}>Remarks</th>
                 <th style={{ fontWeight: 800 }}>Status</th>
                 <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
@@ -552,7 +611,6 @@ const AgingReport = () => {
               ) : (
                 currentItems.map((item, index) => (
                   <tr key={item.accountId} className={`overdue-row ${index % 2 === 0 ? 'even-row' : 'odd-row'}`}>
-                    <td className="case-number" style={{ fontWeight: 700 }}>{item.caseNo}</td>
                     <td>
                       <div className="customer-info" style={{ fontWeight: 600 }}>
                         <div className="customer-avatar" style={{ 
@@ -566,25 +624,22 @@ const AgingReport = () => {
                         {item.customerName}
                       </div>
                     </td>
-                    <td className="description-cell" style={{ fontWeight: 500 }}>{item.description}</td>
-                    <td className="balance-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {item.balance.toLocaleString()}</td>
-                    <td style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
+                    <td className="case-number" style={{ fontWeight: 700 }}>{item.caseNo}</td>
                     <td>
-                      <span className="overdue-months-badge" style={{ 
-                        background: '#f59e0b', 
-                        color: 'white',
-                        fontWeight: 700,
-                        padding: '0.2rem 0.7rem',
-                        borderRadius: '9999px',
-                        fontSize: '0.7rem'
-                      }}>
-                        {item.overdueMonths}m
-                      </span>
+                      <div className="date-info" style={{ color: '#7c3aed', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Calendar size={12} />
+                        {formatDueDate(getItemDueDate(item))}
+                      </div>
                     </td>
-                    <td className="last-payment" style={{ fontWeight: 500 }}>{formatDate(item.lastPaymentDate)}</td>
+                    <td style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
+                    <td className="balance-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {item.balance.toLocaleString()}</td>
+                    <td style={{ fontWeight: 600 }}>PKR {getItemMirror(item).toLocaleString()}</td>
+                    <td>
+                      <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
+                    </td>
                     <td>
                       <span className="status-badge high" style={{ fontWeight: 700 }}>
-                        Aging
+                        Overdue
                       </span>
                     </td>
                     <td>
@@ -629,7 +684,7 @@ const AgingReport = () => {
         </div>
       </div>
 
-      {/* ===== DETAIL MODAL (Full Screen with Documents) ===== */}
+      {/* ===== DETAIL MODAL (Full Screen with Documents) — UNCHANGED ===== */}
       {showDetailModal && selectedCustomer && (
         <div className="aging-modal-overlay" onClick={closeModal}>
           <div className="aging-modal-content aging-modal-detail" onClick={(e) => e.stopPropagation()}>
@@ -659,7 +714,7 @@ const AgingReport = () => {
                 </div>
                 <div className="customer-detail-status">
                   <span className="status-badge high" style={{ fontWeight: 700 }}>
-                    Aging
+                    Overdue
                   </span>
                 </div>
               </div>
