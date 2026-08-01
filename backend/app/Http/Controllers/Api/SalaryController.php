@@ -131,10 +131,61 @@ class SalaryController extends Controller
     }
 
     // ============================================
+    // RESET SALARY (start of a new cycle)
+    // ✅ Reset ka matlab hai naya mahina shuru — is liye
+    // jo advances/loan-deductions abhi tak "pending" thi
+    // (Pay se officially close nahi hui), un sabko yahan
+    // finalize (close) kar dete hain taake agle mahine
+    // dobara balance mein se na katein.
+    // ============================================
+    public function resetSalary($id)
+    {
+        try {
+            $salary = Salary::find($id);
+            if (!$salary) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Salary record not found'
+                ], 404);
+            }
+
+            $salary->update([
+                'status' => 'pending',
+                'paid_date' => null,
+                'commission' => 0,
+                'total_paid' => 0,
+                'leave_count' => 0,
+                'advances' => 0
+            ]);
+
+            // ✅ Pending advances ko close kar do
+            SalaryAdvance::where('user_id', $salary->user_id)
+                ->where('deducted', false)
+                ->update(['deducted' => true]);
+
+            // ✅ Pending (unapplied) loan deductions ko close kar do
+            LoanPayment::where('user_id', $salary->user_id)
+                ->where('applied', false)
+                ->update(['applied' => true]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Salary reset successfully',
+                'data' => $salary->load(['user', 'leaves'])
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset salary: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ============================================
     // PAY SALARY
-    // ✅ Loans ab "running balance" hain — jitni amount
-    // available hai utni hi kategi, baaki agle mahine
-    // carry hogi. Har deduction loan_payments mein log hota hai.
+    // ✅ Loan ab khud se NAHI katti. Sirf wo manual
+    // deductions "apply" hoti hain jo pehle se
+    // deductLoan() se ki ja chuki hain (applied = false).
     // ============================================
     public function paySalary($id)
     {
@@ -147,45 +198,12 @@ class SalaryController extends Controller
                 ], 404);
             }
 
-            // ✅ Advances minus karne ke baad jo bacha wahi loans ke liye available hai
-            $availableForLoans = $salary->salary_amount + $salary->commission - $salary->advances;
-            if ($availableForLoans < 0) {
-                $availableForLoans = 0;
-            }
-
-            // ✅ Sab pending loans (purani pehle) — partial deduction
-            $pendingLoans = Loan::where('user_id', $salary->user_id)
-                ->whereColumn('paid_amount', '<', 'amount')
-                ->orderBy('date', 'asc')
+            // ✅ Jo manual loan deductions abhi tak salary mein count nahi hui
+            $unappliedPayments = LoanPayment::where('user_id', $salary->user_id)
+                ->where('applied', false)
                 ->get();
 
-            $totalLoanDeducted = 0;
-
-            foreach ($pendingLoans as $loan) {
-                if ($availableForLoans <= 0) {
-                    break;
-                }
-
-                $loanRemaining = $loan->amount - $loan->paid_amount;
-                $deductNow = min($loanRemaining, $availableForLoans);
-
-                if ($deductNow > 0) {
-                    $loan->paid_amount = $loan->paid_amount + $deductNow;
-                    $loan->deducted = $loan->paid_amount >= $loan->amount;
-                    $loan->save();
-
-                    // ✅ Log entry — full loan history
-                    LoanPayment::create([
-                        'loan_id' => $loan->id,
-                        'user_id' => $salary->user_id,
-                        'amount' => $deductNow,
-                        'date' => now()
-                    ]);
-
-                    $availableForLoans -= $deductNow;
-                    $totalLoanDeducted += $deductNow;
-                }
-            }
+            $totalLoanDeducted = $unappliedPayments->sum('amount');
 
             $totalPaid = $salary->salary_amount + $salary->commission - $salary->advances - $totalLoanDeducted;
 
@@ -199,6 +217,11 @@ class SalaryController extends Controller
             SalaryAdvance::where('user_id', $salary->user_id)
                 ->where('deducted', false)
                 ->update(['deducted' => true]);
+
+            // ✅ In manual deductions ko "applied" mark kar do — dobara count nahi hongi
+            LoanPayment::where('user_id', $salary->user_id)
+                ->where('applied', false)
+                ->update(['applied' => true]);
 
             return response()->json([
                 'success' => true,
@@ -269,7 +292,12 @@ class SalaryController extends Controller
                 ->where('deducted', false)
                 ->sum('amount');
 
-            $remaining = $user->salary - $totalAdvances;
+            // ✅ Manually kaati gayi loan amount jo abhi salary mein "apply" nahi hui
+            $pendingLoanDeduction = LoanPayment::where('user_id', $request->user_id)
+                ->where('applied', false)
+                ->sum('amount');
+
+            $remaining = $user->salary - $totalAdvances - $pendingLoanDeduction;
 
             if ($request->amount > $remaining) {
                 return response()->json([
@@ -425,9 +453,15 @@ class SalaryController extends Controller
     }
 
     // ============================================
-    // DEDUCT LOAN (manually mark fully paid off)
+    // DEDUCT LOAN — MANUAL, CUSTOM AMOUNT
+    // ✅ Admin jitni amount dega, sirf utni hi loan
+    // se katti hai aur turant remaining se minus ho
+    // jati hai. Ye deduction agli "Pay Salary" pe
+    // us mahine ki salary se bhi minus hogi.
+    // Agar amount na bheja jaye to poori remaining
+    // ek saath deduct ho jayegi (backward compatible).
     // ============================================
-    public function deductLoan($id)
+    public function deductLoan(Request $request, $id)
     {
         try {
             $loan = Loan::find($id);
@@ -440,24 +474,45 @@ class SalaryController extends Controller
 
             $remaining = $loan->amount - $loan->paid_amount;
 
-            if ($remaining > 0) {
-                LoanPayment::create([
-                    'loan_id' => $loan->id,
-                    'user_id' => $loan->user_id,
-                    'amount' => $remaining,
-                    'date' => now()
-                ]);
+            if ($remaining <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This loan is already fully paid'
+                ], 422);
             }
 
-            $loan->update([
-                'paid_amount' => $loan->amount,
-                'deducted' => true
+            $amount = $request->filled('amount') ? floatval($request->amount) : floatval($remaining);
+
+            if ($amount <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Amount must be greater than 0'
+                ], 422);
+            }
+
+            if ($amount > $remaining) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Amount exceeds remaining loan balance: PKR " . number_format($remaining, 0)
+                ], 422);
+            }
+
+            LoanPayment::create([
+                'loan_id' => $loan->id,
+                'user_id' => $loan->user_id,
+                'amount' => $amount,
+                'date' => now(),
+                'applied' => false
             ]);
+
+            $loan->paid_amount = $loan->paid_amount + $amount;
+            $loan->deducted = $loan->paid_amount >= $loan->amount;
+            $loan->save();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Loan deducted from salary',
-                'data' => $loan
+                'message' => 'Loan amount deducted successfully',
+                'data' => $loan->load('payments')
             ]);
         } catch (\Exception $e) {
             return response()->json([

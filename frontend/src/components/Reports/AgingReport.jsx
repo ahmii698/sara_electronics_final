@@ -126,9 +126,9 @@ const AgingReport = () => {
   // it is. Returns { statusKey, overdueMonths }.
   //   - Clear   -> every installment (up to total_installments) fully paid
   //   - Active  -> no due-and-unpaid installment at all
-  //   - Overdue -> oldest due-unpaid installment is 1-3 months behind
-  //   - Aging   -> oldest due-unpaid installment is 4+ months behind (internal
-  //                classification key only — displayed to the user as "Overdue")
+  //   - Overdue (statusKey 'overdue') -> oldest due-unpaid installment is 1-3 months behind
+  //   - Aging   (statusKey 'aging')   -> oldest due-unpaid installment is 4+ months behind
+  //                (this report's list only contains 'aging' accounts, shown to the user as "Overdue")
   // ============================================
   const getAccountAgingInfo = (list, account) => {
     const totalInstallments = account?.total_installments || list.length;
@@ -165,9 +165,9 @@ const AgingReport = () => {
   };
 
   // ✅ Per-installment row status — used inside the month-by-month history table.
-  // Mirrors Installments.jsx's getStatusBadge logic (month-aware), not just paid/partial/unpaid.
-  // NOTE: internal key stays 'aging' for 4m+ (used for styling), but the LABEL shown
-  // to the user is always "Overdue" now, never "Aging".
+  // Mirrors Installments.jsx's getStatusBadge wording exactly:
+  //   1-3 months late  -> "Aging (Nm)"
+  //   4+ months late   -> "Overdue"
   const getInstallmentRowStatus = (inst) => {
     const balance = parseFloat(inst.balance || 0);
     if (balance <= 0) return { key: 'paid', label: 'Paid' };
@@ -178,8 +178,8 @@ const AgingReport = () => {
     if (monthsDiff < 0) return { key: 'unpaid', label: 'Unpaid' }; // future month, not due yet
 
     const overdueCount = monthsDiff + 1;
-    if (overdueCount >= 4) return { key: 'aging', label: `Overdue (${overdueCount}m)` };
-    return { key: 'overdue', label: `Overdue (${overdueCount}m)` };
+    if (overdueCount >= 4) return { key: 'aging', label: 'Overdue' };
+    return { key: 'overdue', label: `Aging (${overdueCount}m)` };
   };
 
   // ============================================

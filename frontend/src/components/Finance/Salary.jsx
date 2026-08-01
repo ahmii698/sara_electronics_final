@@ -1,9 +1,37 @@
 // src/components/Salary/Salary.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Eye, Edit, DollarSign, RefreshCw, X, Wallet, Users, Calendar, Clock, Award, Building, CheckCircle, AlertCircle, TrendingUp, Landmark } from 'lucide-react';
+import { Search, Eye, Edit, DollarSign, RefreshCw, X, Wallet, Users, Calendar, Clock, Award, Building, CheckCircle, AlertCircle, TrendingUp, Landmark, Minus, ClipboardList } from 'lucide-react';
 import './Salary.css';
 import { API_URL } from '../../../config';
+
+// ✅ Reusable styled buttons (inline so they always look right regardless of Salary.css)
+const deductBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  padding: '6px 12px',
+  fontSize: '0.75rem',
+  fontWeight: 700,
+  background: '#dc2626',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer'
+};
+
+const loanSummaryBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '30px',
+  height: '30px',
+  background: '#fee2e2',
+  color: '#991b1b',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer'
+};
 
 const Salary = () => {
   const [search, setSearch] = useState('');
@@ -12,6 +40,8 @@ const Salary = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [showLoanModal, setShowLoanModal] = useState(false);
+  const [showLoanSummaryModal, setShowLoanSummaryModal] = useState(false);
+  const [deductAmounts, setDeductAmounts] = useState({}); // { [loanId]: 'amount string' }
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceReason, setAdvanceReason] = useState('');
@@ -61,10 +91,16 @@ const Salary = () => {
   };
 
   // ✅ Loan record ko normalize karo — remaining = amount - paid_amount
+  // aur payments ko applied/unapplied mein split karo
   const mapLoan = (l) => {
     const amount = parseFloat(l.amount) || 0;
     const paidAmount = parseFloat(l.paid_amount) || 0;
     const remaining = Math.max(amount - paidAmount, 0);
+    const payments = (l.payments || []).map(p => ({
+      date: p.date,
+      amount: parseFloat(p.amount) || 0,
+      applied: !!p.applied
+    }));
     return {
       id: l.id,
       date: l.date,
@@ -73,10 +109,10 @@ const Salary = () => {
       remaining: remaining,
       reason: l.reason,
       deducted: l.deducted,
-      payments: (l.payments || []).map(p => ({
-        date: p.date,
-        amount: parseFloat(p.amount) || 0
-      }))
+      payments: payments,
+      // ✅ Ye deductions manually kaati ja chuki hain lekin abhi
+      // "Pay" ke through us mahine ki salary mein count nahi hui
+      pendingApplication: payments.filter(p => !p.applied).reduce((s, p) => s + p.amount, 0)
     };
   };
 
@@ -139,8 +175,14 @@ const Salary = () => {
               .filter(a => a.deducted)
               .reduce((sum, a) => sum + parseFloat(a.amount), 0);
 
-            // ✅ Total pending loan balance = sum of remaining across all loans
+            // ✅ Total outstanding loan debt (sab loans ka jama remaining)
             const totalLoans = loans.reduce((sum, l) => sum + l.remaining, 0);
+
+            // ✅ Sab loans ki original total amount (jitna diya gaya tha)
+            const totalLoanGiven = loans.reduce((sum, l) => sum + l.amount, 0);
+
+            // ✅ Manually kaati gayi amount jo agli "Pay" pe salary se katay gi
+            const pendingLoanDeduction = loans.reduce((sum, l) => sum + l.pendingApplication, 0);
 
             return {
               id: emp.id,
@@ -153,6 +195,8 @@ const Salary = () => {
               totalAdvances: totalAdvances,
               deductedAdvances: deductedAdvances,
               totalLoans: totalLoans,
+              totalLoanGiven: totalLoanGiven,
+              pendingLoanDeduction: pendingLoanDeduction,
               accountCount: accountCount,
               history: salary ? [{
                 date: salary.paid_date || '2026-06-01',
@@ -177,6 +221,13 @@ const Salary = () => {
         setSalaryData(salData.success ? salData.data : []);
         setAdvanceData(advData.success ? advData.data : []);
         setLoanData(loanRespData.success ? loanRespData.data : []);
+
+        // ✅ Agar koi modal khula hua hai to selectedEmployee ko bhi fresh data se sync karo
+        setSelectedEmployee(prev => {
+          if (!prev) return prev;
+          const fresh = employeesWithCounts.find(e => e.id === prev.id);
+          return fresh || prev;
+        });
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -233,6 +284,8 @@ const Salary = () => {
               .reduce((sum, a) => sum + parseFloat(a.amount), 0);
 
             const totalLoans = loans.reduce((sum, l) => sum + l.remaining, 0);
+            const totalLoanGiven = loans.reduce((sum, l) => sum + l.amount, 0);
+            const pendingLoanDeduction = loans.reduce((sum, l) => sum + l.pendingApplication, 0);
 
             return {
               id: emp.id,
@@ -245,6 +298,8 @@ const Salary = () => {
               totalAdvances: totalAdvances,
               deductedAdvances: 0,
               totalLoans: totalLoans,
+              totalLoanGiven: totalLoanGiven,
+              pendingLoanDeduction: pendingLoanDeduction,
               accountCount: accountCount,
               history: salary ? [{
                 date: salary.paid_date || '2026-06-01',
@@ -269,6 +324,12 @@ const Salary = () => {
         setSalaryData(salData.success ? salData.data : []);
         setAdvanceData(advData.success ? advData.data : []);
         setLoanData(loanRespData.success ? loanRespData.data : []);
+
+        setSelectedEmployee(prev => {
+          if (!prev) return prev;
+          const fresh = employeesWithCounts.find(e => e.id === prev.id);
+          return fresh || prev;
+        });
       }
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -316,7 +377,8 @@ const Salary = () => {
       
       let response;
       if (salaryRecord) {
-        // ✅ Backend khud loan ko partial-deduct karta hai aur log banata hai
+        // ✅ Backend sirf wahi manual loan deductions apply karega jo
+        // pehle se ki ja chuki hain — khud se kuch nahi katega
         response = await fetch(`${API_URL}/salary/${salaryRecord.id}/pay`, {
           method: 'POST',
           headers: {
@@ -364,7 +426,7 @@ const Salary = () => {
         await handleRefresh();
 
         if (salaryRecord && data.loan_deducted > 0) {
-          alert(`✅ Salary paid successfully! PKR ${Number(data.loan_deducted).toLocaleString()} loan deducted.`);
+          alert(`✅ Salary paid successfully! PKR ${Number(data.loan_deducted).toLocaleString()} loan deduction applied.`);
         } else {
           alert('✅ Salary paid successfully!');
         }
@@ -471,8 +533,55 @@ const Salary = () => {
     setLoading(false);
   };
 
+  // ============================================
+  // ✅ MANUALLY DEDUCT A CUSTOM AMOUNT FROM A SPECIFIC LOAN
+  // (inline — used from both History modal & Loan Summary modal)
+  // ============================================
+  const handleDeductLoanInline = async (loan) => {
+    const rawAmount = deductAmounts[loan.id];
+    const amount = parseFloat(rawAmount);
+
+    if (!rawAmount || isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (amount > loan.remaining) {
+      alert(`Amount exceeds remaining loan balance: PKR ${loan.remaining.toLocaleString()}`);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`${API_URL}/loans/${loan.id}/deduct`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ amount })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await handleRefresh();
+        setDeductAmounts(prev => ({ ...prev, [loan.id]: '' }));
+        alert('✅ Loan amount deducted successfully!');
+      } else {
+        alert(data.message || 'Failed to deduct loan');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+    setLoading(false);
+  };
+
   const handleReset = async (id) => {
-    if (!window.confirm('Reset this employee\'s salary for the current month?\n\nThis will:\n• Mark as Pending\n• Remove Paid Date\n• Reset Commission to 0\n• Reset Total Paid to 0')) {
+    if (!window.confirm('Reset this employee\'s salary for the current month?\n\nThis will:\n• Mark as Pending\n• Remove Paid Date\n• Reset Commission to 0\n• Reset Total Paid to 0\n• Close out (finalize) any pending advance/loan deductions so they don\'t carry into the next cycle')) {
       return;
     }
 
@@ -483,20 +592,14 @@ const Salary = () => {
       const salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
       
       if (salaryRecord) {
-        const response = await fetch(`${API_URL}/salary/${salaryRecord.id}`, {
-          method: 'PUT',
+        // ✅ Naya endpoint — Salary reset + pending advances/loan deductions
+        // ko finalize (close) kar deta hai taake agle mahine dobara na katein
+        const response = await fetch(`${API_URL}/salary/${salaryRecord.id}/reset`, {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            status: 'pending',
-            paid_date: null,
-            commission: 0,
-            total_paid: 0,
-            leave_count: 0,
-            advances: 0
-          })
+          }
         });
         
         const data = await response.json();
@@ -626,6 +729,11 @@ const Salary = () => {
     setLoanAmount('');
     setLoanReason('');
     setShowLoanModal(true);
+  };
+
+  const openLoanSummaryModal = (emp) => {
+    setSelectedEmployee(emp);
+    setShowLoanSummaryModal(true);
   };
 
   const getDateOnly = (dateStr) => {
@@ -773,14 +881,14 @@ const Salary = () => {
               </tr>
             ) : (
               filtered.map(emp => {
-                // ✅ Monthly balance = salary + commission - advances (loans is a
-                // separate running balance shown in its own column, not part of
-                // "this month's" balance, since it carries across months)
+                // ✅ Monthly balance = salary + commission - advances - jo loan
+                // deduction manually ki ja chuki ho lekin abhi tak salary mein
+                // "apply" nahi hui (pendingLoanDeduction)
                 let balance;
                 if (emp.paid) {
                   balance = 0;
                 } else {
-                  balance = emp.salary + emp.commission - emp.totalAdvances;
+                  balance = emp.salary + emp.commission - emp.totalAdvances - emp.pendingLoanDeduction;
                 }
                 
                 return (
@@ -858,6 +966,15 @@ const Salary = () => {
                             <button className="btn-loan" onClick={() => openLoanModal(emp)} title="Give Loan">
                               <Landmark size={15} />
                             </button>
+                            {emp.totalLoans > 0 && (
+                              <button
+                                style={loanSummaryBtnStyle}
+                                onClick={() => openLoanSummaryModal(emp)}
+                                title="Loan Summary / Deduct"
+                              >
+                                <ClipboardList size={15} />
+                              </button>
+                            )}
                             {emp.paid ? (
                               <button className="btn-reset" onClick={() => handleReset(emp.id)} title="Reset">
                                 <RefreshCw size={15} />
@@ -879,6 +996,138 @@ const Salary = () => {
           </tbody>
         </table>
       </div>
+
+      {/* ===== LOAN SUMMARY MODAL — quick summary + inline deduct ===== */}
+      {showLoanSummaryModal && selectedEmployee && (
+        <div className="salary-modal-overlay" onClick={() => setShowLoanSummaryModal(false)}>
+          <div className="salary-modal-content salary-modal-advance" onClick={(e) => e.stopPropagation()}>
+            <div className="salary-modal-header">
+              <div className="salary-modal-header-left">
+                <ClipboardList size={20} className="salary-modal-icon" />
+                <h3 style={{ fontSize: '1.3rem' }}>Loan Summary</h3>
+              </div>
+              <button className="salary-modal-close" onClick={() => setShowLoanSummaryModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="salary-modal-body">
+              <div className="employee-detail-header small">
+                <div className="emp-detail-avatar small" style={{ background: '#1E1B4B' }}>
+                  {selectedEmployee.name.charAt(0)}
+                </div>
+                <div className="emp-detail-info">
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>{selectedEmployee.name}</h4>
+                  <span className="emp-detail-branch" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Branch {selectedEmployee.branch}</span>
+                </div>
+              </div>
+
+              {/* ✅ Requested summary table: Salary, Commission, Advance, Loan Amount, Pending Loan, Pending Salary */}
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.75rem', overflow: 'hidden', marginBottom: '1rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#475569', fontSize: '0.85rem' }}>Salary</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#1E1B4B', textAlign: 'right' }}>
+                        PKR {selectedEmployee.salary.toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#475569', fontSize: '0.85rem' }}>Commission</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#8B5CF6', textAlign: 'right' }}>
+                        PKR {selectedEmployee.commission.toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#475569', fontSize: '0.85rem' }}>Advance Taken</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#92400e', textAlign: 'right' }}>
+                        PKR {selectedEmployee.totalAdvances.toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#475569', fontSize: '0.85rem' }}>Loan Amount (Total Given)</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#1E1B4B', textAlign: 'right' }}>
+                        PKR {selectedEmployee.totalLoanGiven.toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: '#475569', fontSize: '0.85rem' }}>Pending Loan</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#dc2626', textAlign: 'right' }}>
+                        PKR {selectedEmployee.totalLoans.toLocaleString()}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '10px 14px', fontWeight: 700, color: '#166534', fontSize: '0.9rem' }}>Pending Salary</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#22c55e', textAlign: 'right', fontSize: '1rem' }}>
+                        PKR {(selectedEmployee.paid ? 0 : selectedEmployee.salary + selectedEmployee.commission - selectedEmployee.totalAdvances - selectedEmployee.pendingLoanDeduction).toLocaleString()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ✅ Har active loan ke liye inline deduct */}
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1E1B4B', marginBottom: '0.5rem' }}>Active Loans</h4>
+              {selectedEmployee.loans.filter(l => l.remaining > 0).length === 0 ? (
+                <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No pending loans.</p>
+              ) : (
+                selectedEmployee.loans.filter(l => l.remaining > 0).map((loan) => (
+                  <div
+                    key={loan.id}
+                    style={{
+                      border: '1px solid #fecaca',
+                      background: '#fef2f2',
+                      borderRadius: '0.65rem',
+                      padding: '0.75rem',
+                      marginBottom: '0.6rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#7f1d1d' }}>
+                        {loan.reason} • {getDateOnly(loan.date)}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#dc2626' }}>
+                        Remaining: PKR {loan.remaining.toLocaleString()}
+                      </span>
+                    </div>
+                    {canManageSalary() && (
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                          type="number"
+                          placeholder="Amount to deduct"
+                          value={deductAmounts[loan.id] || ''}
+                          onChange={(e) => setDeductAmounts(prev => ({ ...prev, [loan.id]: e.target.value }))}
+                          min="1"
+                          max={loan.remaining}
+                          style={{
+                            flex: 1,
+                            padding: '8px 10px',
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            border: '1px solid #fca5a5',
+                            borderRadius: '6px'
+                          }}
+                        />
+                        <button
+                          style={deductBtnStyle}
+                          onClick={() => handleDeductLoanInline(loan)}
+                          disabled={loading}
+                        >
+                          <Minus size={13} /> Deduct
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="salary-modal-footer">
+              <button className="btn-cancel" onClick={() => setShowLoanSummaryModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== HISTORY MODAL ===== */}
       {showHistoryModal && selectedEmployee && (
@@ -922,7 +1171,8 @@ const Salary = () => {
                     PKR {(
                       selectedEmployee.salary + 
                       selectedEmployee.commission - 
-                      selectedEmployee.totalAdvances
+                      selectedEmployee.totalAdvances -
+                      selectedEmployee.pendingLoanDeduction
                     ).toLocaleString()}
                   </strong>
                 </div>
@@ -973,7 +1223,7 @@ const Salary = () => {
                 </div>
               )}
 
-              {/* ✅ LOANS — har loan ka amount, kitna kata, kitna baaki, aur poora payment log */}
+              {/* ✅ LOANS — har loan ka amount, kitna kata, kitna baaki + manual Deduct button */}
               {selectedEmployee.loans.length > 0 && (
                 <div className="advances-section">
                   <div className="advances-header">
@@ -992,6 +1242,7 @@ const Salary = () => {
                           <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Paid</th>
                           <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Remaining</th>
                           <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Reason</th>
+                          {canManageSalary() && <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Action</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -1009,13 +1260,30 @@ const Salary = () => {
                               PKR {item.remaining.toLocaleString()}
                             </td>
                             <td className="advance-reason-cell" style={{ fontWeight: 500 }}>{item.reason}</td>
+                            {canManageSalary() && (
+                              <td>
+                                {item.remaining > 0 ? (
+                                  <button
+                                    style={deductBtnStyle}
+                                    onClick={() => {
+                                      setShowHistoryModal(false);
+                                      openLoanSummaryModal(selectedEmployee);
+                                    }}
+                                  >
+                                    <Minus size={12} /> Deduct
+                                  </button>
+                                ) : (
+                                  <span className="no-value">Paid off</span>
+                                )}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
 
-                  {/* ✅ Full payment log — har mahine jo bhi kata wo yahan */}
+                  {/* ✅ Full payment log — har manual deduction yahan */}
                   {selectedEmployee.loans.some(l => l.payments.length > 0) && (
                     <div style={{ marginTop: '0.75rem' }}>
                       <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1E1B4B', marginBottom: '0.4rem' }}>
@@ -1027,6 +1295,7 @@ const Salary = () => {
                             <tr>
                               <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date</th>
                               <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Amount Deducted</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Status</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1043,6 +1312,11 @@ const Salary = () => {
                                   </td>
                                   <td style={{ color: '#22c55e', fontWeight: 700 }}>
                                     -PKR {p.amount.toLocaleString()}
+                                  </td>
+                                  <td>
+                                    <span style={{ fontWeight: 700, fontSize: '0.75rem', color: p.applied ? '#22c55e' : '#f59e0b' }}>
+                                      {p.applied ? 'Applied to salary' : 'Pending next Pay'}
+                                    </span>
                                   </td>
                                 </tr>
                               ))}
@@ -1133,10 +1407,16 @@ const Salary = () => {
                     PKR {selectedEmployee.totalAdvances.toLocaleString()}
                   </strong>
                 </div>
+                <div className="advance-info-row" style={{ fontWeight: 600 }}>
+                  <span>Loan Deduction (this cycle)</span>
+                  <strong className="advance-taken" style={{ color: '#dc2626' }}>
+                    PKR {selectedEmployee.pendingLoanDeduction.toLocaleString()}
+                  </strong>
+                </div>
                 <div className="advance-info-row highlight" style={{ fontWeight: 700, borderTop: '2px solid #1E1B4B', paddingTop: '0.5rem' }}>
                   <span style={{ fontSize: '1rem' }}>Remaining</span>
                   <strong className="remaining-amount" style={{ fontSize: '1.2rem', color: '#1E1B4B' }}>
-                    PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}
+                    PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances - selectedEmployee.pendingLoanDeduction).toLocaleString()}
                   </strong>
                 </div>
               </div>
@@ -1150,11 +1430,11 @@ const Salary = () => {
                   value={advanceAmount}
                   onChange={(e) => setAdvanceAmount(e.target.value)}
                   min="1"
-                  max={selectedEmployee.salary - selectedEmployee.totalAdvances}
+                  max={selectedEmployee.salary - selectedEmployee.totalAdvances - selectedEmployee.pendingLoanDeduction}
                   style={{ fontSize: '1rem', fontWeight: 600 }}
                 />
                 <small className="field-hint" style={{ fontWeight: 600 }}>
-                  Max: PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances).toLocaleString()}
+                  Max: PKR {(selectedEmployee.salary - selectedEmployee.totalAdvances - selectedEmployee.pendingLoanDeduction).toLocaleString()}
                 </small>
               </div>
 
@@ -1263,7 +1543,7 @@ const Salary = () => {
               <div className="advance-note-box">
                 <Clock size={16} className="advance-icon" />
                 <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                  Har salary payment mein jitni amount available hogi utni is loan se kategi — baaki agle mahine carry hogi
+                  Ye khud kabhi nahi katega — jitna chaho utna manually "Loan Summary" se kaat sakte ho
                 </p>
               </div>
             </div>

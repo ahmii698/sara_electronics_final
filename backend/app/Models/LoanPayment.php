@@ -15,12 +15,13 @@ class LoanPayment extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'loan_id', 'user_id', 'amount', 'date'
+        'loan_id', 'user_id', 'amount', 'date', 'applied'
     ];
 
     protected $casts = [
         'date' => 'datetime',
         'amount' => 'decimal:2',
+        'applied' => 'boolean',
     ];
 
     public function loan()

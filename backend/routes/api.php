@@ -113,13 +113,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/guarantors/{id}', [GuarantorController::class, 'destroy']);
     Route::post('/guarantors/check-cnic', [GuarantorController::class, 'checkCnic']);
 
-    // Expenses
+    // ============================================
+    // ✅ EXPENSES ROUTES - UPDATED
+    // ============================================
+    
+    // ✅ Fixed Expenses - Sirf unpaid (dashboard ke liye)
     Route::get('/expenses/fixed', [ExpenseController::class, 'fixedExpenses']);
+    
+    // ✅ NEW: Fixed Expenses - All (paid + unpaid) - FixedExpense page ke liye
+    Route::get('/expenses/fixed/all', [ExpenseController::class, 'allFixedExpenses']);
+    
+    // ✅ NEW: Monthly expenses check - Manual trigger for testing
+    Route::post('/expenses/fixed/check-monthly', [ExpenseController::class, 'checkMonthlyExpenses']);
+    
     Route::post('/expenses/fixed', [ExpenseController::class, 'storeFixed']);
     Route::put('/expenses/fixed/{id}', [ExpenseController::class, 'updateFixed']);
     Route::post('/expenses/fixed/{id}/pay', [ExpenseController::class, 'payFixed']);
     Route::delete('/expenses/fixed/{id}', [ExpenseController::class, 'deleteFixed']);
 
+    // Extra Expenses
     Route::get('/expenses/extra', [ExpenseController::class, 'extraExpenses']);
     Route::post('/expenses/extra', [ExpenseController::class, 'storeExtra']);
     Route::put('/expenses/extra/{id}', [ExpenseController::class, 'updateExtra']);
@@ -132,6 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/salary', [SalaryController::class, 'store']);
     Route::put('/salary/{id}', [SalaryController::class, 'update']);
     Route::post('/salary/{id}/pay', [SalaryController::class, 'paySalary']);
+    Route::post('/salary/{id}/reset', [SalaryController::class, 'resetSalary']);
 
     Route::get('/salary/advances', [SalaryController::class, 'advances']);
     Route::post('/salary/advances', [SalaryController::class, 'storeAdvance']);

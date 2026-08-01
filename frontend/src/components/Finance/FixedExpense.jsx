@@ -22,7 +22,6 @@ const FixedExpense = () => {
   const [expenses, setExpenses] = useState([]);
   const itemsPerPage = 10;
 
-  // ✅ Get user data immediately
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
@@ -32,15 +31,52 @@ const FixedExpense = () => {
     } else {
       fetchExpenses(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ useCallback - function memoize
+  // ✅ Helper: Get current month's due date from day number
+  const getCurrentDueDate = (dueDateStr) => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    
+    // If dueDate is like "1", "2", "3" (day of month)
+    if (dueDateStr && /^\d{1,2}$/.test(dueDateStr.trim())) {
+      const day = parseInt(dueDateStr.trim());
+      return new Date(currentYear, currentMonth, day);
+    }
+    // If dueDate is like "1st", "2nd", "3rd"
+    else if (dueDateStr && /^(\d{1,2})(st|nd|rd|th)?$/.test(dueDateStr.trim())) {
+      const day = parseInt(dueDateStr.trim());
+      return new Date(currentYear, currentMonth, day);
+    }
+    // If dueDate is like "2026-08-01"
+    else if (dueDateStr && /^\d{4}-\d{2}-\d{2}$/.test(dueDateStr.trim())) {
+      return new Date(dueDateStr.trim());
+    }
+    return null;
+  };
+
+  // ✅ Format date for display
+  const formatDueDate = (dueDateStr) => {
+    const date = getCurrentDueDate(dueDateStr);
+    if (date && !isNaN(date.getTime())) {
+      return date.toLocaleDateString('en-PK', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      });
+    }
+    return dueDateStr || 'N/A';
+  };
+
+  // ✅ FIXED: Backend ab sahi paid/unpaid state deta hai (last_paid ke against
+  // current cycle check karke) — isliye ab yahan dobara se date-compare karke
+  // paid ko overwrite NAHI karna. Bas backend ka value seedha use karo.
   const fetchExpenses = useCallback(async (branch) => {
     setFetching(true);
     try {
       const token = localStorage.getItem('token');
-      let url = `${API_URL}/expenses/fixed`;
+      let url = `${API_URL}/expenses/fixed/all`;
       const effectiveBranch = branch || userBranch;
       if (effectiveBranch) {
         url += `?branch_id=${effectiveBranch}`;
@@ -64,7 +100,7 @@ const FixedExpense = () => {
           dueDate: exp.due_date || '',
           paid: !!exp.paid,
           lastPaid: exp.last_paid || 'Never',
-          history: exp.last_paid
+          history: exp.last_paid && exp.paid
             ? [{ date: exp.last_paid, amount: parseFloat(exp.amount) || 0, status: 'Paid' }]
             : []
         }));
@@ -79,11 +115,10 @@ const FixedExpense = () => {
     setFetching(false);
   }, [userBranch]);
 
-  // ✅ Refresh function with no full loading state
   const handleRefresh = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      let url = `${API_URL}/expenses/fixed`;
+      let url = `${API_URL}/expenses/fixed/all`;
       if (userBranch) {
         url += `?branch_id=${userBranch}`;
       }
@@ -106,7 +141,7 @@ const FixedExpense = () => {
           dueDate: exp.due_date || '',
           paid: !!exp.paid,
           lastPaid: exp.last_paid || 'Never',
-          history: exp.last_paid
+          history: exp.last_paid && exp.paid
             ? [{ date: exp.last_paid, amount: parseFloat(exp.amount) || 0, status: 'Paid' }]
             : []
         }));
@@ -126,7 +161,6 @@ const FixedExpense = () => {
 
   const [payAmount, setPayAmount] = useState('');
 
-  // ✅ ALL YEARS - 2020 se current year tak
   const getAllYears = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
@@ -136,7 +170,6 @@ const FixedExpense = () => {
     return years;
   };
 
-  // ✅ ALL MONTHS - January to December
   const getAllMonths = () => {
     return ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
   };
@@ -147,9 +180,7 @@ const FixedExpense = () => {
     return date.toLocaleString('default', { month: 'long' });
   };
 
-  // ✅ FIXED FILTER LOGIC - lastPaid se bhi month/year extract karo
   const getExpenseMonthYear = (expense) => {
-    // Pehle dueDate se check karo
     if (expense.dueDate) {
       const dateMatch = expense.dueDate.match(/(\d{4})-(\d{2})/);
       if (dateMatch) {
@@ -157,7 +188,6 @@ const FixedExpense = () => {
       }
     }
     
-    // Agar dueDate mein year/month nahi hai, toh lastPaid se le lo
     if (expense.lastPaid && expense.lastPaid !== 'Never') {
       const dateMatch = expense.lastPaid.match(/(\d{4})-(\d{2})/);
       if (dateMatch) {
@@ -168,7 +198,6 @@ const FixedExpense = () => {
     return null;
   };
 
-  // ✅ Filter logic with month and year - FIXED
   const filtered = expenses.filter(e => {
     const searchMatch = e.name.toLowerCase().includes(search.toLowerCase());
     
@@ -177,7 +206,6 @@ const FixedExpense = () => {
       branchMatch = e.branch === parseInt(userBranch);
     }
 
-    // ✅ Get expense month/year from dueDate or lastPaid
     const expMonthYear = getExpenseMonthYear(e);
     
     let monthMatch = true;
@@ -191,7 +219,6 @@ const FixedExpense = () => {
         yearMatch = expMonthYear.year === yearFilter;
       }
     } else {
-      // Agar expense mein koi date nahi hai, toh sirf "All" filter mein show ho
       monthMatch = monthFilter === 'all';
       yearMatch = yearFilter === 'all';
     }
@@ -477,7 +504,6 @@ const FixedExpense = () => {
   const allYears = getAllYears();
   const allMonths = getAllMonths();
 
-  // ✅ Get available years from expenses (for showing ✓)
   const getAvailableYears = () => {
     const years = new Set();
     const filteredExpenses = userBranch ? expenses.filter(e => e.branch === parseInt(userBranch)) : expenses;
@@ -490,7 +516,6 @@ const FixedExpense = () => {
     return Array.from(years).sort();
   };
 
-  // ✅ Get available months from expenses (for showing ✓)
   const getAvailableMonths = () => {
     const months = new Set();
     const filteredExpenses = userBranch ? expenses.filter(e => e.branch === parseInt(userBranch)) : expenses;
@@ -537,7 +562,6 @@ const FixedExpense = () => {
     },
   ];
 
-  // ✅ FAST LOADING - Sirf pehli baar show karega
   if (fetching && expenses.length === 0) {
     return (
       <div className="fixed-expense-container">
@@ -622,7 +646,6 @@ const FixedExpense = () => {
         </div>
 
         <div className="filter-group" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* ✅ YEAR FILTER */}
           <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="filter-label" style={{ fontSize: '13px', fontWeight: 600, color: '#4b5563' }}>Year:</span>
             <select
@@ -643,7 +666,6 @@ const FixedExpense = () => {
             </select>
           </div>
 
-          {/* ✅ MONTH FILTER */}
           <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="filter-label" style={{ fontSize: '13px', fontWeight: 600, color: '#4b5563' }}>Month:</span>
             <select
@@ -666,7 +688,6 @@ const FixedExpense = () => {
         </div>
       </div>
 
-      {/* ✅ FILTER SUMMARY - Show current filter selection */}
       {(monthFilter !== 'all' || yearFilter !== 'all') && (
         <div className="filter-summary" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#eff6ff', borderRadius: '8px', marginBottom: '12px', border: '1px solid #bfdbfe' }}>
           <span style={{ fontWeight: 600 }}>
@@ -716,7 +737,7 @@ const FixedExpense = () => {
                   <td>
                     <span className="due-date-badge">
                       <Calendar size={12} />
-                      {exp.dueDate}
+                      {formatDueDate(exp.dueDate)}
                     </span>
                   </td>
                   <td>
@@ -902,7 +923,7 @@ const FixedExpense = () => {
                 </div>
                 <div className="pay-info-row">
                   <span>Due Date</span>
-                  <strong>{selectedExpense.dueDate}</strong>
+                  <strong>{formatDueDate(selectedExpense.dueDate)}</strong>
                 </div>
               </div>
 

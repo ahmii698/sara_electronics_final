@@ -2,13 +2,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star, FileImage, Wallet
+  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star, FileImage, Wallet, Percent
 } from 'lucide-react';
 import './AddAccount.css';
 import { API_URL } from '../../../config';
 
 const MAX_ACCOUNTS_PER_CNIC = 2;
 const MAX_COMBINED_AMOUNT = 100000;
+const MAX_PRODUCT_PRICE = 100000; // ✅ NEW: Product Price limit (skip if special customer)
 
 const AddAccount = () => {
   const [step, setStep] = useState(1);
@@ -204,8 +205,9 @@ const AddAccount = () => {
     productType: 'new',
     productName: '',
     productPrice: '',
+    profitPercent: '', // ✅ NEW: Percentage used to auto-calculate Invoice Price
     advanceAmount: '',
-    invoicePrice: '',
+    invoicePrice: '', // ✅ Ab yeh auto-calculated hoga (readonly), manually nahi bhara jayega
     noOfInstallments: '',
     dueDate: '',
     installmentAmount: '',
@@ -350,11 +352,24 @@ const AddAccount = () => {
     const { name, value } = e.target;
     if (name === 'branch' && userBranch) return;
     setFormData({ ...formData, [name]: value });
-    
-    if (name === 'invoicePrice' || name === 'advanceAmount' || name === 'noOfInstallments') {
-      calculateInstallment();
-    }
   };
+
+  // ✅ NEW: Invoice Price ab manual nahi — Product Price + Profit % se auto-calculate hota hai
+  const calculateInvoicePrice = () => {
+    const price = parseFloat(formData.productPrice) || 0;
+    const percent = parseFloat(formData.profitPercent) || 0;
+
+    const invoice = price + (price * percent / 100);
+
+    setFormData(prev => ({
+      ...prev,
+      invoicePrice: invoice > 0 ? invoice.toFixed(2) : ''
+    }));
+  };
+
+  useEffect(() => {
+    calculateInvoicePrice();
+  }, [formData.productPrice, formData.profitPercent]);
 
   const calculateInstallment = () => {
     const invoice = parseFloat(formData.invoicePrice) || 0;
@@ -529,7 +544,7 @@ const AddAccount = () => {
       newErrors.guarantors = 'Duplicate CNIC found in guarantors. Each guarantor must have a unique CNIC.';
     }
     
-    // ✅ CHANGED: Minimum 1 complete guarantor required (pehle 2 tha)
+    // ✅ Minimum 1 complete guarantor required
     const completeGuarantors = formData.guarantors.filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim() && g.address.trim() && g.cnicFront !== null && g.cnicBack !== null);
     if (completeGuarantors.length < 1) {
       newErrors.guarantors = 'Minimum 1 complete guarantor required';
@@ -547,12 +562,21 @@ const AddAccount = () => {
     const newErrors = {};
     if (!formData.productName) newErrors.productName = 'Product name is required';
     if (!formData.productPrice) newErrors.productPrice = 'Product price is required';
-    if (!formData.invoicePrice) newErrors.invoicePrice = 'Invoice price is required';
+    if (!formData.profitPercent && formData.profitPercent !== 0) newErrors.profitPercent = 'Profit percentage is required';
+    if (!formData.invoicePrice) newErrors.invoicePrice = 'Invoice price could not be calculated';
     if (!formData.noOfInstallments) newErrors.noOfInstallments = 'Number of installments is required';
     if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
     
     if (!formData.chalanFront) {
       newErrors.chalanFront = 'Chalan Front image is required';
+    }
+
+    // ✅ NEW: Product Price max limit — skip if Special Customer is ON
+    if (!isSpecialCustomer) {
+      const priceCheck = parseFloat(formData.productPrice) || 0;
+      if (priceCheck > MAX_PRODUCT_PRICE) {
+        newErrors.productPrice = `Product price cannot exceed PKR ${MAX_PRODUCT_PRICE.toLocaleString()} (unless Special Customer is enabled).`;
+      }
     }
 
     if (!isSpecialCustomer) {
@@ -801,6 +825,7 @@ const AddAccount = () => {
           productType: 'new',
           productName: '',
           productPrice: '',
+          profitPercent: '',
           advanceAmount: '',
           invoicePrice: '',
           noOfInstallments: '',
@@ -1039,8 +1064,8 @@ const AddAccount = () => {
             <div style={{ fontWeight: 700, fontSize: '14px' }}>Special Customer</div>
             <div style={{ fontWeight: 500, fontSize: '12px', color: '#6b7280' }}>
               {isSpecialCustomer
-                ? 'ON — 2-account limit aur PKR 100,000 combined-amount limit is CNIC pe apply nahi hongi'
-                : 'Enable karne par is CNIC pe koi bhi account/amount limit apply nahi hogi'}
+                ? 'ON — Product Price limit, 2-account limit aur PKR 100,000 combined-amount limit is CNIC pe apply nahi hongi'
+                : 'Enable karne par is CNIC pe koi bhi price/account/amount limit apply nahi hogi'}
             </div>
           </div>
         </div>
@@ -1425,7 +1450,7 @@ const AddAccount = () => {
                 gap: '8px'
               }}>
                 <Star size={16} style={{ color: '#C9A84C' }} />
-                Special Customer — account count aur combined-amount limits is CNIC pe apply nahi ho rahi.
+                Special Customer — Product Price limit, account count aur combined-amount limits is CNIC pe apply nahi ho rahi.
               </div>
             )}
 
@@ -1461,22 +1486,66 @@ const AddAccount = () => {
                 <small className="field-hint" style={{ fontWeight: 500 }}>What is this account for? (Product name, purpose, description)</small>
                 {errors.productName && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productName}</span>}
               </div>
+
+              {/* ✅ Product Price — max PKR 100,000 unless Special Customer is ON */}
               <div className="form-group">
                 <label style={{ fontWeight: 700 }}>Product Price (PKR) *</label>
                 <div className="input-with-icon">
                   <DollarSign size={18} style={{ color: '#C9A84C' }} />
-                  <input type="number" name="productPrice" className="form-input" placeholder="Enter product price" value={formData.productPrice} onChange={handleChange} style={{ fontWeight: 500 }} />
+                  <input
+                    type="number"
+                    name="productPrice"
+                    className="form-input"
+                    placeholder={isSpecialCustomer ? 'Enter product price' : 'Enter product price (max PKR 100,000)'}
+                    value={formData.productPrice}
+                    onChange={handleChange}
+                    style={{ fontWeight: 500 }}
+                  />
                 </div>
+                {!isSpecialCustomer && (
+                  <small className="field-hint" style={{ fontWeight: 500 }}>
+                    Maximum PKR {MAX_PRODUCT_PRICE.toLocaleString()} allowed (Special Customer ON hone par limit nahi)
+                  </small>
+                )}
                 {errors.productPrice && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productPrice}</span>}
               </div>
+
+              {/* ✅ NEW: Profit / Markup % — Invoice Price ab isi se calculate hogi */}
               <div className="form-group">
-                <label style={{ fontWeight: 700 }}>Invoice Price (PKR) *</label>
+                <label style={{ fontWeight: 700 }}>Profit / Markup (%) *</label>
+                <div className="input-with-icon">
+                  <Percent size={18} style={{ color: '#C9A84C' }} />
+                  <input
+                    type="number"
+                    name="profitPercent"
+                    className="form-input"
+                    placeholder="e.g., 30"
+                    value={formData.profitPercent}
+                    onChange={handleChange}
+                    style={{ fontWeight: 500 }}
+                  />
+                </div>
+                <small className="field-hint" style={{ fontWeight: 500 }}>Invoice Price = Product Price + (Product Price × Profit %)</small>
+                {errors.profitPercent && <span className="error-text" style={{ fontWeight: 600 }}>{errors.profitPercent}</span>}
+              </div>
+
+              {/* ✅ Invoice Price — ab readonly / auto-calculated */}
+              <div className="form-group">
+                <label style={{ fontWeight: 700 }}>Invoice Price (PKR)</label>
                 <div className="input-with-icon">
                   <DollarSign size={18} style={{ color: '#C9A84C' }} />
-                  <input type="number" name="invoicePrice" className="form-input" placeholder="Enter invoice price" value={formData.invoicePrice} onChange={handleChange} style={{ fontWeight: 500 }} />
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.invoicePrice ? `PKR ${parseFloat(formData.invoicePrice).toLocaleString()}` : 'Auto-calculated from Product Price + Profit %'}
+                    readOnly
+                    style={{ background: '#f8f9fa', fontWeight: 600 }}
+                  />
                 </div>
+                <small className="field-hint" style={{ fontWeight: 500 }}>Calculation: Product Price + (Product Price × Profit % ÷ 100)</small>
                 {errors.invoicePrice && <span className="error-text" style={{ fontWeight: 600 }}>{errors.invoicePrice}</span>}
               </div>
+
               <div className="form-group">
                 <label style={{ fontWeight: 700 }}>Advance / 1st Installment (PKR)</label>
                 <div className="input-with-icon">

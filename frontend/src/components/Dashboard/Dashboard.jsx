@@ -1,11 +1,12 @@
 // src/components/Dashboard/Dashboard.jsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, Package, DollarSign, TrendingUp, BarChart, 
   LineChart, PieChart, Activity, Award, AlertTriangle, 
   Calendar, ChevronDown, ChevronUp, RefreshCw, Sparkles,
-  CheckCircle, Clock, AlertCircle, Building, Filter, ExternalLink
+  CheckCircle, Clock, AlertCircle, Building, Filter, ChevronRight
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -37,7 +38,40 @@ const generateMonthLabels = (startDate, count) => {
   return labels;
 };
 
+// ✅ Helper: Get current month's due date from day number
+const getCurrentDueDate = (dueDateStr) => {
+  if (!dueDateStr) return null;
+  
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  
+  // If dueDate is like "1", "2", "3" (day of month)
+  if (/^\d{1,2}$/.test(dueDateStr.trim())) {
+    const day = parseInt(dueDateStr.trim());
+    return new Date(currentYear, currentMonth, day);
+  }
+  // If dueDate is like "1st", "2nd", "3rd"
+  else if (/^(\d{1,2})(st|nd|rd|th)?$/.test(dueDateStr.trim())) {
+    const day = parseInt(dueDateStr.trim());
+    return new Date(currentYear, currentMonth, day);
+  }
+  // If dueDate is like "2026-08-01"
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(dueDateStr.trim())) {
+    return new Date(dueDateStr.trim());
+  }
+  return null;
+};
+
+// ✅ Dismissal key ko current month/cycle ke sath bandho, taake
+// agle mahine expense unpaid hone par dobara dashboard par show ho.
+const getDismissKey = (expenseId) => {
+  const today = new Date();
+  return `${expenseId}_${today.getFullYear()}-${today.getMonth() + 1}`;
+};
+
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [error, setError] = useState(null);
@@ -47,10 +81,8 @@ const Dashboard = () => {
   const [showBranchOverview, setShowBranchOverview] = useState(false);
   const [upcomingExpenses, setUpcomingExpenses] = useState([]);
   
-  // ✅ Dismissed reminders state
   const [dismissedReminders, setDismissedReminders] = useState([]);
 
-  // ===== Chart Filter State =====
   const [filterMode, setFilterMode] = useState('last6');
   const [singleMonth, setSingleMonth] = useState(new Date().getMonth() + 1);
   const [singleYear, setSingleYear] = useState(CURRENT_YEAR);
@@ -65,23 +97,18 @@ const Dashboard = () => {
       setUserBranch(user.branch_id || user.branch);
     }
     
-    // ✅ Load dismissed reminders from localStorage
     const savedDismissed = localStorage.getItem('dismissedReminders');
     if (savedDismissed) {
       setDismissedReminders(JSON.parse(savedDismissed));
     }
     
     fetchAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filter change hone par dobara data fetch karo
   useEffect(() => {
     fetchAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedFilter]);
 
-  // ===== Build query string for dashboard endpoint based on filter =====
   const buildDashboardParams = useCallback((user) => {
     const params = new URLSearchParams();
 
@@ -101,6 +128,7 @@ const Dashboard = () => {
     return params.toString();
   }, [appliedFilter]);
 
+  // ✅ FIXED: Sirf unpaid expenses fetch karo aur current month ki due date show karo
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -113,7 +141,7 @@ const Dashboard = () => {
         fetch(`${API_URL}/reports/dashboard${query ? `?${query}` : ''}`, {
           headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
         }),
-        fetch(`${API_URL}/expenses/fixed${userBranch ? `?branch_id=${userBranch}` : ''}`, {
+        fetch(`${API_URL}/expenses/fixed/all${userBranch ? `?branch_id=${userBranch}` : ''}`, {
           headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
         })
       ]);
@@ -129,34 +157,42 @@ const Dashboard = () => {
         setError(dashboardJson.message || 'Failed to load dashboard');
       }
 
+      // ✅ FIXED: Expenses processing - sirf unpaid aur current month ki due date
       if (expensesData.success) {
-        const expenses = (expensesData.data || []).map(exp => ({
-          id: exp.id,
-          name: exp.name,
-          amount: parseFloat(exp.amount) || 0,
-          branch: exp.branch_id,
-          dueDate: exp.due_date || '',
-          paid: !!exp.paid,
-          lastPaid: exp.last_paid || 'Never'
-        }));
+        const expenses = (expensesData.data || [])
+          .filter(exp => !exp.paid && exp.due_date) // ✅ Sirf unpaid
+          .map(exp => ({
+            id: exp.id,
+            name: exp.name,
+            amount: parseFloat(exp.amount) || 0,
+            branch: exp.branch_id,
+            dueDate: exp.due_date || '',
+            paid: !!exp.paid,
+            lastPaid: exp.last_paid || 'Never'
+          }));
 
-        const allExpenses = expenses.filter(e => e.dueDate);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const upcoming = allExpenses.map(e => {
-          let dayMatch = e.dueDate.match(/(\d+)/);
-          let dueDay = dayMatch ? parseInt(dayMatch[0]) : 1;
-          let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
-          if (dueDate < today) {
-            dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+        const upcoming = expenses.map(e => {
+          // ✅ Use getCurrentDueDate helper for proper date
+          let dueDate = getCurrentDueDate(e.dueDate);
+          
+          // If dueDate is null or invalid, use today
+          if (!dueDate || isNaN(dueDate.getTime())) {
+            dueDate = new Date(today);
           }
+          
+          dueDate.setHours(0, 0, 0, 0);
           const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-          return { ...e, dueDateObj: dueDate, daysLeft, dueDay };
+          return { ...e, dueDateObj: dueDate, daysLeft };
         });
 
-        const filtered = upcoming.filter(e => e.daysLeft === 1);
+        // ✅ Sab expenses jo aaj, kal ya overdue hain (daysLeft <= 1)
+        const filtered = upcoming.filter(e => e.daysLeft <= 1);
         filtered.sort((a, b) => a.daysLeft - b.daysLeft);
+        
+        console.log('Upcoming Expenses:', filtered);
         setUpcomingExpenses(filtered);
       }
     } catch (error) {
@@ -171,14 +207,16 @@ const Dashboard = () => {
     fetchAllData();
   }, [fetchAllData]);
 
-  // ✅ Handle dismiss reminder (OK button)
+  // ✅ key ab expenseId + current year-month hai, isliye dismissal
+  // sirf isi cycle ke liye lagu hoga — agle mahine wapas dikhega
   const handleDismissReminder = (expenseId) => {
-    const updatedDismissed = [...dismissedReminders, expenseId];
+    const key = getDismissKey(expenseId);
+    if (dismissedReminders.includes(key)) return;
+    const updatedDismissed = [...dismissedReminders, key];
     setDismissedReminders(updatedDismissed);
     localStorage.setItem('dismissedReminders', JSON.stringify(updatedDismissed));
   };
 
-  // ✅ Handle mark as paid
   const handleMarkAsPaid = async (expenseId) => {
     try {
       const token = localStorage.getItem('token');
@@ -206,15 +244,13 @@ const Dashboard = () => {
     }
   };
 
-  // ✅ FIXED: Handle redirect to Fixed Expenses (inside Finance)
   const handleRedirectToFixedExpenses = () => {
-    // ✅ CORRECT PATH - Match with App.jsx route
-    window.location.href = '/finance/fixed';
+    navigate('/finance/fixed');
   };
 
-  // ✅ Filter out dismissed expenses
+  // ✅ filter ab getDismissKey se compare karta hai
   const visibleUpcomingExpenses = upcomingExpenses.filter(
-    expense => !dismissedReminders.includes(expense.id)
+    expense => !dismissedReminders.includes(getDismissKey(expense.id))
   );
 
   const formatCurrency = (amount) => {
@@ -418,6 +454,27 @@ const Dashboard = () => {
     return null;
   };
 
+  // ✅ FIXED: Status ab hamesha "Unpaid" dikhayega (Today/Tomorrow/Overdue pill hata di)
+  const getStatusPill = () => {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '4px 12px',
+          borderRadius: '999px',
+          fontSize: '12px',
+          fontWeight: 700,
+          color: '#b45309',
+          background: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.3)'
+        }}
+      >
+        Unpaid
+      </span>
+    );
+  };
+
   if (loading && !dashboardData) {
     return (
       <div className="dashboard-container">
@@ -480,7 +537,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* ===== STATS GRID ===== */}
       <div className="stats-grid-4">
         {stats.map((stat, index) => (
           <div key={index} className="stat-card-4">
@@ -494,7 +550,6 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* ===== PERFORMANCE CHART ===== */}
       <div className="chart-section">
         <div className="chart-header">
           <h3>
@@ -515,7 +570,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* ===== Chart Filter Bar ===== */}
         <div className="chart-filter-bar">
           <div className="filter-mode-selector">
             <button className={`filter-mode-btn ${filterMode === 'last6' ? 'active' : ''}`}
@@ -571,7 +625,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ===== TOP PERFORMERS + REVENUE COMPARISON ===== */}
       <div className="performers-revenue-grid">
         <div className="performers-section fixed-height">
           <h3><Award size={20} /> Top Performers - This Month</h3>
@@ -652,129 +705,63 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ===== UPCOMING FIXED EXPENSES ===== */}
+      {/* ===== UPCOMING FIXED EXPENSES - UPDATED ===== */}
       {visibleUpcomingExpenses.length > 0 && (
         <div className="upcoming-expenses-section">
           <div className="upcoming-expenses-header">
             <div className="header-left">
-              <AlertCircle size={18} className="warning-icon" />
-              <h3>⚠️ Upcoming Fixed Expenses (Tomorrow)</h3>
-              <span className="expense-count">{visibleUpcomingExpenses.length} due tomorrow</span>
+              <h3>Fixed Expense Pending</h3>
             </div>
-            <div className="header-right" style={{ display: 'flex', gap: '10px' }}>
-              {/* ✅ VIEW ALL EXPENSES - Redirect to Finance > Fixed Expenses */}
-              <button 
-                className="btn-view-all" 
-                onClick={handleRedirectToFixedExpenses}
-                style={{
-                  padding: '8px 18px',
-                  background: '#1E1B4B',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#312e81';
-                  e.target.style.transform = 'scale(1.02)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = '#1E1B4B';
-                  e.target.style.transform = 'scale(1)';
-                }}
-              >
-                <ExternalLink size={16} />
-                View All Expenses
-              </button>
-            </div>
+            <button className="btn-view-all" onClick={handleRedirectToFixedExpenses}>
+              View All Expenses
+              <ChevronRight size={16} />
+            </button>
           </div>
-          <div className="upcoming-expenses-grid">
-            {visibleUpcomingExpenses.map((expense) => (
-              <div key={expense.id} className="expense-card urgent">
-                <div className="expense-card-left">
-                  <div className="expense-icon"><DollarSign size={16} /></div>
-                  <div className="expense-info">
-                    <span className="expense-name">{expense.name}</span>
-                    <span className="expense-amount">{formatCurrency(expense.amount)}</span>
-                  </div>
-                </div>
-                <div className="expense-card-center">
-                  <span className="expense-days urgent"><Clock size={12} /> Tomorrow!</span>
-                  <span className="expense-due-date">
-                    Due: {expense.dueDateObj.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </span>
-                </div>
-                <div className="expense-card-right" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  {/* ✅ PAID BUTTON */}
-                  <button 
-                    className="btn-mark-paid" 
-                    onClick={() => handleMarkAsPaid(expense.id)} 
-                    title="Mark as Paid"
-                    style={{
-                      padding: '6px 14px',
-                      background: '#22c55e',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = '#16a34a';
-                      e.target.style.transform = 'scale(1.02)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = '#22c55e';
-                      e.target.style.transform = 'scale(1)';
-                    }}
-                  >
-                    <CheckCircle size={16} /> Paid
-                  </button>
 
-                  {/* ✅ OK BUTTON - Dismiss Reminder */}
-                  <button 
-                    className="btn-ok-reminder" 
-                    onClick={() => handleDismissReminder(expense.id)}
-                    title="Dismiss Reminder"
-                    style={{
-                      padding: '6px 18px',
-                      background: '#2563eb',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = '#1d4ed8';
-                      e.target.style.transform = 'scale(1.02)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = '#2563eb';
-                      e.target.style.transform = 'scale(1)';
-                    }}
-                  >
-                    OK
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="upcoming-expenses-table-wrap">
+            <table className="upcoming-expenses-table">
+              <thead>
+                <tr>
+                  <th>Expense</th>
+                  <th>Amount</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleUpcomingExpenses.map((expense) => (
+                  <tr key={expense.id}>
+                    <td className="expense-name-cell">{expense.name}</td>
+                    <td className="expense-amount-cell">{formatCurrency(expense.amount)}</td>
+                    <td className="expense-duedate-cell">
+                      {expense.dueDateObj.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td>
+                      {getStatusPill()}
+                    </td>
+                    <td>
+                      <div className="table-action-group">
+                        <button
+                          className="btn-mark-paid"
+                          onClick={() => handleMarkAsPaid(expense.id)}
+                          title="Mark as Paid"
+                        >
+                          <CheckCircle size={15} /> Paid
+                        </button>
+                        <button
+                          className="btn-ok-reminder"
+                          onClick={() => handleDismissReminder(expense.id)}
+                          title="Dismiss Reminder"
+                        >
+                          OK
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

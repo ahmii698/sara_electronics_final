@@ -568,12 +568,105 @@ const EditPaymentModal = ({
 };
 
 // ============================================
+// ✅ STATUS FILTER (multi-select checkbox dropdown, single selection bhi kaam karega)
+// ============================================
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'unpaid', label: 'Unpaid' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'aging', label: 'Aging' },
+  { value: 'overdue', label: 'Overdue' }
+];
+
+const StatusMultiFilter = ({ filterStatus, setFilterStatus }) => {
+  const [open, setOpen] = useState(false);
+
+  const toggleStatus = (value) => {
+    setFilterStatus(prev => {
+      if (value === 'all') return ['all'];
+      let next = prev.includes('all') ? [] : [...prev];
+      next = next.includes(value)
+        ? next.filter(s => s !== value)
+        : [...next, value];
+      return next.length === 0 ? ['all'] : next;
+    });
+  };
+
+  const displayLabel = filterStatus.includes('all')
+    ? 'All'
+    : STATUS_OPTIONS.filter(o => filterStatus.includes(o.value)).map(o => o.label).join(', ');
+
+  return (
+    <div className="filter-group" style={{ position: 'relative' }}>
+      <label>Status:</label>
+      <button
+        type="button"
+        className="filter-select"
+        onClick={() => setOpen(v => !v)}
+        style={{ textAlign: 'left', cursor: 'pointer', minWidth: '170px', maxWidth: '260px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {displayLabel}
+      </button>
+
+      {open && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 10 }}
+            onClick={() => setOpen(false)}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              marginTop: '4px',
+              background: '#fff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 20,
+              minWidth: '190px',
+              padding: '8px'
+            }}
+          >
+            {STATUS_OPTIONS.map(opt => (
+              <label
+                key={opt.value}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  borderRadius: '6px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                <input
+                  type="checkbox"
+                  checked={filterStatus.includes(opt.value)}
+                  onChange={() => toggleStatus(opt.value)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ============================================
 // ✅ MAIN COMPONENT
 // ============================================
 const Installments = () => {
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState('all');
+  // ✅ ab array hai — single ya multiple dono status select ho sakte hain
+  const [filterStatus, setFilterStatus] = useState(['all']);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [userBranch, setUserBranch] = useState(null);
@@ -622,12 +715,15 @@ const Installments = () => {
     setBranchReady(true);
   }, []);
 
-  // ✅ STEP 2: sirf yahi se fetch hoga
+  // ✅ STEP 2: fetch sirf branch ready hone par hoga.
+  // Status filtering ab client-side hoti hai (multi-select ke liye), isliye
+  // filterStatus is dependency list mein nahi hai — fetch dobara nahi hoga
+  // jab sirf status filter badalta hai.
   useEffect(() => {
     if (!branchReady) return;
     fetchInstallments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, branchReady, userBranch]);
+  }, [branchReady, userBranch]);
 
   // ✅ Search debounce
   useEffect(() => {
@@ -655,6 +751,7 @@ const Installments = () => {
   }, [monthsBetween, getCurrentMonthStr]);
 
   // ✅ Kitne mahine se late hai (0 = abhi due hi nahi hui / future installment)
+  // 1 = Aging 1m, 2 = Aging 2m, 3 = Aging 3m, 4+ = Overdue
   const getAgingMonths = useCallback((item) => {
     if (!item.month) return 1;
     const monthsDiff = monthsBetween(item.month, getCurrentMonthStr());
@@ -662,12 +759,27 @@ const Installments = () => {
     return monthsDiff + 1;
   }, [monthsBetween, getCurrentMonthStr]);
 
+  // ✅ Ek item diye gaye status list (array) mein se kisi bhi status se match karta hai ya nahi
+  const matchesStatusFilter = useCallback((item, statuses) => {
+    if (!statuses || statuses.length === 0 || statuses.includes('all')) return true;
+    const balance = parseFloat(item.balance || 0);
+    const aging = getAgingMonths(item);
+    return statuses.some(status => {
+      if (status === 'paid') return balance <= 0;
+      if (status === 'unpaid') return balance > 0 && aging === 0;
+      if (status === 'aging') return balance > 0 && aging >= 1 && aging < 4;
+      if (status === 'overdue') return balance > 0 && aging >= 4;
+      return false;
+    });
+  }, [getAgingMonths]);
+
   const fetchInstallments = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
 
-      const backendStatus = filterStatus === 'paid' ? 'paid' : 'all';
+      // ✅ ab hamesha "all" backend se mangwao, filtering client-side hogi (multi-select ke liye)
+      const backendStatus = 'all';
 
       let url = `${API_URL}/installments?status=${backendStatus}`;
 
@@ -741,29 +853,7 @@ const Installments = () => {
 
         let uniqueInstallments = Array.from(uniqueMap.values());
 
-        if (filterStatus === 'unpaid') {
-          uniqueInstallments = uniqueInstallments.filter(item =>
-            parseFloat(item.balance || 0) > 0 && getAgingMonths(item) === 0
-          );
-        }
-
-        // ✅ SWAPPED: 1-2 months late = "Aging" ab yahan filter hoga
-        if (filterStatus === 'aging') {
-          uniqueInstallments = uniqueInstallments.filter(item => {
-            const agingMonths = getAgingMonths(item);
-            return parseFloat(item.balance || 0) > 0 && agingMonths >= 1 && agingMonths < 3;
-          });
-        }
-
-        // ✅ SWAPPED: 3+ months late = "Overdue" ab yahan filter hoga
-        if (filterStatus === 'overdue') {
-          uniqueInstallments = uniqueInstallments.filter(item =>
-            parseFloat(item.balance || 0) > 0 && getAgingMonths(item) >= 3
-          );
-        }
-
         setInstallments(uniqueInstallments);
-        calculateTotals(uniqueInstallments);
         setCurrentPage(1);
       }
     } catch (error) {
@@ -773,13 +863,18 @@ const Installments = () => {
     }
   };
 
-  // ✅ Top card "Aging" count - balance > 0 aur month current month tak pohanch chuka hai (sab due unpaid)
-  const calculateTotals = (data) => {
+  // ✅ selected status filter(s) ke hisaab se list
+  const statusFilteredInstallments = useMemo(() => {
+    return installments.filter(item => matchesStatusFilter(item, filterStatus));
+  }, [installments, filterStatus, matchesStatusFilter]);
+
+  // ✅ Top cards ka data status-filtered list se calculate hota hai
+  useEffect(() => {
     let totalDue = 0;
     let totalPaid = 0;
     let agingCount = 0;
 
-    data.forEach(item => {
+    statusFilteredInstallments.forEach(item => {
       totalDue += parseFloat(item.due_amount || 0);
       totalPaid += parseFloat(item.paid_amount || 0);
 
@@ -792,14 +887,17 @@ const Installments = () => {
     });
 
     setTotalData({
-      total_installments: data.length,
+      total_installments: statusFilteredInstallments.length,
       total_due: totalDue,
       total_paid: totalPaid,
       aging_count: agingCount
     });
-  };
 
-  // ✅ UPDATED: ab 1-3 months late = "Aging (Nm)", sirf 4+ months late pe "Overdue"
+    setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilteredInstallments]);
+
+  // ✅ 1-3 months late = "Aging (Nm)", sirf 4+ months late pe "Overdue"
   const getStatusBadge = (item) => {
     const balance = parseFloat(item.balance || 0);
 
@@ -834,7 +932,8 @@ const Installments = () => {
     );
   };
 
-  // ✅ SWAPPED: same logic yahan bhi (account-level status modal ke andar)
+  // ✅ FIX: same threshold (>=4) as getStatusBadge, so account-level status
+  // in the modal always matches the row badge instead of flipping to Overdue a month early
   const getAccountCardStatus = (payments, account) => {
     const list = Array.isArray(payments) ? payments : [];
     const totalInstallments = account?.total_installments || list.length;
@@ -863,7 +962,7 @@ const Installments = () => {
     const oldestDueMonth = dueUnpaidMonths[0];
     const agingCount = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
 
-    if (agingCount >= 3) {
+    if (agingCount >= 4) {
       return (
         <span className="badge badge-overdue">
           <AlertCircle size={14} /> Overdue
@@ -947,12 +1046,12 @@ const Installments = () => {
     }
   };
 
-  // ✅ SEARCH
+  // ✅ SEARCH (status-filtered list par lagta hai)
   const filteredInstallments = useMemo(() => {
     const search = debouncedSearch.toLowerCase().trim();
-    if (!search) return installments;
+    if (!search) return statusFilteredInstallments;
 
-    return installments.filter(item => {
+    return statusFilteredInstallments.filter(item => {
       const customer = item.customer || item.account?.customer || {};
       const customerName = (customer.name || item.customer_name || '').toLowerCase();
       const customerCnic = (customer.cnic || item.cnic || '').toLowerCase();
@@ -974,7 +1073,7 @@ const Installments = () => {
              creatorName.includes(search) ||
              employeeName.includes(search);
     });
-  }, [installments, debouncedSearch]);
+  }, [statusFilteredInstallments, debouncedSearch]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -1166,7 +1265,7 @@ const Installments = () => {
     }
   };
 
-  // ✅ EXPORT DATA - status label bhi swap ke hisaab se
+  // ✅ EXPORT DATA - status label bhi getStatusBadge/filter ke hisaab se (threshold 4)
   const exportData = useMemo(() => {
     return filteredInstallments.map(item => {
       const customer = item.customer || item.account?.customer || {};
@@ -1188,7 +1287,7 @@ const Installments = () => {
         month: item.month ? new Date(item.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : 'N/A',
         dueDate: item.due_date ? formatDate(item.due_date) : 'N/A',
         status: parseFloat(item.balance || 0) <= 0 ? 'Paid' : 
-                getAgingMonths(item) >= 3 ? 'Overdue' : 
+                getAgingMonths(item) >= 4 ? 'Overdue' : 
                 getAgingMonths(item) >= 1 ? 'Aging' : 'Unpaid',
         createdBy: creator.name || 'N/A',
         employee: employee.name || account.employee_name || 'N/A',
@@ -1274,7 +1373,7 @@ const Installments = () => {
             <DollarSign size={22} />
           </div>
           <div className="stat-card-4-info">
-            <span className="stat-card-4-label">Total Installments</span>
+            <span className="stat-card-4-label">Total Accounts</span>
             <span className="stat-card-4-value">{totalData.total_installments}</span>
           </div>
         </div>
@@ -1309,20 +1408,7 @@ const Installments = () => {
 
       <div className="filters-section">
         <div className="filters-left">
-          <div className="filter-group">
-            <label>Status:</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="paid">Paid</option>
-              <option value="aging">Aging</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </div>
+          <StatusMultiFilter filterStatus={filterStatus} setFilterStatus={setFilterStatus} />
         </div>
 
         <div className="filter-search">
@@ -1360,14 +1446,11 @@ const Installments = () => {
                   <th>#</th>
                   <th>Customer</th>
                   <th>Case No</th>
-                  <th>Account Opening</th>
                   <th>Due Date</th>
                   <th>Installments</th>
-                  <th>Paid</th>
-                  <th>Mirror</th>
                   <th>Balance</th>
+                  <th>Mirror</th>
                   <th>Status</th>
-                  <th>Created By</th>
                   <th>Employee</th>
                   <th>Actions</th>
                 </tr>
@@ -1422,11 +1505,6 @@ const Installments = () => {
                         <span className="case-no">{caseNo}</span>
                       </td>
                       <td>
-                        <span className="month-text" style={{fontWeight: '500', color: '#2563eb'}}>
-                          {formatDate(accountOpeningDate)}
-                        </span>
-                      </td>
-                      <td>
                         <span className="month-text" style={{fontWeight: '500', color: '#7c3aed'}}>
                           {item.due_date ? formatDate(item.due_date) : (item.month ? new Date(item.month + '-01').toLocaleDateString('en-PK', {
                             day: '2-digit',
@@ -1436,34 +1514,18 @@ const Installments = () => {
                         </span>
                       </td>
                       <td className="text-right">{formatCurrency(item.due_amount)}</td>
-                      <td className="text-right" style={{color: '#10b981'}}>
-                        {formatCurrency(item.paid_amount)}
+                      <td className="text-right" style={{fontWeight: 'bold', color: '#dc2626', fontSize: '14px'}}>
+                        {formatCurrency(accountTotalBalance)}
                       </td>
                       <td className="text-right" style={{color: item.balance > 0 ? '#ef4444' : '#10b981'}}>
                         {formatCurrency(item.balance)}
                       </td>
-                      <td className="text-right" style={{fontWeight: 'bold', color: '#dc2626', fontSize: '14px'}}>
-                        {formatCurrency(accountTotalBalance)}
-                      </td>
                       <td>{getStatusBadge(item)}</td>
-
-                      <td>
-                        <span style={{fontWeight: '600', color: '#3730a3', fontSize: '12px'}}>
-                          {creatorName}
-                          {creatorRole && (
-                            <span style={{fontSize: '10px', color: '#6b7280', marginLeft: '4px'}}>
-                              ({creatorRole})
-                            </span>
-                          )}
-                        </span>
-                      </td>
-
                       <td>
                         <span style={{fontWeight: '600', color: '#166534', fontSize: '12px'}}>
                           {employeeName}
                         </span>
                       </td>
-
                       <td>
                         <div className="action-buttons">
                           <button
