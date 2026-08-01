@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import './Dashboard.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const CURRENT_YEAR = new Date().getFullYear();
@@ -475,6 +476,45 @@ const Dashboard = () => {
     );
   };
 
+  // ✅ Export data function
+  const getExportData = useCallback(() => {
+    if (!dashboardData) return [];
+    
+    return [
+      {
+        metric: 'Total Customers',
+        value: dashboardData.total_customers || 0,
+        branch: getBranchDisplayName()
+      },
+      {
+        metric: 'New Accounts',
+        value: dashboardData.new_accounts || 0,
+        branch: getBranchDisplayName()
+      },
+      {
+        metric: 'Total Sales',
+        value: dashboardData.total_sales || 0,
+        branch: getBranchDisplayName()
+      },
+      {
+        metric: 'Monthly Recovery',
+        value: dashboardData.monthly_recovery || 0,
+        branch: getBranchDisplayName()
+      },
+      {
+        metric: 'Total Revenue',
+        value: dashboardData.total_revenue || 0,
+        branch: getBranchDisplayName()
+      }
+    ];
+  }, [dashboardData]);
+
+  const exportColumns = [
+    { header: 'Metric', key: 'metric' },
+    { header: 'Value', key: 'value' },
+    { header: 'Branch', key: 'branch' },
+  ];
+
   if (loading && !dashboardData) {
     return (
       <div className="dashboard-container">
@@ -531,10 +571,18 @@ const Dashboard = () => {
           <h2>Dashboard</h2>
           {userBranch && <span className="branch-indicator">{getBranchDisplayName()}</span>}
         </div>
-        <button className="btn-refresh" onClick={handleRefresh} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <RefreshCw size={18} />
-          Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportButton
+            data={getExportData()}
+            columns={exportColumns}
+            filename="dashboard-report"
+            title="Dashboard Report"
+          />
+          <button className="btn-refresh" onClick={handleRefresh} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="stats-grid-4">

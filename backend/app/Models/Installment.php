@@ -16,7 +16,7 @@ class Installment extends Model
 
     protected $fillable = [
         'account_id', 'month', 'due_amount', 'paid_amount',
-        'balance', 'status', 'payment_date', 'description'
+        'balance', 'status', 'payment_date', 'description', 'remarks' // ✅ NEW
     ];
 
     // ✅ due_date ab hamesha response mein automatically shaamil hoga (koi naya column nahi chahiye)

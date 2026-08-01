@@ -132,11 +132,21 @@ class SalaryController extends Controller
 
     // ============================================
     // RESET SALARY (start of a new cycle)
-    // ✅ Reset ka matlab hai naya mahina shuru — is liye
-    // jo advances/loan-deductions abhi tak "pending" thi
-    // (Pay se officially close nahi hui), un sabko yahan
-    // finalize (close) kar dete hain taake agle mahine
-    // dobara balance mein se na katein.
+    // ✅ HISTORY-PRESERVING VERSION:
+    // Pehle hum wahi purana (paid) row ko update kar dete the
+    // (month field ko agay barha ke) — is se purana mahina
+    // (e.g. September) hamesha ke liye overwrite ho jata tha aur
+    // ReportController ki getEmployeeMonthlyData() (jo salary
+    // table se month-wise history khinchti hai) ko wo purana
+    // month kabhi milta hi nahi tha.
+    //
+    // ✅ Ab: purane (paid) record ko BILKUL TOUCH NAHI karte —
+    // wo history mein permanently mehfooz reh jata hai. Uski
+    // jagah agle cycle ke liye ek NAYA row create karte hain
+    // (status pending, sab kuch 0 se start). Is se salary table
+    // mein har mahine ka apna alag record ban jata hai aur
+    // Employee Report ki history (Monthly Breakdown) mein sab
+    // months sahi se dikhtay hain.
     // ============================================
     public function resetSalary($id)
     {
@@ -149,16 +159,45 @@ class SalaryController extends Controller
                 ], 404);
             }
 
-            $salary->update([
-                'status' => 'pending',
-                'paid_date' => null,
-                'commission' => 0,
-                'total_paid' => 0,
-                'leave_count' => 0,
-                'advances' => 0
-            ]);
+            // ✅ Agla cycle month nikaalo (e.g. 2026-09 -> 2026-10)
+            $nextMonth = \Carbon\Carbon::createFromFormat('Y-m', $salary->month)
+                ->addMonthNoOverflow()
+                ->format('Y-m');
 
-            // ✅ Pending advances ko close kar do
+            // ✅ Agar us naye month ka record kisi wajah se already
+            // exist karta ho (edge case — duplicate reset click wagera),
+            // to naya na banao, usi ko dobara pending kar do
+            $newSalary = Salary::where('user_id', $salary->user_id)
+                ->where('month', $nextMonth)
+                ->first();
+
+            if ($newSalary) {
+                $newSalary->update([
+                    'status' => 'pending',
+                    'paid_date' => null,
+                    'commission' => 0,
+                    'total_paid' => 0,
+                    'leave_count' => 0,
+                    'advances' => 0
+                ]);
+            } else {
+                // ✅ NAYA ROW — purana (paid) record bilkul waisa hi
+                // reh jata hai, history mein permanently mehfooz
+                $newSalary = Salary::create([
+                    'user_id' => $salary->user_id,
+                    'month' => $nextMonth,
+                    'salary_amount' => $salary->salary_amount,
+                    'commission' => 0,
+                    'advances' => 0,
+                    'leave_count' => 0,
+                    'total_paid' => 0,
+                    'status' => 'pending',
+                    'paid_date' => null,
+                ]);
+            }
+
+            // ✅ Pending advances ko close kar do (employee ke sath
+            // judi hain, kisi specific salary row se nahi)
             SalaryAdvance::where('user_id', $salary->user_id)
                 ->where('deducted', false)
                 ->update(['deducted' => true]);
@@ -171,7 +210,7 @@ class SalaryController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Salary reset successfully',
-                'data' => $salary->load(['user', 'leaves'])
+                'data' => $newSalary->load(['user', 'leaves'])
             ]);
         } catch (\Exception $e) {
             return response()->json([

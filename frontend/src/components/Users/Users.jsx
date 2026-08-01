@@ -61,7 +61,6 @@ const UsersManagement = () => {
       setUserRole(user.role);
       setUserBranch(user.branch);
     }
-    // ✅ Independent requests, already run in parallel (neither awaits the other)
     fetchClients();
     fetchEmployees();
   }, []);
@@ -84,8 +83,6 @@ const UsersManagement = () => {
     }
   };
 
-  // ✅ Function to fetch guarantors for a specific account (now called lazily,
-  // only for the one account whose modal the user opens)
   const fetchGuarantorsForAccount = async (accountId) => {
     try {
       const token = localStorage.getItem('token');
@@ -99,7 +96,6 @@ const UsersManagement = () => {
       if (data.success && data.data) {
         const accountData = data.data;
         const customer = accountData.customer || {};
-        // Try multiple paths for guarantors
         if (customer.guarantors && Array.isArray(customer.guarantors)) {
           return customer.guarantors;
         }
@@ -117,14 +113,6 @@ const UsersManagement = () => {
     }
   };
 
-  // ✅ FAST fetchClients - pehle yahan har account ke liye Promise.all ke andar
-  // `await fetchGuarantorsForAccount(account.id)` chal raha tha jab bhi guarantors
-  // customer/account object mein already nahi hote the — matlab 100+ clients pe
-  // 100+ EXTRA network requests page load ke waqt, aur poora page un sab ke
-  // complete hone ka wait karta tha. Ab guarantors sirf usi data se liye jate
-  // hain jo /accounts response mein already mojood hai; agar nahi milte to
-  // empty rehte hain aur "View Details" click karne par sirf usi client ke
-  // liye lazy-fetch hote hain (neeche viewDetail mein).
   const fetchClients = async () => {
     setLoading(true);
     try {
@@ -139,7 +127,6 @@ const UsersManagement = () => {
       if (data.success) {
         const accounts = data.data.data || data.data || [];
         
-        // ✅ Synchronous map now — no per-account network calls here
         const clientsData = accounts.map((account) => {
           const installments = account.installments || [];
           const currentMonthStr = getCurrentMonthStr();
@@ -148,8 +135,6 @@ const UsersManagement = () => {
           
           const customer = account.customer || {};
           
-          // ✅ Get guarantors only from data already present in this response.
-          // If not present, leave empty for now — fetched lazily on "View Details".
           let guarantors = [];
           if (customer.guarantors && Array.isArray(customer.guarantors) && customer.guarantors.length > 0) {
             guarantors = customer.guarantors;
@@ -174,11 +159,7 @@ const UsersManagement = () => {
             installmentsPaid: account.installments_paid || 0,
             totalInstallments: account.total_installments || 0,
             nextDueDate: account.next_due_date || account.due_date || 'N/A',
-            // ✅ Display-only formatted date (locale string) — DO NOT use this for filtering/parsing.
             joiningDate: account.created_at ? new Date(account.created_at).toLocaleDateString() : 'N/A',
-            // ✅ FIX: raw ISO date kept separately so date-range filtering is reliable.
-            // Locale strings (e.g. "7/31/2026") are ambiguous to re-parse with `new Date()`
-            // across browsers/locales and were producing Invalid Date -> filters always empty.
             joiningDateRaw: account.created_at || null,
             lastPaymentDate: account.last_payment_date || 'N/A',
             product: account.product_name || 'N/A',
@@ -191,12 +172,11 @@ const UsersManagement = () => {
             creatorRole: account.creator?.role || null,
             installments: account.installments || [],
             mirror: mirrorAmount,
-            // ✅ Documents ke liye fields - customer se direct
             customer: customer,
             account: account,
+            remarks: account.remarks || customer.remarks || '', // ✅ Remarks field
             guarantors: guarantors,
-            guarantorsFetched: guarantors.length > 0, // ✅ tracks whether we still need to lazy-fetch
-            // Direct document fields for easy access
+            guarantorsFetched: guarantors.length > 0,
             cnic_front: customer.cnic_front || null,
             cnic_back: customer.cnic_back || null,
             additional_image_1: customer.additional_image_1 || null,
@@ -216,10 +196,6 @@ const UsersManagement = () => {
     }
   };
 
-  // ============================================
-  // ✅ SAME LOGIC AS Installments.jsx
-  // ============================================
-
   const monthsBetween = (fromMonth, toMonth) => {
     if (!fromMonth || !toMonth) return 0;
     const [fy, fm] = fromMonth.split('-').map(Number);
@@ -232,11 +208,6 @@ const UsersManagement = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   };
 
-  // ============================================
-  // ✅ UPDATED NAMING (logic same, sirf labels swap):
-  // Month 1, 2, 3 (no payment) -> "aging" (1a, 2a, 3a)
-  // Month 4+ (no payment)      -> "overdue"
-  // ============================================
   const getClientCategoryInfo = useCallback((client) => {
     const list = Array.isArray(client.installments) ? client.installments : [];
     const totalInstallments = client.totalInstallments || list.length;
@@ -269,7 +240,6 @@ const UsersManagement = () => {
     const oldestDueMonth = dueUnpaidMonths[0];
     const overdueCount = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
 
-    // ✅ SWAPPED: pehle 1-3 months "aging", 4+ months "overdue"
     if (overdueCount >= 4) {
       return { category: 'overdue', months: overdueCount };
     }
@@ -288,7 +258,6 @@ const UsersManagement = () => {
     }
   };
 
-  // ✅ UPDATED: aging ab "1a / 2a / 3a" format mein, overdue "4m" jaisa raha
   const getCategoryBadge = (client) => {
     const { category, months } = getClientCategoryInfo(client);
     switch (category) {
@@ -305,7 +274,6 @@ const UsersManagement = () => {
     }
   };
 
-  // ✅ Memoized: only recomputes when clients/filters/branch actually change
   const filteredData = useMemo(() => {
     let filtered = clients;
 
@@ -330,10 +298,6 @@ const UsersManagement = () => {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       filtered = filtered.filter(item => {
-        // ✅ FIX: parse from the RAW ISO `created_at` string, not the
-        // locale-formatted `joiningDate` display string. `new Date(item.joiningDate)`
-        // (e.g. "7/31/2026") is ambiguous across browsers/locales and was
-        // frequently returning Invalid Date -> every date filter matched 0 rows.
         if (!item.joiningDateRaw) return false;
         const joinDate = new Date(item.joiningDateRaw);
         if (isNaN(joinDate.getTime())) return false;
@@ -357,19 +321,10 @@ const UsersManagement = () => {
     return filtered;
   }, [clients, userBranch, search, categoryFilter, dateFilter, getClientCategoryInfo]);
 
-  // ✅ CHANGED: ab yeh `clients` (poori list) se nahi, `filteredData` se banta hai.
-  // Isi wajah se neeche stat cards (Total Clients, Clear, Active, Overdue,
-  // Aging, Total Balance) ab search/category/date filter ke hisaab se
-  // dynamically update hote hain — "Today" select karoge to sirf aaj wale
-  // clients ka breakdown dikhega, "Aging" select karoge to sirf aging
-  // clients ka. Category is computed once per filtered client instead of
-  // being recomputed 5x per client on every render.
   const categorizedClients = useMemo(() => {
     return filteredData.map(c => ({ client: c, category: getClientCategoryInfo(c).category }));
   }, [filteredData, getClientCategoryInfo]);
 
-  // ✅ Memoized: derived once from categorizedClients (ab filtered) instead of
-  // looping the full client list 5 separate times on every render
   const { totalClients, totalAging, totalOverdue, totalPaid, totalClear, totalBalance } = useMemo(() => {
     let aging = 0, overdue = 0, paid = 0, clear = 0, balance = 0;
     for (const { client, category } of categorizedClients) {
@@ -389,7 +344,6 @@ const UsersManagement = () => {
     };
   }, [categorizedClients]);
 
-  // ✅ Format currency WITHOUT "PKR" prefix
   const formatCurrency = (amount) => {
     return amount.toLocaleString();
   };
@@ -407,9 +361,6 @@ const UsersManagement = () => {
     return branchId === 1 ? 'Branch 1' : 'Branch 2';
   };
 
-  // ✅ Opens modal instantly, then lazy-loads guarantors only for this one
-  // client (only if we don't already have them from the initial /accounts
-  // response) — this used to happen for EVERY client on page load.
   const viewDetail = async (item) => {
     setSelectedUser(item);
     setShowDetailModal(true);
@@ -423,11 +374,6 @@ const UsersManagement = () => {
       setClients(prev => prev.map(c => c.id === item.id ? updatedItem : c));
       setGuarantorsLoading(false);
     }
-  };
-
-  const editUser = (item) => {
-    setSelectedUser(item);
-    setShowEditModal(true);
   };
 
   const deleteUser = async (userId) => {
@@ -455,7 +401,6 @@ const UsersManagement = () => {
     }
   };
 
-  // ✅ EXPORT DATA - Account Holders ke liye
   const getExportData = useCallback(() => {
     return filteredData.map(client => {
       const categoryInfo = getClientCategoryInfo(client);
@@ -472,6 +417,7 @@ const UsersManagement = () => {
         balance: client.balance || 0,
         monthlyInstallment: client.monthlyInstallment || 0,
         mirror: client.mirror || 0,
+        remarks: client.remarks || '',
         installmentsPaid: client.installmentsPaid || 0,
         totalInstallments: client.totalInstallments || 0,
         nextDueDate: client.nextDueDate || 'N/A',
@@ -497,6 +443,7 @@ const UsersManagement = () => {
     { header: 'Balance', key: 'balance' },
     { header: 'Monthly Installment', key: 'monthlyInstallment' },
     { header: 'Mirror', key: 'mirror' },
+    { header: 'Remarks', key: 'remarks' },
     { header: 'Installments Paid', key: 'installmentsPaid' },
     { header: 'Total Installments', key: 'totalInstallments' },
     { header: 'Next Due Date', key: 'nextDueDate' },
@@ -536,7 +483,6 @@ const UsersManagement = () => {
       className: 'paid'
     },
     { 
-      // ✅ SWAPPED: color/position kept, ab yeh "Aging" (1-3 months) ko show karega
       label: 'Aging', 
       value: totalAging, 
       icon: Clock, 
@@ -545,7 +491,6 @@ const UsersManagement = () => {
       className: 'aging'
     },
     { 
-      // ✅ SWAPPED: ab yeh "Overdue" (4+ months) ko show karega
       label: 'Overdue', 
       value: totalOverdue, 
       icon: AlertTriangle, 
@@ -563,6 +508,7 @@ const UsersManagement = () => {
     },
   ];
 
+  // ✅ UPDATED: renderClientsTable with Remarks column
   const renderClientsTable = () => {
     if (loading) {
       return (
@@ -587,6 +533,7 @@ const UsersManagement = () => {
             <th style={{ fontWeight: 800 }}>Balance</th>
             <th style={{ fontWeight: 800 }}>Installment</th>
             <th style={{ fontWeight: 800 }}>Mirror</th>
+            <th style={{ fontWeight: 800 }}>Remarks</th>
             <th style={{ fontWeight: 800 }}>Status</th>
             <th style={{ fontWeight: 800 }}>Actions</th>
           </tr>
@@ -594,7 +541,7 @@ const UsersManagement = () => {
         <tbody>
           {data.length === 0 ? (
             <tr>
-              <td colSpan="11" className="no-data">
+              <td colSpan="12" className="no-data">
                 <div className="no-data-content">
                   <UsersIcon size={32} />
                   <p style={{ fontWeight: 600 }}>No clients found</p>
@@ -604,6 +551,8 @@ const UsersManagement = () => {
           ) : (
             data.map((client, index) => {
               const categoryInfo = getClientCategoryInfo(client);
+              const remarks = client.remarks || client.account?.remarks || client.customer?.remarks || '';
+              
               return (
                 <tr key={client.id} className={getRowColorClass(client)}>
                   <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
@@ -629,6 +578,11 @@ const UsersManagement = () => {
                   <td className="amount" style={{ fontWeight: 600 }}>{formatCurrency(client.monthlyInstallment)}</td>
                   <td className={client.mirror > 0 ? 'balance-amount' : 'paid-amount'} style={{ fontWeight: 700 }}>
                     {formatCurrency(client.mirror)}
+                  </td>
+                  <td>
+                    <span style={{ fontSize: '12px', color: '#4b5563', maxWidth: '150px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {remarks || '-'}
+                    </span>
                   </td>
                   <td>
                     {getCategoryBadge(client)}
@@ -771,7 +725,6 @@ const UsersManagement = () => {
                 </div>
               </div>
 
-              {/* ===== TWO COLUMN GRID ===== */}
               <div className="detail-section">
                 <h5 style={{ fontWeight: 700 }}>Personal Information</h5>
                 <div className="user-detail-grid two-col">
@@ -798,7 +751,6 @@ const UsersManagement = () => {
                 </div>
               </div>
 
-              {/* ===== ACCOUNT SUMMARY ===== */}
               <div className="detail-section">
                 <h5 style={{ fontWeight: 700 }}>Account Summary</h5>
                 <div className="account-summary-grid">
@@ -837,7 +789,6 @@ const UsersManagement = () => {
                 </div>
               </div>
 
-              {/* ===== CREATOR & EMPLOYEE INFO ===== */}
               <div className="detail-section">
                 <h5 style={{ fontWeight: 700 }}>Account Management</h5>
                 <div className="user-detail-grid two-col">
@@ -861,16 +812,13 @@ const UsersManagement = () => {
                 </div>
               </div>
 
-              {/* ============================================ */}
-              {/* ✅ DOCUMENTS SECTION - Same as Installments.jsx */}
-              {/* ============================================ */}
+              {/* ===== DOCUMENTS SECTION ===== */}
               <div className="detail-section" style={{ borderTop: '2px solid #e5e7eb', paddingTop: '20px', marginTop: '10px' }}>
                 <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <FileText size={20} style={{ color: '#374151' }} />
                   <h5 style={{ fontWeight: 700, fontSize: '15px', margin: 0, color: '#1f2937' }}>Original Form Documents</h5>
                 </div>
 
-                {/* Customer CNIC Images */}
                 <div style={{ marginBottom: '20px' }}>
                   <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
                     Customer CNIC
@@ -888,7 +836,6 @@ const UsersManagement = () => {
                   </div>
                 </div>
 
-                {/* Additional Images */}
                 <div style={{ marginBottom: '20px' }}>
                   <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
                     Additional Documents
@@ -906,7 +853,6 @@ const UsersManagement = () => {
                   </div>
                 </div>
 
-                {/* Chalan Images */}
                 <div style={{ marginBottom: '20px' }}>
                   <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
                     Chalan
@@ -924,7 +870,6 @@ const UsersManagement = () => {
                   </div>
                 </div>
 
-                {/* Voice Consent */}
                 {selectedUser.voice_consent && (
                   <div style={{ marginBottom: '20px' }}>
                     <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
@@ -937,7 +882,6 @@ const UsersManagement = () => {
                   </div>
                 )}
 
-                {/* ✅ GUARANTORS' CNIC IMAGES - lazy loaded on modal open */}
                 <div>
                   <h6 style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', color: '#374151' }}>
                     Guarantors' CNIC Images
@@ -965,7 +909,6 @@ const UsersManagement = () => {
                 </div>
               </div>
 
-              {/* ===== PAYMENT HISTORY ===== */}
               {selectedUser.installments && selectedUser.installments.length > 0 && (
                 <div className="detail-section">
                   <h5 style={{ fontWeight: 700 }}>Payment History</h5>

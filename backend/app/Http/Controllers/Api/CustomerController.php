@@ -292,6 +292,7 @@ class CustomerController extends Controller
                 'advance_payment' => 'nullable|numeric|min:0',
                 'number_of_installments' => 'required|integer|min:1',
                 'due_date' => 'required|date',
+                'first_installment_payment' => 'nullable|numeric|min:0', // ✅ NEW
             ]);
 
             if ($validator->fails()) {
@@ -305,7 +306,7 @@ class CustomerController extends Controller
             $employeeId = $request->created_by;
             Log::info('✅ Employee ID from request:', ['employee_id' => $employeeId]);
 
-            // ✅ CHANGED: Minimum 1 guarantor required (pehle 2 tha)
+            // ✅ Minimum 1 guarantor required
             if (count($validGuarantors) < 1) {
                 return response()->json([
                     'success' => false,
@@ -420,7 +421,7 @@ class CustomerController extends Controller
             }
 
             // ============================================
-            // ✅ NEW: Bill Images Upload
+            // ✅ Bill Images Upload
             // ============================================
             $billImage1Path = null;
             if ($request->hasFile('bill_image_1')) {
@@ -447,7 +448,7 @@ class CustomerController extends Controller
             }
 
             // ============================================
-            // ✅ Chalan Images Upload (NEW)
+            // ✅ Chalan Images Upload
             // ============================================
             $chalanFrontPath = null;
             if ($request->hasFile('chalan_front')) {
@@ -492,8 +493,8 @@ class CustomerController extends Controller
                     'voice_consent' => $voiceConsentPath,
                     'additional_image_1' => $additionalImage1Path,
                     'additional_image_2' => $additionalImage2Path,
-                    'bill_image_1' => $billImage1Path,   // ✅ ADDED
-                    'bill_image_2' => $billImage2Path,   // ✅ ADDED
+                    'bill_image_1' => $billImage1Path,
+                    'bill_image_2' => $billImage2Path,
                 ]);
 
                 Log::info('✅ Customer created:', ['id' => $customer->id, 'created_by' => $employeeId]);
@@ -534,8 +535,8 @@ class CustomerController extends Controller
                     'branch_id' => $request->branch_id,
                     'case_no' => $caseNo,
                     'product_name' => $request->product_name ?? '',
-                    'chalan_front' => $chalanFrontPath,  // ✅ ADDED
-                    'chalan_back' => $chalanBackPath,    // ✅ ADDED
+                    'chalan_front' => $chalanFrontPath,
+                    'chalan_back' => $chalanBackPath,
                     'total_amount' => $invoicePrice,
                     'paid_amount' => $advancePayment,
                     'balance' => $invoicePrice - $advancePayment,
@@ -588,9 +589,61 @@ class CustomerController extends Controller
                 Installment::insert($installments);
                 Log::info('✅ Installments created:', ['count' => count($installments)]);
 
+                // ============================================
+                // ✅ NEW: First Installment ka payment
+                // (agar frontend modal se koi amount diya gaya ho)
+                // ============================================
+                $firstInstallmentPayment = (float) ($request->first_installment_payment ?? 0);
+
+                if ($firstInstallmentPayment > 0) {
+                    $firstInstallment = Installment::where('account_id', $account->id)
+                        ->orderBy('month', 'asc')
+                        ->first();
+
+                    if ($firstInstallment) {
+                        // Amount kabhi bhi installment ke due_amount se zyada nahi ho sakta
+                        $payAmount = min($firstInstallmentPayment, $firstInstallment->due_amount);
+
+                        $newPaidAmount = $payAmount;
+                        $newBalance = $firstInstallment->due_amount - $newPaidAmount;
+
+                        if ($newBalance <= 0) {
+                            $installmentStatus = 'paid';
+                        } elseif ($newPaidAmount > 0) {
+                            $installmentStatus = 'partial';
+                        } else {
+                            $installmentStatus = 'unpaid';
+                        }
+
+                        $firstInstallment->update([
+                            'paid_amount' => $newPaidAmount,
+                            'balance' => $newBalance,
+                            'status' => $installmentStatus,
+                            'payment_date' => now(),
+                        ]);
+
+                        // ✅ Account ka paid_amount/balance bhi update karo
+                        $account->paid_amount = $account->paid_amount + $payAmount;
+                        $account->balance = $account->total_amount - $account->paid_amount;
+                        $account->installments_paid = Installment::where('account_id', $account->id)
+                            ->where('paid_amount', '>', 0)->count();
+                        $account->last_payment_date = now();
+                        if ($account->balance <= 0) {
+                            $account->status = 'paid';
+                        }
+                        $account->save();
+
+                        Log::info('✅ First installment payment recorded:', [
+                            'installment_id' => $firstInstallment->id,
+                            'paid' => $payAmount,
+                            'status' => $installmentStatus,
+                        ]);
+                    }
+                }
+
                 // ✅ 5. Update account installments_paid
                 $account->update([
-                    'installments_paid' => 0
+                    'installments_paid' => $account->installments_paid ?? 0
                 ]);
 
                 DB::commit();

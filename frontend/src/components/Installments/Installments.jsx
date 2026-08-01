@@ -228,6 +228,7 @@ const ViewModal = ({
                         <th>Balance</th>
                         <th>Status</th>
                         <th>Payment Date</th>
+                        <th>Remarks</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -241,6 +242,7 @@ const ViewModal = ({
                           <td>{formatCurrency(p.balance)}</td>
                           <td>{getStatusBadge(p)}</td>
                           <td>{p.payment_date ? formatDate(p.payment_date) : '-'}</td>
+                          <td>{p.remarks || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -250,7 +252,7 @@ const ViewModal = ({
                         <td><strong>{formatCurrency(totalDue)}</strong></td>
                         <td><strong>{formatCurrency(totalPaid)}</strong></td>
                         <td><strong>{formatCurrency(totalDue - totalPaid)}</strong></td>
-                        <td colSpan="2"></td>
+                        <td colSpan="3"></td>
                       </tr>
                     </tfoot>
                   </table>
@@ -423,7 +425,7 @@ const ViewModal = ({
 };
 
 // ============================================
-// ✅ EDIT PAYMENT MODAL - Extracted outside component
+// ✅ EDIT PAYMENT MODAL - UPDATED with Remarks
 // ============================================
 const EditPaymentModal = ({
   showEditModal,
@@ -511,14 +513,33 @@ const EditPaymentModal = ({
                   ...editPaymentData,
                   paid_amount: e.target.value
                 })}
-                placeholder="Enter amount to pay"
+                placeholder="Enter amount to pay (leave empty to just save remarks)"
                 className="form-input"
                 min="0"
                 max={remainingBalance}
                 autoFocus
               />
               <small className="form-hint">
-                Max payable: {formatCurrency(remainingBalance)}
+                Max payable: {formatCurrency(remainingBalance)} — amount is optional if you're only adding remarks
+              </small>
+            </div>
+
+            {/* ✅ NEW: Remarks Field */}
+            <div className="form-group">
+              <label>Remarks</label>
+              <textarea
+                value={editPaymentData.remarks || ''}
+                onChange={(e) => setEditPaymentData({
+                  ...editPaymentData,
+                  remarks: e.target.value
+                })}
+                placeholder="Add remarks or notes..."
+                className="form-input"
+                rows="3"
+                style={{ resize: 'vertical', minHeight: '60px', fontFamily: 'inherit' }}
+              />
+              <small className="form-hint">
+                Optional: Add any notes about this payment
               </small>
             </div>
 
@@ -665,7 +686,6 @@ const StatusMultiFilter = ({ filterStatus, setFilterStatus }) => {
 const Installments = () => {
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(true);
-  // ✅ ab array hai — single ya multiple dono status select ho sakte hain
   const [filterStatus, setFilterStatus] = useState(['all']);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -687,6 +707,8 @@ const Installments = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [showEditModal, setShowEditModal] = useState(false);
+  
+  // ✅ NEW: remarks added to editPaymentData
   const [editPaymentData, setEditPaymentData] = useState({
     paid_amount: '',
     month: '',
@@ -698,13 +720,14 @@ const Installments = () => {
     customer_cnic: '',
     case_no: '',
     account_id: null,
-    total_installments: 0
+    total_installments: 0,
+    remarks: '' // ✅ NEW
   });
+  
   const [editLoading, setEditLoading] = useState(false);
   const [availableMonths, setAvailableMonths] = useState([]);
   const [paymentDate, setPaymentDate] = useState('');
 
-  // ✅ STEP 1: sirf ek dafa user info load karo (koi fetch yahan nahi)
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
@@ -715,23 +738,16 @@ const Installments = () => {
     setBranchReady(true);
   }, []);
 
-  // ✅ STEP 2: fetch sirf branch ready hone par hoga.
-  // Status filtering ab client-side hoti hai (multi-select ke liye), isliye
-  // filterStatus is dependency list mein nahi hai — fetch dobara nahi hoga
-  // jab sirf status filter badalta hai.
   useEffect(() => {
     if (!branchReady) return;
     fetchInstallments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchReady, userBranch]);
 
-  // ✅ Search debounce
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchTerm), 300);
     return () => clearTimeout(t);
   }, [searchTerm]);
 
-  // ✅ "2026-07" jaisi do month-strings ke darmiyan farq (months) nikalta hai
   const monthsBetween = useCallback((fromMonth, toMonth) => {
     if (!fromMonth || !toMonth) return 0;
     const [fy, fm] = fromMonth.split('-').map(Number);
@@ -744,14 +760,11 @@ const Installments = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }, []);
 
-  // ✅ Installment ka due month abhi tak "aa chuka" hai ya nahi (future nahi hai)
   const isAlreadyDue = useCallback((item) => {
     if (!item.month) return true;
     return monthsBetween(item.month, getCurrentMonthStr()) >= 0;
   }, [monthsBetween, getCurrentMonthStr]);
 
-  // ✅ Kitne mahine se late hai (0 = abhi due hi nahi hui / future installment)
-  // 1 = Aging 1m, 2 = Aging 2m, 3 = Aging 3m, 4+ = Overdue
   const getAgingMonths = useCallback((item) => {
     if (!item.month) return 1;
     const monthsDiff = monthsBetween(item.month, getCurrentMonthStr());
@@ -759,7 +772,6 @@ const Installments = () => {
     return monthsDiff + 1;
   }, [monthsBetween, getCurrentMonthStr]);
 
-  // ✅ Ek item diye gaye status list (array) mein se kisi bhi status se match karta hai ya nahi
   const matchesStatusFilter = useCallback((item, statuses) => {
     if (!statuses || statuses.length === 0 || statuses.includes('all')) return true;
     const balance = parseFloat(item.balance || 0);
@@ -777,12 +789,8 @@ const Installments = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-
-      // ✅ ab hamesha "all" backend se mangwao, filtering client-side hogi (multi-select ke liye)
       const backendStatus = 'all';
-
       let url = `${API_URL}/installments?status=${backendStatus}`;
-
       if (userBranch) {
         url += `&branch_id=${userBranch}`;
       }
@@ -852,7 +860,6 @@ const Installments = () => {
         });
 
         let uniqueInstallments = Array.from(uniqueMap.values());
-
         setInstallments(uniqueInstallments);
         setCurrentPage(1);
       }
@@ -863,12 +870,10 @@ const Installments = () => {
     }
   };
 
-  // ✅ selected status filter(s) ke hisaab se list
   const statusFilteredInstallments = useMemo(() => {
     return installments.filter(item => matchesStatusFilter(item, filterStatus));
   }, [installments, filterStatus, matchesStatusFilter]);
 
-  // ✅ Top cards ka data status-filtered list se calculate hota hai
   useEffect(() => {
     let totalDue = 0;
     let totalPaid = 0;
@@ -894,10 +899,8 @@ const Installments = () => {
     });
 
     setCurrentPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilteredInstallments]);
+  }, [statusFilteredInstallments, isAlreadyDue]);
 
-  // ✅ 1-3 months late = "Aging (Nm)", sirf 4+ months late pe "Overdue"
   const getStatusBadge = (item) => {
     const balance = parseFloat(item.balance || 0);
 
@@ -932,8 +935,6 @@ const Installments = () => {
     );
   };
 
-  // ✅ FIX: same threshold (>=4) as getStatusBadge, so account-level status
-  // in the modal always matches the row badge instead of flipping to Overdue a month early
   const getAccountCardStatus = (payments, account) => {
     const list = Array.isArray(payments) ? payments : [];
     const totalInstallments = account?.total_installments || list.length;
@@ -1046,7 +1047,6 @@ const Installments = () => {
     }
   };
 
-  // ✅ SEARCH (status-filtered list par lagta hai)
   const filteredInstallments = useMemo(() => {
     const search = debouncedSearch.toLowerCase().trim();
     if (!search) return statusFilteredInstallments;
@@ -1159,6 +1159,7 @@ const Installments = () => {
     }
   };
 
+  // ✅ UPDATED: handleEditPayment with remarks (ab installment-level se aate hain, account/customer se nahi)
   const handleEditPayment = async (installment) => {
     const customerName = installment.customer?.name ||
                         installment.customer_name ||
@@ -1175,6 +1176,10 @@ const Installments = () => {
                   'N/A';
 
     const accountId = installment.account_id || installment.account?.id;
+
+    // ✅ FIX: Ab is specific installment (month) ke apne remarks liye jaayenge,
+    // account/customer ke remarks nahi (woh sab installments mein same dikh rahe the)
+    const existingRemarks = installment.remarks || '';
 
     let realMonths = [];
     if (accountId) {
@@ -1202,16 +1207,24 @@ const Installments = () => {
       customer_cnic: customerCnic,
       case_no: caseNo,
       account_id: accountId,
-      total_installments: totalInstallments
+      total_installments: totalInstallments,
+      remarks: existingRemarks // ✅ NEW
     });
 
     setAvailableMonths(months);
     setShowEditModal(true);
   };
 
+  // ✅ UPDATED: handlePartialPaymentSubmit with remarks
+  // Ab amount dena zaroori nahi — agar sirf remarks likhe hain (amount 0/khaali)
+  // to bhi submit ho jayega aur sirf remarks save honge, chahe installment paid ho.
   const handlePartialPaymentSubmit = async () => {
-    if (!editPaymentData.paid_amount || parseFloat(editPaymentData.paid_amount) <= 0) {
-      alert('Please enter a valid payment amount');
+    const amount = parseFloat(editPaymentData.paid_amount) || 0;
+    const hasRemarks = (editPaymentData.remarks || '').trim().length > 0;
+
+    // ✅ NEW: kam se kam amount ya remarks mein se koi ek hona chahiye
+    if (amount <= 0 && !hasRemarks) {
+      alert('Please enter a payment amount or add remarks');
       return;
     }
 
@@ -1220,10 +1233,10 @@ const Installments = () => {
       return;
     }
 
-    const amount = parseFloat(editPaymentData.paid_amount);
     const maxPayable = parseFloat(editPaymentData.balance) || 0;
 
-    if (amount > maxPayable) {
+    // ✅ NEW: balance check sirf tab lagega jab actual amount diya ho
+    if (amount > 0 && amount > maxPayable) {
       alert(`Amount cannot exceed remaining balance of ${formatCurrency(maxPayable)}`);
       return;
     }
@@ -1242,20 +1255,26 @@ const Installments = () => {
           installment_id: editPaymentData.installment_id,
           paid_amount: amount,
           month: editPaymentData.month,
-          payment_date: new Date().toISOString().split('T')[0]
+          payment_date: new Date().toISOString().split('T')[0],
+          remarks: editPaymentData.remarks || '' // ✅ NEW
         })
       });
 
       const data = await response.json();
       if (data.success) {
-        alert(`✅ Payment of ${formatCurrency(amount)} recorded successfully!`);
+        // ✅ NEW: amount ke hisaab se alag message
+        if (amount > 0) {
+          alert(`✅ Payment of ${formatCurrency(amount)} recorded successfully!`);
+        } else {
+          alert('✅ Remarks saved successfully!');
+        }
         setShowEditModal(false);
         fetchInstallments();
         if (showModal) {
           handleViewDetails(selectedInstallment);
         }
       } else {
-        alert('❌ Failed to record payment: ' + data.message);
+        alert('❌ Failed to save: ' + data.message);
       }
     } catch (error) {
       console.error('Error recording payment:', error);
@@ -1265,7 +1284,6 @@ const Installments = () => {
     }
   };
 
-  // ✅ EXPORT DATA - status label bhi getStatusBadge/filter ke hisaab se (threshold 4)
   const exportData = useMemo(() => {
     return filteredInstallments.map(item => {
       const customer = item.customer || item.account?.customer || {};
@@ -1291,10 +1309,10 @@ const Installments = () => {
                 getAgingMonths(item) >= 1 ? 'Aging' : 'Unpaid',
         createdBy: creator.name || 'N/A',
         employee: employee.name || account.employee_name || 'N/A',
-        branch: `Branch ${account.branch_id || item.branch_id || 'N/A'}`
+        branch: `Branch ${account.branch_id || item.branch_id || 'N/A'}`,
+        remarks: item.remarks || '' // ✅ NEW - export mein bhi installment-level remarks
       };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredInstallments]);
 
   const exportColumns = [
@@ -1312,7 +1330,8 @@ const Installments = () => {
     { header: 'Status', key: 'status' },
     { header: 'Created By', key: 'createdBy' },
     { header: 'Employee', key: 'employee' },
-    { header: 'Branch', key: 'branch' }
+    { header: 'Branch', key: 'branch' },
+    { header: 'Remarks', key: 'remarks' }
   ];
 
   return (
@@ -1450,6 +1469,7 @@ const Installments = () => {
                   <th>Installments</th>
                   <th>Balance</th>
                   <th>Mirror</th>
+                  <th>Remarks</th>
                   <th>Status</th>
                   <th>Employee</th>
                   <th>Actions</th>
@@ -1458,10 +1478,6 @@ const Installments = () => {
               <tbody>
                 {currentItems.map((item, index) => {
                   const actualIndex = indexOfFirstItem + index + 1;
-                  const accountOpeningDate = item.account?.created_at ||
-                                            item.created_at ||
-                                            item.customer?.created_at ||
-                                            null;
 
                   const customerName = item.customer?.name ||
                                       item.customer_name ||
@@ -1478,15 +1494,15 @@ const Installments = () => {
                                 'N/A';
 
                   const accountData = item.account || {};
-                  const creator = accountData.creator || {};
                   const employeeAccount = getEmployeeAccount(accountData);
                   const employee = employeeAccount.employee || {};
-
-                  const creatorName = creator.name || 'N/A';
-                  const creatorRole = creator.role || '';
                   const employeeName = employee.name || accountData.employee_name || 'N/A';
 
                   const accountTotalBalance = accountData.balance || item.balance || 0;
+
+                  // ✅ FIX: remarks ab sirf isi installment (month) row se aayenge,
+                  // account/customer ke remarks se nahi (jo pehle sab rows mein same dikha rahe the)
+                  const remarks = item.remarks || '';
 
                   return (
                     <tr key={item.id} className="installment-row">
@@ -1519,6 +1535,11 @@ const Installments = () => {
                       </td>
                       <td className="text-right" style={{color: item.balance > 0 ? '#ef4444' : '#10b981'}}>
                         {formatCurrency(item.balance)}
+                      </td>
+                      <td>
+                        <span style={{fontSize: '12px', color: '#4b5563', maxWidth: '150px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}} title={remarks || ''}>
+                          {remarks || '-'}
+                        </span>
                       </td>
                       <td>{getStatusBadge(item)}</td>
                       <td>

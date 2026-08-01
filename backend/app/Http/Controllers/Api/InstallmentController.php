@@ -103,7 +103,8 @@ class InstallmentController extends Controller
         $validator = Validator::make($request->all(), [
             'installment_id' => 'required|exists:installments,id',
             'amount' => 'nullable|numeric|min:0',
-            'payment_date' => 'nullable|date'
+            'payment_date' => 'nullable|date',
+            'remarks' => 'nullable|string' // ✅ NEW
         ]);
 
         if ($validator->fails()) {
@@ -151,7 +152,8 @@ class InstallmentController extends Controller
                 'paid_amount' => $newPaidAmount,
                 'balance' => $newBalance,
                 'status' => $status,
-                'payment_date' => $paymentDate
+                'payment_date' => $paymentDate,
+                'remarks' => $request->remarks ?? $installment->remarks // ✅ NEW - agar remarks bheji hai to update, warna purani rehne do
             ]);
 
             // ✅ FIX: Account ka paid_amount RECALCULATE karo sum se
@@ -201,9 +203,10 @@ class InstallmentController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'installment_id' => 'required|exists:installments,id',
-            'paid_amount' => 'required|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0', // ✅ CHANGED: ab required nahi - remarks-only update allow karne ke liye
             'month' => 'nullable|string|date_format:Y-m',
-            'payment_date' => 'nullable|date'
+            'payment_date' => 'nullable|date',
+            'remarks' => 'nullable|string' // ✅ NEW
         ]);
 
         if ($validator->fails()) {
@@ -225,14 +228,44 @@ class InstallmentController extends Controller
                 ], 404);
             }
 
+            $amount = (float) ($request->paid_amount ?? 0);
+
+            // ============================================
+            // ✅ NEW: REMARKS-ONLY UPDATE
+            // Agar koi payment amount nahi diya (0 ya khaali), to sirf
+            // remarks update karo — chahe installment already paid ho,
+            // balance/status/account kuch bhi touch nahi hoga.
+            // ============================================
+            if ($amount <= 0) {
+                $installment->update([
+                    'remarks' => $request->remarks ?? $installment->remarks
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Remarks updated successfully',
+                    'data' => $installment->load([
+                        'account.customer',
+                        'account.branch',
+                        'account.creator',
+                        'account.employeeAccount',
+                        'account.employeeAccount.employee'
+                    ]),
+                    'amount_paid' => 0,
+                    'new_balance' => $installment->balance,
+                    'status' => $installment->status,
+                    'month_updated' => false
+                ]);
+            }
+
             if ($installment->status === 'paid') {
                 return response()->json([
                     'success' => false,
                     'message' => 'This installment is already paid'
                 ], 422);
             }
-
-            $amount = $request->paid_amount;
 
             if ($amount > $installment->balance) {
                 return response()->json([
@@ -259,7 +292,8 @@ class InstallmentController extends Controller
                 'paid_amount' => $newPaidAmount,
                 'balance' => $newBalance,
                 'status' => $status,
-                'payment_date' => $paymentDate
+                'payment_date' => $paymentDate,
+                'remarks' => $request->remarks ?? $installment->remarks // ✅ NEW - isi (current) month ki row mein remarks save
             ]);
 
             if ($request->month && $request->month !== $installment->month) {
@@ -272,7 +306,8 @@ class InstallmentController extends Controller
                     $existing->update([
                         'paid_amount' => $existing->paid_amount + $installment->paid_amount,
                         'balance' => $existing->due_amount - ($existing->paid_amount + $installment->paid_amount),
-                        'status' => $existing->balance <= 0 ? 'paid' : 'partial'
+                        'status' => $existing->balance <= 0 ? 'paid' : 'partial',
+                        'remarks' => $request->remarks ?? $existing->remarks // ✅ NEW - target (naye month wali) row mein bhi remarks
                     ]);
                     $installment->delete();
                     $installment = $existing;

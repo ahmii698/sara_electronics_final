@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Edit, Trash2, X, Calendar, DollarSign, Building, Filter, RefreshCw, ChevronDown } from 'lucide-react';
 import './ExtraExpense.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 const ExtraExpense = () => {
   const [search, setSearch] = useState('');
@@ -422,6 +423,23 @@ const ExtraExpense = () => {
     },
   ];
 
+  // ✅ Export data function
+  const getExportData = useCallback(() => {
+    return filtered.map(exp => ({
+      description: exp.description,
+      amount: exp.amount,
+      date: formatDate(exp.date),
+      branch: exp.branch === 1 ? 'Branch 1' : 'Branch 2'
+    }));
+  }, [filtered]);
+
+  const exportColumns = [
+    { header: 'Description', key: 'description' },
+    { header: 'Amount (PKR)', key: 'amount' },
+    { header: 'Date', key: 'date' },
+    { header: 'Branch', key: 'branch' },
+  ];
+
   // ✅ FAST LOADING - Sirf pehli baar show karega
   if (fetching && expenses.length === 0) {
     return (
@@ -468,6 +486,12 @@ const ExtraExpense = () => {
         </div>
 
         <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportButton
+            data={getExportData()}
+            columns={exportColumns}
+            filename="extra-expenses-report"
+            title="Extra Expenses Report"
+          />
           {canAddExpense() && (
             <button className="btn-accent" onClick={openAddModal}>
               <Plus size={18} />
@@ -616,8 +640,6 @@ const ExtraExpense = () => {
           </>
         )}
       </div>
-
-      {/* ✅ MONTHLY TOTALS - REMOVED (Extra Expenses mein nahi chahiye) */}
 
       <div className="extra-table-wrap">
         <table className="extra-table">

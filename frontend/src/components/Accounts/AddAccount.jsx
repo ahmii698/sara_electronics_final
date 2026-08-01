@@ -2,14 +2,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star, FileImage, Wallet, Percent
+  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star, FileImage, Wallet, Percent, Banknote
 } from 'lucide-react';
 import './AddAccount.css';
 import { API_URL } from '../../../config';
 
 const MAX_ACCOUNTS_PER_CNIC = 2;
-const MAX_COMBINED_AMOUNT = 100000;
-const MAX_PRODUCT_PRICE = 100000; // ✅ NEW: Product Price limit (skip if special customer)
+const MAX_PRODUCT_PRICE = 100000; // ✅ Product Price limit (skip if special customer)
 
 const AddAccount = () => {
   const [step, setStep] = useState(1);
@@ -31,13 +30,17 @@ const AddAccount = () => {
   // ✅ DOUBLE SUBMIT GUARD
   const isSubmittingRef = useRef(false);
 
-  // ✅ NAYA: real CNIC check ka data
+  // ✅ real CNIC check ka data
   const [existingAccountData, setExistingAccountData] = useState(null);
   const [showExistingAccountModal, setShowExistingAccountModal] = useState(false);
   const [cnicCheckLoading, setCnicCheckLoading] = useState(false);
 
-  // ✅ NAYA: Special Customer toggle
+  // ✅ Special Customer toggle
   const [isSpecialCustomer, setIsSpecialCustomer] = useState(false);
+
+  // ✅ NEW: First Installment payment confirmation modal
+  const [showFirstInstallmentModal, setShowFirstInstallmentModal] = useState(false);
+  const [firstInstallmentPayAmount, setFirstInstallmentPayAmount] = useState('');
 
   const showToast = (message, type = 'warning', details = null) => {
     setToast({ message, type, details });
@@ -205,9 +208,9 @@ const AddAccount = () => {
     productType: 'new',
     productName: '',
     productPrice: '',
-    profitPercent: '', // ✅ NEW: Percentage used to auto-calculate Invoice Price
+    profitPercent: '', // ✅ Percentage used to auto-calculate Invoice Price
     advanceAmount: '',
-    invoicePrice: '', // ✅ Ab yeh auto-calculated hoga (readonly), manually nahi bhara jayega
+    invoicePrice: '', // ✅ Auto-calculated (readonly)
     noOfInstallments: '',
     dueDate: '',
     installmentAmount: '',
@@ -354,7 +357,7 @@ const AddAccount = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  // ✅ NEW: Invoice Price ab manual nahi — Product Price + Profit % se auto-calculate hota hai
+  // ✅ Invoice Price manual nahi — Product Price + Profit % se auto-calculate hota hai
   const calculateInvoicePrice = () => {
     const price = parseFloat(formData.productPrice) || 0;
     const percent = parseFloat(formData.profitPercent) || 0;
@@ -429,7 +432,7 @@ const AddAccount = () => {
     setFormData({ ...formData, guarantors: updated });
   };
 
-  // ✅ NEW: Bill Image Upload Handlers
+  // ✅ Bill Image Upload Handlers
   const handleBillImageUpload = (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -531,7 +534,6 @@ const AddAccount = () => {
     if (!formData.cnicFront) newErrors.cnicFront = 'CNIC Front image is required';
     if (!formData.cnicBack) newErrors.cnicBack = 'CNIC Back image is required';
     
-    // ✅ Additional images are still required (keeping old logic)
     if (!formData.additionalImage1) {
       newErrors.additionalImage1 = 'Additional Image 1 is required';
     }
@@ -539,12 +541,10 @@ const AddAccount = () => {
       newErrors.additionalImage2 = 'Additional Image 2 is required';
     }
     
-    // ✅ Check duplicate CNIC in guarantors
     if (checkDuplicateGuarantorCnic()) {
       newErrors.guarantors = 'Duplicate CNIC found in guarantors. Each guarantor must have a unique CNIC.';
     }
     
-    // ✅ Minimum 1 complete guarantor required
     const completeGuarantors = formData.guarantors.filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim() && g.address.trim() && g.cnicFront !== null && g.cnicBack !== null);
     if (completeGuarantors.length < 1) {
       newErrors.guarantors = 'Minimum 1 complete guarantor required';
@@ -571,23 +571,10 @@ const AddAccount = () => {
       newErrors.chalanFront = 'Chalan Front image is required';
     }
 
-    // ✅ NEW: Product Price max limit — skip if Special Customer is ON
     if (!isSpecialCustomer) {
       const priceCheck = parseFloat(formData.productPrice) || 0;
       if (priceCheck > MAX_PRODUCT_PRICE) {
         newErrors.productPrice = `Product price cannot exceed PKR ${MAX_PRODUCT_PRICE.toLocaleString()} (unless Special Customer is enabled).`;
-      }
-    }
-
-    if (!isSpecialCustomer) {
-      const newAmount = parseFloat(formData.invoicePrice) || 0;
-      const existingTotal = (existingAccountData && existingAccountData.exists_as_customer)
-        ? (existingAccountData.total_combined_amount || 0)
-        : 0;
-      const projectedTotal = existingTotal + newAmount;
-
-      if (projectedTotal > MAX_COMBINED_AMOUNT) {
-        newErrors.invoicePrice = `Combined amount cannot exceed PKR ${MAX_COMBINED_AMOUNT.toLocaleString()}. Remaining limit: PKR ${Math.max(0, MAX_COMBINED_AMOUNT - existingTotal).toLocaleString()}`;
       }
     }
     
@@ -604,16 +591,44 @@ const AddAccount = () => {
   };
   const handlePrev = () => setStep(1);
 
-  // ✅ FINAL SUBMIT — NO STATUS MODAL, DIRECT CREATE
+  // ============================================
+  // ✅ NEW: FINAL SUBMIT — pehle validate karo, phir
+  // First Installment payment confirmation modal dikhao
+  // ============================================
   const handleFinalSubmit = (e) => {
     e.preventDefault();
     if (validateStep2()) {
-      // ✅ Direct create without status modal
-      confirmAccountCreation();
+      // Default: poori 1st installment amount pre-filled ho
+      setFirstInstallmentPayAmount(formData.installmentAmount || '0');
+      setShowFirstInstallmentModal(true);
     }
   };
 
-  const confirmAccountCreation = async () => {
+  // ✅ NEW: Modal se "Pay & Create Account"
+  const handleConfirmWithPayment = () => {
+    const amount = parseFloat(firstInstallmentPayAmount) || 0;
+    const maxAmount = parseFloat(formData.installmentAmount) || 0;
+
+    if (amount < 0) {
+      showToast('⚠️ Amount cannot be negative.', 'warning');
+      return;
+    }
+    if (maxAmount > 0 && amount > maxAmount) {
+      showToast(`⚠️ Amount cannot exceed the installment amount (PKR ${maxAmount.toLocaleString()}).`, 'warning');
+      return;
+    }
+
+    setShowFirstInstallmentModal(false);
+    confirmAccountCreation(amount);
+  };
+
+  // ✅ NEW: Modal se "Skip & Create Account"
+  const handleSkipPayment = () => {
+    setShowFirstInstallmentModal(false);
+    confirmAccountCreation(0);
+  };
+
+  const confirmAccountCreation = async (firstInstallmentPayment = 0) => {
     if (isSubmittingRef.current) {
       console.warn('⚠️ Submission already in progress, ignoring duplicate call');
       return;
@@ -653,6 +668,9 @@ const AddAccount = () => {
       customerFormData.append('due_date', formData.dueDate);
       customerFormData.append('advance_payment', parseFloat(formData.advanceAmount) || 0);
       customerFormData.append('payment_type', formData.paymentType || 'cash');
+
+      // ✅ NEW: Pehli installment ke against ki gayi payment
+      customerFormData.append('first_installment_payment', firstInstallmentPayment || 0);
       
       customerFormData.append('is_unlimited', isSpecialCustomer ? 1 : 0);
       
@@ -794,8 +812,12 @@ const AddAccount = () => {
         }
         
         const empName = getSelectedEmployeeName() || user?.name || 'N/A';
+
+        const paidNote = firstInstallmentPayment > 0
+          ? `\nFirst Installment Paid: PKR ${Number(firstInstallmentPayment).toLocaleString()}`
+          : `\nFirst Installment: Not paid yet (Aging mein aayegi)`;
         
-        alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${createdAccount?.case_no || 'N/A'}\nStatus: ACTIVE\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
+        alert(`✅ Account created successfully!\n\nCustomer: ${formData.name}\nProduct: ${formData.productName}\nCase: ${createdAccount?.case_no || 'N/A'}\nStatus: ACTIVE\nGuarantors: ${validGuarantors.length} added\nMonthly Installment: PKR ${Math.round(monthlyInstallment * 100) / 100}${paidNote}\n\nAccount Created By: ${loggedInUserName} (${loggedInUserRole})\nEmployee Who Opened: ${empName}`);
         
         // Reset form
         setFormData({
@@ -844,6 +866,7 @@ const AddAccount = () => {
         setVoiceFiles([]);
         setExistingAccountData(null);
         setIsSpecialCustomer(false);
+        setFirstInstallmentPayAmount('');
         setStep(1);
       } else {
         setErrors({ form: data.message || 'Failed to create customer' });
@@ -899,6 +922,15 @@ const AddAccount = () => {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  // ✅ Invoice Price field display — Advance minus karke dikhata hai
+  const getInvoicePriceDisplayValue = () => {
+    const invoice = parseFloat(formData.invoicePrice) || 0;
+    const advance = parseFloat(formData.advanceAmount) || 0;
+    if (!formData.invoicePrice) return 'Auto-calculated from Product Price + Profit %';
+    const displayAmount = invoice - advance;
+    return `PKR ${displayAmount.toLocaleString()}`;
   };
 
   return (
@@ -1031,6 +1063,61 @@ const AddAccount = () => {
         </div>
       )}
 
+      {/* ✅ NEW: First Installment Payment Confirmation Modal */}
+      {showFirstInstallmentModal && (
+        <div className="status-modal-overlay" onClick={() => setShowFirstInstallmentModal(false)}>
+          <div className="status-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="status-modal-header">
+              <Banknote size={24} className="status-modal-icon" style={{ color: '#166534' }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800 }}>Pehli Installment Ka Payment</h3>
+              <button className="status-modal-close" onClick={() => setShowFirstInstallmentModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="status-modal-body">
+              <div style={{
+                padding: '12px 16px',
+                background: '#f0fdf4',
+                border: '1px solid #86efac',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontWeight: 600,
+                fontSize: '14px'
+              }}>
+                Pehli installment ka amount: <strong>PKR {formData.installmentAmount ? parseFloat(formData.installmentAmount).toLocaleString() : 0}</strong>
+              </div>
+
+              <label style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Abhi kitna pay kar rahe hain?</label>
+              <div className="input-with-icon">
+                <DollarSign size={18} style={{ color: '#166534' }} />
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="0"
+                  value={firstInstallmentPayAmount}
+                  onChange={(e) => setFirstInstallmentPayAmount(e.target.value)}
+                  style={{ fontWeight: 500 }}
+                  max={formData.installmentAmount || undefined}
+                  min="0"
+                />
+              </div>
+              <small className="field-hint" style={{ fontWeight: 500 }}>
+                Poori amount pay karne par yeh installment turant "Paid" ho jayegi aur Aging mein nahi jayegi. Kam ya na dene par yeh Aging/Overdue mein reh jayegi.
+              </small>
+            </div>
+            <div className="status-modal-footer" style={{ gap: '10px' }}>
+              <button className="status-btn-cancel" onClick={handleSkipPayment} style={{ fontWeight: 700 }} disabled={loading}>
+                Skip & Create Account
+              </button>
+              <button className="btn-submit" onClick={handleConfirmWithPayment} style={{ fontWeight: 700 }} disabled={loading}>
+                <CheckCircle size={16} />
+                {loading ? 'Creating...' : 'Pay & Create Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="page-header">
         <div className="header-title-group">
           <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Create New Account</h3>
@@ -1064,8 +1151,8 @@ const AddAccount = () => {
             <div style={{ fontWeight: 700, fontSize: '14px' }}>Special Customer</div>
             <div style={{ fontWeight: 500, fontSize: '12px', color: '#6b7280' }}>
               {isSpecialCustomer
-                ? 'ON — Product Price limit, 2-account limit aur PKR 100,000 combined-amount limit is CNIC pe apply nahi hongi'
-                : 'Enable karne par is CNIC pe koi bhi price/account/amount limit apply nahi hogi'}
+                ? 'ON — Product Price limit, 2-account limit is CNIC pe apply nahi hongi'
+                : 'Enable karne par is CNIC pe koi bhi price/account limit apply nahi hogi'}
             </div>
           </div>
         </div>
@@ -1450,21 +1537,7 @@ const AddAccount = () => {
                 gap: '8px'
               }}>
                 <Star size={16} style={{ color: '#C9A84C' }} />
-                Special Customer — Product Price limit, account count aur combined-amount limits is CNIC pe apply nahi ho rahi.
-              </div>
-            )}
-
-            {!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && (
-              <div style={{
-                padding: '12px 16px',
-                background: '#fef3c7',
-                border: '1px solid #fde68a',
-                borderRadius: '10px',
-                marginBottom: '16px',
-                fontWeight: 600,
-                fontSize: '13px'
-              }}>
-                ℹ️ Combined amount so far: {formatCurrency(existingAccountData.total_combined_amount)} — Remaining limit: {formatCurrency(existingAccountData.remaining_limit)}
+                Special Customer — Product Price limit aur account count limit is CNIC pe apply nahi ho rahi.
               </div>
             )}
 
@@ -1510,7 +1583,7 @@ const AddAccount = () => {
                 {errors.productPrice && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productPrice}</span>}
               </div>
 
-              {/* ✅ NEW: Profit / Markup % — Invoice Price ab isi se calculate hogi */}
+              {/* ✅ Profit / Markup % — Invoice Price isi se calculate hoti hai */}
               <div className="form-group">
                 <label style={{ fontWeight: 700 }}>Profit / Markup (%) *</label>
                 <div className="input-with-icon">
@@ -1525,11 +1598,11 @@ const AddAccount = () => {
                     style={{ fontWeight: 500 }}
                   />
                 </div>
-                <small className="field-hint" style={{ fontWeight: 500 }}>Invoice Price = Product Price + (Product Price × Profit %)</small>
+                <small className="field-hint" style={{ fontWeight: 500 }}>Invoice Price = Product Price + (Product Price × Profit %). Is par koi limit nahi.</small>
                 {errors.profitPercent && <span className="error-text" style={{ fontWeight: 600 }}>{errors.profitPercent}</span>}
               </div>
 
-              {/* ✅ Invoice Price — ab readonly / auto-calculated */}
+              {/* ✅ Invoice Price — readonly / auto-calculated. Advance minus karke DISPLAY hoti hai */}
               <div className="form-group">
                 <label style={{ fontWeight: 700 }}>Invoice Price (PKR)</label>
                 <div className="input-with-icon">
@@ -1537,12 +1610,12 @@ const AddAccount = () => {
                   <input
                     type="text"
                     className="form-input"
-                    value={formData.invoicePrice ? `PKR ${parseFloat(formData.invoicePrice).toLocaleString()}` : 'Auto-calculated from Product Price + Profit %'}
+                    value={getInvoicePriceDisplayValue()}
                     readOnly
                     style={{ background: '#f8f9fa', fontWeight: 600 }}
                   />
                 </div>
-                <small className="field-hint" style={{ fontWeight: 500 }}>Calculation: Product Price + (Product Price × Profit % ÷ 100)</small>
+                <small className="field-hint" style={{ fontWeight: 500 }}>Product Price + Profit % mein se Advance minus ho ke yahan dikhta hai</small>
                 {errors.invoicePrice && <span className="error-text" style={{ fontWeight: 600 }}>{errors.invoicePrice}</span>}
               </div>
 
@@ -1613,7 +1686,7 @@ const AddAccount = () => {
               </div>
             </div>
 
-            {/* ✅ NEW: BILL IMAGES SECTION (Optional) */}
+            {/* ✅ BILL IMAGES SECTION (Optional) */}
             <div className="image-section" style={{ border: '1px solid #d1d5db', background: '#fafafa', marginTop: '16px' }}>
               <div className="section-header">
                 <FileImage size={18} style={{ color: '#6b7280' }} />

@@ -1,6 +1,6 @@
 // src/components/EmployeeReport/EmployeeReport.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Search, Users, DollarSign, Calendar, Clock, TrendingUp, TrendingDown, 
   Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, 
@@ -246,32 +246,23 @@ const EmployeeReport = () => {
   const displayEmployees = selectedEmployeeData ? [selectedEmployeeData] : filteredEmployees;
 
   // ✅ GET FILTERED CHART DATA - hamesha 6 months, sahi anchor point ke sath
-  // - Koi filter nahi: aaj ki real date se current month + pichle 5 months (latest-first)
-  //   e.g. July chal raha ho to: July, June, May, April, March, Feb
-  // - Sirf month select kiya (year ho ya na ho): us month se agle 5 months forward (ascending)
-  //   e.g. Feb select kiya to: Feb, March, April, May, June, July
-  // - Sirf year select kiya (month 'all'): us year ke andar last 6 months (ya current year
-  //   ho to current month tak), latest-first
   const getFilteredChartData = (emp) => {
     let monthKeys = [];
 
     if (chartMonthFilter !== 'all') {
-      // Month selected -> anchor month se agle 5 months forward (ascending order)
       const anchorYear = chartYearFilter !== 'all' ? chartYearFilter : String(new Date().getFullYear());
       const anchorMonthKey = `${anchorYear}-${chartMonthFilter}`;
       monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(anchorMonthKey, i));
     } else if (chartYearFilter !== 'all') {
-      // Sirf year selected -> us year ke last 6 months (agar current year hai to current month tak)
       const now = new Date();
       const isCurrentYear = parseInt(chartYearFilter) === now.getFullYear();
       const endMonthKey = isCurrentYear
         ? `${chartYearFilter}-${String(now.getMonth() + 1).padStart(2, '0')}`
         : `${chartYearFilter}-12`;
-      monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(endMonthKey, -i)); // latest-first
+      monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(endMonthKey, -i)).reverse();
     } else {
-      // Default -> aaj ki real date se current month + pichle 5 months, latest-first
       const currentKey = getCurrentMonthKey();
-      monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(currentKey, -i));
+      monthKeys = Array.from({ length: 6 }, (_, i) => addMonthsToKey(currentKey, -i)).reverse();
     }
 
     return {
@@ -303,7 +294,7 @@ const EmployeeReport = () => {
   };
 
   // ✅ EXPORT DATA - Employee Report ke liye
-  const getExportData = () => {
+  const getExportData = useCallback(() => {
     return displayEmployees.map(emp => {
       const currentOverdue = getCurrentMonthOverdue(emp);
       return {
@@ -322,9 +313,9 @@ const EmployeeReport = () => {
         currentMonth: getCurrentMonth()
       };
     });
-  };
+  }, [displayEmployees]);
 
-  const exportColumns = [
+  const exportColumns = useMemo(() => [
     { header: 'Employee Name', key: 'name' },
     { header: 'Email', key: 'email' },
     { header: 'Phone', key: 'phone' },
@@ -338,7 +329,55 @@ const EmployeeReport = () => {
     { header: 'Total Overdue', key: 'totalOverdue' },
     { header: 'Current Month Overdue', key: 'currentMonthOverdue' },
     { header: 'Month', key: 'currentMonth' },
-  ];
+  ], []);
+
+  // ✅ Modal Export Data - Current selected employee KE SUMMARY CARDS + monthly chart data
+  const getModalExportData = useCallback(() => {
+    if (!selectedEmployee) return [];
+
+    const empData = getFilteredChartData(selectedEmployee);
+    const currentAccounts = selectedEmployee.monthlyData[getCurrentMonthKey()]?.accountsOpened || 0;
+    const currentOverdue = getCurrentMonthOverdue(selectedEmployee);
+    const monthlyRecovery = selectedEmployee.monthlyData[getCurrentMonthKey()]?.recoveryAmount || 0;
+
+    return empData.labels.map((label, index) => ({
+      employeeName: selectedEmployee.name,
+      branch: selectedEmployee.branch === 1 ? 'Branch 1' : 'Branch 2',
+      role: selectedEmployee.role,
+      joiningDate: selectedEmployee.joiningDate || 'N/A',
+      totalAccounts: selectedEmployee.totalAccounts || 0,
+      newAccountsCurrentMonth: currentAccounts,
+      monthlyRecovery: monthlyRecovery,
+      overdueCurrentMonth: currentOverdue,
+      totalOverdue: selectedEmployee.totalOverdue || 0,
+      salary: selectedEmployee.salary || 0,
+      totalCommission: selectedEmployee.totalCommission || 0,
+      month: label,
+      accounts: empData.accounts[index] || 0,
+      recovery: empData.recovery[index] || 0,
+      commission: empData.commission[index] || 0,
+      overdue: empData.overdue[index] || 0,
+    }));
+  }, [selectedEmployee, chartYearFilter, chartMonthFilter]);
+
+  const modalExportColumns = useMemo(() => [
+    { header: 'Employee Name', key: 'employeeName' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'Role', key: 'role' },
+    { header: 'Joining Date', key: 'joiningDate' },
+    { header: 'Total Accounts', key: 'totalAccounts' },
+    { header: `New Accounts (${currentMonth})`, key: 'newAccountsCurrentMonth' },
+    { header: 'Monthly Recovery (PKR)', key: 'monthlyRecovery' },
+    { header: `Overdue (${currentMonth}) (PKR)`, key: 'overdueCurrentMonth' },
+    { header: 'Total Overdue (PKR)', key: 'totalOverdue' },
+    { header: 'Salary (PKR)', key: 'salary' },
+    { header: 'Total Commission (PKR)', key: 'totalCommission' },
+    { header: 'Month', key: 'month' },
+    { header: 'Accounts', key: 'accounts' },
+    { header: 'Recovery (PKR)', key: 'recovery' },
+    { header: 'Commission (PKR)', key: 'commission' },
+    { header: 'Overdue (PKR)', key: 'overdue' },
+  ], [currentMonth]);
 
   const chartTypes = [
     { id: 'bar', label: 'Bar', icon: BarChart },
@@ -348,6 +387,7 @@ const EmployeeReport = () => {
     { id: 'stacked', label: 'Stacked', icon: BarChart },
   ];
 
+  // ✅ FIXED: BARA CHART - Height increased
   const renderEmployeeChart = () => {
     if (!selectedEmployee) return null;
     
@@ -361,47 +401,48 @@ const EmployeeReport = () => {
     const maxRecovery = Math.max(...empData.recovery.map(v => v/1000), 1);
     const maxOverdue = Math.max(...empData.overdue.map(v => v/1000), 1);
 
-    const getAccountsHeight = (val) => (val / maxAccounts) * 140;
-    const getRecoveryHeight = (val) => ((val/1000) / maxRecovery) * 140;
-    const getOverdueHeight = (val) => ((val/1000) / maxOverdue) * 140;
+    // ✅ HEIGHT BADHAI - 140 se 250
+    const getAccountsHeight = (val) => (val / maxAccounts) * 250;
+    const getRecoveryHeight = (val) => ((val/1000) / maxRecovery) * 250;
+    const getOverdueHeight = (val) => ((val/1000) / maxOverdue) * 250;
 
     if (modalChartType === 'bar') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-bar-container-4">
+          <div className="chart-bar-container-4" style={{ minHeight: '350px' }}>
             {empData.labels.map((label, index) => (
               <div key={index} className="chart-bar-group-4">
-                <div className="chart-bars-4">
+                <div className="chart-bars-4" style={{ height: '300px' }}>
                   <div className="chart-bar-wrapper-4">
                     <div 
                       className="chart-bar-4 bar-accounts" 
                       style={{ height: `${getAccountsHeight(empData.accounts[index])}px` }}
                     >
-                      <span className="bar-value-4">{empData.accounts[index]}</span>
+                      <span className="bar-value-4" style={{ fontSize: '11px' }}>{empData.accounts[index]}</span>
                     </div>
-                    <span className="bar-label-4">Acc</span>
+                    <span className="bar-label-4" style={{ fontSize: '11px' }}>Acc</span>
                   </div>
                   <div className="chart-bar-wrapper-4">
                     <div 
                       className="chart-bar-4 bar-recovery" 
                       style={{ height: `${getRecoveryHeight(empData.recovery[index])}px` }}
                     >
-                      <span className="bar-value-4">{(empData.recovery[index]/1000).toFixed(1)}k</span>
+                      <span className="bar-value-4" style={{ fontSize: '11px' }}>{(empData.recovery[index]/1000).toFixed(1)}k</span>
                     </div>
-                    <span className="bar-label-4">Rec</span>
+                    <span className="bar-label-4" style={{ fontSize: '11px' }}>Rec</span>
                   </div>
                   <div className="chart-bar-wrapper-4">
                     <div 
                       className="chart-bar-4 bar-overdue" 
                       style={{ height: `${getOverdueHeight(empData.overdue[index])}px` }}
                     >
-                      <span className="bar-value-4">{(empData.overdue[index]/1000).toFixed(1)}k</span>
+                      <span className="bar-value-4" style={{ fontSize: '11px' }}>{(empData.overdue[index]/1000).toFixed(1)}k</span>
                     </div>
-                    <span className="bar-label-4">Overdue</span>
+                    <span className="bar-label-4" style={{ fontSize: '11px' }}>Overdue</span>
                   </div>
                 </div>
                 <div className="chart-bar-labels-4">
-                  <span className="chart-label-4">{label}</span>
+                  <span className="chart-label-4" style={{ fontSize: '12px' }}>{label}</span>
                 </div>
               </div>
             ))}
@@ -418,39 +459,39 @@ const EmployeeReport = () => {
     if (modalChartType === 'line') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-line-container">
-            <svg viewBox="0 0 600 220" className="chart-svg">
-              {[0, 50, 100, 150, 200].map((y) => (
-                <line key={y} x1="0" y1={220 - y} x2="600" y2={220 - y} stroke="#e5e7eb" strokeWidth="1" />
+          <div className="chart-line-container" style={{ minHeight: '350px' }}>
+            <svg viewBox="0 0 800 300" className="chart-svg">
+              {[0, 50, 100, 150, 200, 250].map((y) => (
+                <line key={y} x1="0" y1={300 - y} x2="800" y2={300 - y} stroke="#e5e7eb" strokeWidth="1" />
               ))}
               <polyline
                 points={empData.accounts.map((val, i) => 
-                  `${(i / (empData.accounts.length - 1 || 1)) * 600},${220 - (val / maxAccounts) * 190}`
+                  `${(i / (empData.accounts.length - 1 || 1)) * 800},${300 - (val / maxAccounts) * 270}`
                 ).join(' ')}
                 fill="none"
                 stroke="#C9A84C"
-                strokeWidth="3"
+                strokeWidth="3.5"
               />
               <polyline
                 points={empData.recovery.map((val, i) => 
-                  `${(i / (empData.recovery.length - 1 || 1)) * 600},${220 - ((val/1000) / maxRecovery) * 190}`
+                  `${(i / (empData.recovery.length - 1 || 1)) * 800},${300 - ((val/1000) / maxRecovery) * 270}`
                 ).join(' ')}
                 fill="none"
                 stroke="#1A2A4A"
-                strokeWidth="3"
+                strokeWidth="3.5"
                 strokeDasharray="5,5"
               />
               <polyline
                 points={empData.overdue.map((val, i) => 
-                  `${(i / (empData.overdue.length - 1 || 1)) * 600},${220 - ((val/1000) / maxOverdue) * 190}`
+                  `${(i / (empData.overdue.length - 1 || 1)) * 800},${300 - ((val/1000) / maxOverdue) * 270}`
                 ).join(' ')}
                 fill="none"
                 stroke="#dc2626"
-                strokeWidth="3"
+                strokeWidth="3.5"
                 strokeDasharray="2,4"
               />
               {empData.labels.map((label, i) => (
-                <text key={i} x={(i / (empData.labels.length - 1 || 1)) * 600} y="215" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
+                <text key={i} x={(i / (empData.labels.length - 1 || 1)) * 800} y="295" fontSize="12" fill="#6b7280" textAnchor="middle" fontWeight="600">{label}</text>
               ))}
             </svg>
             <div className="chart-legend-4">
@@ -477,37 +518,37 @@ const EmployeeReport = () => {
 
       return (
         <div className="modal-chart-container">
-          <div className="chart-pie-container">
-            <div className="pie-chart">
-              <svg viewBox="0 0 220 220">
+          <div className="chart-pie-container" style={{ minHeight: '350px' }}>
+            <div className="pie-chart" style={{ width: '280px', height: '280px' }}>
+              <svg viewBox="0 0 280 280">
                 {pieData.map((item, index) => {
                   const percentage = (item.value / total) * 100;
-                  const dashArray = (percentage / 100) * 534.07;
+                  const dashArray = (percentage / 100) * 678.58;
                   const offset = cumulative;
                   cumulative += dashArray;
                   return (
                     <circle
                       key={index}
-                      cx="110" cy="110" r="85"
+                      cx="140" cy="140" r="108"
                       fill="none"
                       stroke={item.color}
-                      strokeWidth="45"
-                      strokeDasharray={`${dashArray} 534.07`}
+                      strokeWidth="50"
+                      strokeDasharray={`${dashArray} 678.58`}
                       strokeDashoffset={`-${offset}`}
-                      transform="rotate(-90 110 110)"
+                      transform="rotate(-90 140 140)"
                     />
                   );
                 })}
-                <text x="110" y="100" textAnchor="middle" fontSize="13" fontWeight="bold" fill="#0A1628">
+                <text x="140" y="125" textAnchor="middle" fontSize="16" fontWeight="bold" fill="#0A1628">
                   Total
                 </text>
-                <text x="110" y="118" textAnchor="middle" fontSize="10" fill="#6b7280">
+                <text x="140" y="148" textAnchor="middle" fontSize="13" fill="#6b7280" fontWeight="600">
                   {totalAccounts} Acc
                 </text>
-                <text x="110" y="132" textAnchor="middle" fontSize="10" fill="#6b7280">
+                <text x="140" y="165" textAnchor="middle" fontSize="13" fill="#6b7280" fontWeight="600">
                   {(totalRecovery/1000).toFixed(1)}k Rec
                 </text>
-                <text x="110" y="146" textAnchor="middle" fontSize="10" fill="#dc2626">
+                <text x="140" y="182" textAnchor="middle" fontSize="13" fill="#dc2626" fontWeight="600">
                   {(totalOverdue/1000).toFixed(1)}k Overdue
                 </text>
               </svg>
@@ -525,34 +566,34 @@ const EmployeeReport = () => {
     if (modalChartType === 'area') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-area-container-custom">
-            <svg viewBox="0 0 600 220" className="chart-svg">
+          <div className="chart-area-container-custom" style={{ minHeight: '350px' }}>
+            <svg viewBox="0 0 800 300" className="chart-svg">
               <polygon
-                points={`0,220 ${empData.accounts.map((val, i) => 
-                  `${(i / (empData.accounts.length - 1 || 1)) * 600},${220 - (val / maxAccounts) * 190}`
-                ).join(' ')} 600,220`}
+                points={`0,300 ${empData.accounts.map((val, i) => 
+                  `${(i / (empData.accounts.length - 1 || 1)) * 800},${300 - (val / maxAccounts) * 270}`
+                ).join(' ')} 800,300`}
                 fill="rgba(201, 168, 76, 0.3)"
                 stroke="#C9A84C"
-                strokeWidth="2"
+                strokeWidth="2.5"
               />
               <polygon
-                points={`0,220 ${empData.recovery.map((val, i) => 
-                  `${(i / (empData.recovery.length - 1 || 1)) * 600},${220 - ((val/1000) / maxRecovery) * 190}`
-                ).join(' ')} 600,220`}
+                points={`0,300 ${empData.recovery.map((val, i) => 
+                  `${(i / (empData.recovery.length - 1 || 1)) * 800},${300 - ((val/1000) / maxRecovery) * 270}`
+                ).join(' ')} 800,300`}
                 fill="rgba(26, 42, 74, 0.3)"
                 stroke="#1A2A4A"
-                strokeWidth="2"
+                strokeWidth="2.5"
               />
               <polygon
-                points={`0,220 ${empData.overdue.map((val, i) => 
-                  `${(i / (empData.overdue.length - 1 || 1)) * 600},${220 - ((val/1000) / maxOverdue) * 190}`
-                ).join(' ')} 600,220`}
+                points={`0,300 ${empData.overdue.map((val, i) => 
+                  `${(i / (empData.overdue.length - 1 || 1)) * 800},${300 - ((val/1000) / maxOverdue) * 270}`
+                ).join(' ')} 800,300`}
                 fill="rgba(220, 38, 38, 0.25)"
                 stroke="#dc2626"
-                strokeWidth="2"
+                strokeWidth="2.5"
               />
               {empData.labels.map((label, i) => (
-                <text key={i} x={(i / (empData.labels.length - 1 || 1)) * 600} y="215" fontSize="10" fill="#6b7280" textAnchor="middle">{label}</text>
+                <text key={i} x={(i / (empData.labels.length - 1 || 1)) * 800} y="295" fontSize="12" fill="#6b7280" textAnchor="middle" fontWeight="600">{label}</text>
               ))}
             </svg>
             <div className="chart-legend-4">
@@ -568,34 +609,34 @@ const EmployeeReport = () => {
     if (modalChartType === 'stacked') {
       return (
         <div className="modal-chart-container">
-          <div className="chart-stacked-container-4">
+          <div className="chart-stacked-container-4" style={{ minHeight: '350px' }}>
             {empData.labels.map((label, index) => {
               const accH = getAccountsHeight(empData.accounts[index]);
               const recH = getRecoveryHeight(empData.recovery[index]);
               const odH = getOverdueHeight(empData.overdue[index]);
               return (
                 <div key={index} className="stacked-bar-group-4">
-                  <div className="stacked-bar-wrapper-4">
+                  <div className="stacked-bar-wrapper-4" style={{ height: '300px' }}>
                     <div 
                       className="stacked-bar-4 rec-bar-4" 
                       style={{ height: `${recH}px` }}
                     >
-                      <span className="stacked-value-4">{(empData.recovery[index]/1000).toFixed(1)}k</span>
+                      <span className="stacked-value-4" style={{ fontSize: '10px' }}>{(empData.recovery[index]/1000).toFixed(1)}k</span>
                     </div>
                     <div 
                       className="stacked-bar-4 overdue-bar-4" 
                       style={{ height: `${odH}px` }}
                     >
-                      <span className="stacked-value-4">{(empData.overdue[index]/1000).toFixed(1)}k</span>
+                      <span className="stacked-value-4" style={{ fontSize: '10px' }}>{(empData.overdue[index]/1000).toFixed(1)}k</span>
                     </div>
                     <div 
                       className="stacked-bar-4 acc-bar-4" 
                       style={{ height: `${accH}px` }}
                     >
-                      <span className="stacked-value-4">{empData.accounts[index]}</span>
+                      <span className="stacked-value-4" style={{ fontSize: '10px' }}>{empData.accounts[index]}</span>
                     </div>
                   </div>
-                  <span className="stacked-label-4">{label}</span>
+                  <span className="stacked-label-4" style={{ fontSize: '11px' }}>{label}</span>
                 </div>
               );
             })}
@@ -612,8 +653,7 @@ const EmployeeReport = () => {
     return null;
   };
 
-  // ✅ Modal khulte hi hamesha 'all'/'all' se start hoga - default logic
-  // ab khud aaj ki real date se sahi 6 months nikal leti hai
+  // ✅ Modal khulte hi hamesha 'all'/'all' se start hoga
   const openDetailModal = (emp) => {
     setSelectedEmployee(emp);
     setChartYearFilter('all');
@@ -946,9 +986,18 @@ const EmployeeReport = () => {
                 <User size={20} className="empreport-modal-icon" />
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Employee Report - {selectedEmployee.name}</h3>
               </div>
-              <button className="empreport-modal-close" onClick={closeModal}>
-                <X size={24} />
-              </button>
+              {/* ✅ EXPORT BUTTON MOVED HERE - next to close button, top-right of modal */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <ExportButton
+                  data={getModalExportData()}
+                  columns={modalExportColumns}
+                  filename={`${selectedEmployee.name}-performance-report`}
+                  title={`${selectedEmployee.name} - Performance Report`}
+                />
+                <button className="empreport-modal-close" onClick={closeModal}>
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="empreport-modal-body">
@@ -980,7 +1029,7 @@ const EmployeeReport = () => {
                 ))}
               </div>
 
-              {/* ✅ CHART SECTION - SIMPLIFIED LIKE FIXED EXPENSES */}
+              {/* ✅ CHART SECTION - BARA CHART */}
               <div className="modal-chart-section">
                 <div className="modal-chart-header">
                   <h4 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
@@ -1002,7 +1051,7 @@ const EmployeeReport = () => {
                   </div>
                 </div>
 
-                {/* ✅ CHART FILTER - Year + Month (like Fixed Expenses) */}
+                {/* ✅ CHART FILTER - Year + Month */}
                 {selectedEmployee && Object.keys(selectedEmployee.monthlyData).length > 0 && (
                   <div className="chart-filter-bar" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '0.5rem 0', marginBottom: '0.5rem', background: '#f8fafc', borderRadius: '0.5rem', padding: '0.5rem 0.75rem' }}>
                     <div className="filter-item" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>

@@ -505,6 +505,54 @@ const EmployeePerformanceReport = () => {
     return `Employee Performance - ${tabMap[activeTab] || 'Report'} - ${employeeName}`;
   };
 
+  // ✅ NEW: ACCOUNT DETAIL MODAL EXPORT DATA - account summary + installment history
+  const getAccountExportData = useCallback(() => {
+    if (!selectedAccount) return [];
+
+    const status = getStatusForAccountLabel(selectedAccount);
+    const installments = selectedAccount.installments && selectedAccount.installments.length > 0
+      ? selectedAccount.installments
+      : [null];
+
+    return installments.map((inst) => ({
+      customer: selectedAccount.customer || 'N/A',
+      caseNo: selectedAccount.caseNo || 'N/A',
+      cnic: selectedAccount.cnic || 'N/A',
+      phone: selectedAccount.phone || 'N/A',
+      address: selectedAccount.address || 'N/A',
+      product: selectedAccount.product || 'N/A',
+      totalAmount: selectedAccount.amount || 0,
+      paidAmount: selectedAccount.paid || 0,
+      balance: selectedAccount.balance || 0,
+      openingDate: formatFullDate(selectedAccount.openingDate),
+      dueDate: formatDueDate(selectedAccount.dueDate),
+      status: status,
+      month: inst ? formatMonth(inst.month) : '-',
+      installmentDue: inst ? parseFloat(inst.due_amount || 0) : 0,
+      installmentPaid: inst ? parseFloat(inst.paid_amount || 0) : 0,
+      installmentBalance: inst ? parseFloat(inst.balance || 0) : 0,
+    }));
+  }, [selectedAccount]);
+
+  const accountExportColumns = useMemo(() => [
+    { header: 'Customer', key: 'customer' },
+    { header: 'Case No', key: 'caseNo' },
+    { header: 'CNIC', key: 'cnic' },
+    { header: 'Phone', key: 'phone' },
+    { header: 'Address', key: 'address' },
+    { header: 'Product', key: 'product' },
+    { header: 'Total Amount (PKR)', key: 'totalAmount' },
+    { header: 'Paid Amount (PKR)', key: 'paidAmount' },
+    { header: 'Balance (PKR)', key: 'balance' },
+    { header: 'Account Opening', key: 'openingDate' },
+    { header: 'Due Date', key: 'dueDate' },
+    { header: 'Status', key: 'status' },
+    { header: 'Installment Month', key: 'month' },
+    { header: 'Installment Due (PKR)', key: 'installmentDue' },
+    { header: 'Installment Paid (PKR)', key: 'installmentPaid' },
+    { header: 'Installment Balance (PKR)', key: 'installmentBalance' },
+  ], []);
+
   const cards = isEmployee ? [
     {
       key: 'new',
@@ -576,6 +624,12 @@ const EmployeePerformanceReport = () => {
     if (account.balance <= 0) return 'paid';
     if (isAccountOverdue(account)) return 'overdue';
     return 'paid';
+  };
+
+  // ✅ Human-readable status label for exports
+  const getStatusForAccountLabel = (account) => {
+    const status = getStatusForAccount(account);
+    return status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue';
   };
 
   // ✅ RENDER TABLE - NEW SEQUENCE
@@ -1037,9 +1091,18 @@ const EmployeePerformanceReport = () => {
                 <User size={20} className="epr-modal-icon" />
                 <h3>Account Details - {selectedAccount.caseNo}</h3>
               </div>
-              <button className="epr-modal-close" onClick={() => setShowAccountModal(false)}>
-                <X size={24} />
-              </button>
+              {/* ✅ EXPORT BUTTON - top-right of modal, next to close button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <ExportButton
+                  data={getAccountExportData()}
+                  columns={accountExportColumns}
+                  filename={`account-${selectedAccount.caseNo}-details`}
+                  title={`Account Details - ${selectedAccount.caseNo} - ${selectedAccount.customer}`}
+                />
+                <button className="epr-modal-close" onClick={() => setShowAccountModal(false)}>
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="epr-modal-body">

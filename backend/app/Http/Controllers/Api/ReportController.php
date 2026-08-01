@@ -103,12 +103,21 @@ class ReportController extends Controller
             // Fix: always pin day=1 explicitly via 'Y-m-d' + '-01', and for
             // the rolling 6-month default, lock to startOfMonth() BEFORE
             // subtracting months (not after).
+            //
+            // ✅ NEW (Weekly breakdown): Jab single "month" filter use ho
+            // (Single Month mode), tw ab performance_data month-wise nahi,
+            // balke Week 1 / Week 2 / Week 3 / Week 4 ke hisaab se aata hai —
+            // har week ki apni New Accounts, Sales, aur Recovery ke sath.
+            // Last6/Custom range mode bilkul pehle jaisa hi (month-wise) rahega.
             // ============================================
             $monthsToShow = [];
+            $isWeeklyMode = false;
+            $selectedMonth = null;
 
             if ($request->filled('month')) {
-                // Single month mode e.g. ?month=2026-03
-                $monthsToShow[] = \Carbon\Carbon::createFromFormat('Y-m-d', $request->get('month') . '-01')->startOfDay();
+                // Single month mode e.g. ?month=2026-03 → ab weekly breakdown
+                $isWeeklyMode = true;
+                $selectedMonth = \Carbon\Carbon::createFromFormat('Y-m-d', $request->get('month') . '-01')->startOfDay();
             } elseif ($request->filled('start') && $request->filled('end')) {
                 // Custom range mode e.g. ?start=2022-01&end=2022-06
                 $start = \Carbon\Carbon::createFromFormat('Y-m-d', $request->get('start') . '-01')->startOfDay();
@@ -133,36 +142,83 @@ class ReportController extends Controller
             }
 
             $performanceData = [];
-            foreach ($monthsToShow as $month) {
-                $monthLabel = $month->format('M y'); // e.g. "Jul 26" - unique across years
 
-                $monthAccounts = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
-                    return $q->where('branch_id', $branchId);
-                })->whereMonth('created_at', $month->month)
-                  ->whereYear('created_at', $month->year)
-                  ->count();
+            if ($isWeeklyMode) {
+                // ✅ NEW: Single month → Week 1, Week 2, Week 3, Week 4 breakdown
+                $monthStart = $selectedMonth->copy()->startOfMonth();
+                $monthEnd = $selectedMonth->copy()->endOfMonth();
+                $daysInMonth = (int) $monthEnd->day;
 
-                $monthSales = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
-                    return $q->where('branch_id', $branchId);
-                })->whereMonth('created_at', $month->month)
-                  ->whereYear('created_at', $month->year)
-                  ->sum('total_amount');
-
-                $monthRecovery = Installment::whereMonth('payment_date', $month->month)
-                    ->whereYear('payment_date', $month->year)
-                    ->when($branchId && !$isAdmin, function($q) use ($branchId) {
-                        return $q->whereHas('account', function($sub) use ($branchId) {
-                            $sub->where('branch_id', $branchId);
-                        });
-                    })
-                    ->sum('paid_amount');
-
-                $performanceData[] = [
-                    'month' => $monthLabel,
-                    'accounts' => $monthAccounts,
-                    'sales' => $monthSales,
-                    'recovery' => $monthRecovery,
+                // Week ranges: 1-7, 8-14, 15-21, 22-end (last week absorbs leftover days)
+                $weekRanges = [
+                    ['start' => 1, 'end' => 7],
+                    ['start' => 8, 'end' => 14],
+                    ['start' => 15, 'end' => 21],
+                    ['start' => 22, 'end' => $daysInMonth],
                 ];
+
+                foreach ($weekRanges as $index => $range) {
+                    $weekStart = $monthStart->copy()->addDays($range['start'] - 1)->startOfDay();
+                    $weekEnd = $monthStart->copy()->addDays($range['end'] - 1)->endOfDay();
+
+                    $weekAccounts = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                        return $q->where('branch_id', $branchId);
+                    })->whereBetween('created_at', [$weekStart, $weekEnd])
+                      ->count();
+
+                    $weekSales = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                        return $q->where('branch_id', $branchId);
+                    })->whereBetween('created_at', [$weekStart, $weekEnd])
+                      ->sum('total_amount');
+
+                    $weekRecovery = Installment::whereBetween('payment_date', [$weekStart, $weekEnd])
+                        ->when($branchId && !$isAdmin, function($q) use ($branchId) {
+                            return $q->whereHas('account', function($sub) use ($branchId) {
+                                $sub->where('branch_id', $branchId);
+                            });
+                        })
+                        ->sum('paid_amount');
+
+                    $performanceData[] = [
+                        'month' => 'Week ' . ($index + 1), // frontend "month" key hi X-axis label ke liye use karta hai
+                        'accounts' => $weekAccounts,
+                        'sales' => $weekSales,
+                        'recovery' => $weekRecovery,
+                    ];
+                }
+            } else {
+                // Existing month-wise / range-wise logic (unchanged)
+                foreach ($monthsToShow as $month) {
+                    $monthLabel = $month->format('M y'); // e.g. "Jul 26" - unique across years
+
+                    $monthAccounts = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                        return $q->where('branch_id', $branchId);
+                    })->whereMonth('created_at', $month->month)
+                      ->whereYear('created_at', $month->year)
+                      ->count();
+
+                    $monthSales = Account::when($branchId && !$isAdmin, function($q) use ($branchId) {
+                        return $q->where('branch_id', $branchId);
+                    })->whereMonth('created_at', $month->month)
+                      ->whereYear('created_at', $month->year)
+                      ->sum('total_amount');
+
+                    $monthRecovery = Installment::whereMonth('payment_date', $month->month)
+                        ->whereYear('payment_date', $month->year)
+                        ->when($branchId && !$isAdmin, function($q) use ($branchId) {
+                            return $q->whereHas('account', function($sub) use ($branchId) {
+                                $sub->where('branch_id', $branchId);
+                            });
+                        })
+                        ->sum('paid_amount');
+
+                    $performanceData[] = [
+                        'month' => $monthLabel,
+                        'accounts' => $monthAccounts,
+                        'sales' => $monthSales,
+                        'recovery' => $monthRecovery,
+                    ];
+                }
             }
             
             $topPerformers = DB::table('employee_accounts')

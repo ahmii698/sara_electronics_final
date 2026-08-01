@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Eye, Edit, DollarSign, RefreshCw, X, Wallet, Users, Calendar, Clock, Award, Building, CheckCircle, AlertCircle, TrendingUp, Landmark, Minus, ClipboardList } from 'lucide-react';
 import './Salary.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 // ✅ Reusable styled buttons (inline so they always look right regardless of Salary.css)
 const deductBtnStyle = {
@@ -366,14 +367,53 @@ const Salary = () => {
     return dateStr;
   };
 
+  // ✅ Export data function
+  const getExportData = () => {
+    return filtered.map(emp => ({
+      name: emp.name,
+      branch: emp.branch === 1 ? 'Branch 1' : 'Branch 2',
+      salary: emp.salary,
+      commission: emp.commission,
+      accounts: emp.accountCount || 0,
+      advances: emp.totalAdvances,
+      loans: emp.totalLoans,
+      pendingLoanDeduction: emp.pendingLoanDeduction,
+      status: emp.paid ? 'Paid' : 'Pending',
+      lastPaid: formatLastPaid(emp.lastPaid)
+    }));
+  };
+
+  const exportColumns = [
+    { header: 'Employee Name', key: 'name' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'Salary (PKR)', key: 'salary' },
+    { header: 'Commission (PKR)', key: 'commission' },
+    { header: 'Accounts', key: 'accounts' },
+    { header: 'Advances (PKR)', key: 'advances' },
+    { header: 'Loans (PKR)', key: 'loans' },
+    { header: 'Pending Loan Deduction (PKR)', key: 'pendingLoanDeduction' },
+    { header: 'Status', key: 'status' },
+    { header: 'Last Paid', key: 'lastPaid' },
+  ];
+
+  // ============================================
+  // ✅ PAY NOW
+  // Cycle-based: real calendar month se match NAHI karna.
+  // Employee ka jo bhi latest salary record hai (salaryData
+  // already backend se `orderBy('month','desc')` order mein
+  // aata hai — is.liye .find() se pehla match hi us employee
+  // ka sabse recent/active cycle hoga), usi pe pay karo.
+  // Sirf bilkul naye employee (jiska koi record hi nahi) ke
+  // liye naya record banate waqt real calendar month use hoga.
+  // ============================================
   const handlePayNow = async (id) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const emp = employees.find(e => e.id === id);
       
-      const month = new Date().toISOString().slice(0, 7);
-      let salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
+      // ✅ Real month se match nahi — employee ka current (latest) cycle record
+      let salaryRecord = salaryData.find(s => s.user_id === id);
       
       let response;
       if (salaryRecord) {
@@ -387,6 +427,9 @@ const Salary = () => {
           }
         });
       } else {
+        // ✅ Bilkul naya employee — pehli dafa record banega,
+        // sirf isi starting-point case mein real calendar month use hoga
+        const month = new Date().toISOString().slice(0, 7);
         const finalSalary = emp.salary - emp.totalAdvances;
         const totalPaid = finalSalary + emp.commission;
         
@@ -580,6 +623,12 @@ const Salary = () => {
     setLoading(false);
   };
 
+  // ============================================
+  // ✅ RESET
+  // Cycle-based: real calendar month se match nahi karna —
+  // employee ka jo bhi current (latest) salary record hai
+  // wahi reset hoga. Backend khud month ko agay barha dega.
+  // ============================================
   const handleReset = async (id) => {
     if (!window.confirm('Reset this employee\'s salary for the current month?\n\nThis will:\n• Mark as Pending\n• Remove Paid Date\n• Reset Commission to 0\n• Reset Total Paid to 0\n• Close out (finalize) any pending advance/loan deductions so they don\'t carry into the next cycle')) {
       return;
@@ -588,12 +637,13 @@ const Salary = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const month = new Date().toISOString().slice(0, 7);
-      const salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
+      // ✅ Real month se match nahi — employee ka current (latest) cycle record
+      const salaryRecord = salaryData.find(s => s.user_id === id);
       
       if (salaryRecord) {
-        // ✅ Naya endpoint — Salary reset + pending advances/loan deductions
-        // ko finalize (close) kar deta hai taake agle mahine dobara na katein
+        // ✅ Naya endpoint — Salary reset + month ko agla cycle barhata hai +
+        // pending advances/loan deductions ko finalize (close) kar deta hai
+        // taake agle mahine dobara na katein
         const response = await fetch(`${API_URL}/salary/${salaryRecord.id}/reset`, {
           method: 'POST',
           headers: {
@@ -610,7 +660,7 @@ const Salary = () => {
           alert(data.message || 'Failed to reset salary');
         }
       } else {
-        alert('No salary record found for this month.');
+        alert('No salary record found for this employee.');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -651,13 +701,19 @@ const Salary = () => {
     setEditingEmployee(null);
   };
 
+  // ============================================
+  // ✅ EDIT COMMISSION
+  // Cycle-based: real calendar month se match nahi karna —
+  // employee ka jo bhi latest salary record hai usi ki
+  // commission update hogi.
+  // ============================================
   const handleEditCommission = async (id, newCommission) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const month = new Date().toISOString().slice(0, 7);
       
-      let salaryRecord = salaryData.find(s => s.user_id === id && s.month === month);
+      // ✅ Real month se match nahi — employee ka current (latest) cycle record
+      let salaryRecord = salaryData.find(s => s.user_id === id);
       
       let response;
       if (salaryRecord) {
@@ -672,6 +728,9 @@ const Salary = () => {
           })
         });
       } else {
+        // ✅ Bilkul naya employee — pehli dafa record banega,
+        // sirf isi starting-point case mein real calendar month use hoga
+        const month = new Date().toISOString().slice(0, 7);
         const emp = employees.find(e => e.id === id);
         response = await fetch(`${API_URL}/salary`, {
           method: 'POST',
@@ -827,6 +886,30 @@ const Salary = () => {
           </div>
         </div>
 
+        <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <ExportButton
+            data={getExportData()}
+            columns={exportColumns}
+            filename="salary-report"
+            title="Salary Report"
+          />
+          <button className="btn-refresh-small" onClick={handleRefresh} title="Refresh" style={{
+            padding: '8px 12px',
+            background: '#f3f4f6',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#4b5563',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '13px',
+            fontWeight: 600
+          }}>
+            <RefreshCw size={16} />
+          </button>
+        </div>
+
         <div className="header-stats">
           {statChips.map((chip, index) => (
             <span 
@@ -853,9 +936,6 @@ const Salary = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button className="btn-refresh-small" onClick={handleRefresh} title="Refresh">
-          <RefreshCw size={16} />
-        </button>
       </div>
 
       <div className="salary-table-wrap">
