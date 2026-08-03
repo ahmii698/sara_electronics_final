@@ -590,11 +590,13 @@ const EditPaymentModal = ({
 
 // ============================================
 // ✅ STATUS FILTER (multi-select checkbox dropdown, single selection bhi kaam karega)
+// ✅ FIX: "Paid" option hata diya — Recovery page pe ab sirf Unpaid/Aging/Overdue
+// installments hi kabhi dikhengi, "Paid" ho chuki installments list se hamesha
+// gayab ho jayengi (matchesStatusFilter mein hard-block laga hai, neeche dekhein)
 // ============================================
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'unpaid', label: 'Unpaid' },
-  { value: 'paid', label: 'Paid' },
   { value: 'aging', label: 'Aging' },
   { value: 'overdue', label: 'Overdue' }
 ];
@@ -772,15 +774,24 @@ const Installments = () => {
     return monthsDiff + 1;
   }, [monthsBetween, getCurrentMonthStr]);
 
+  // ============================================
+  // ✅ FIX: Paid installment ab kabhi bhi list mein nahi dikhegi —
+  // chahe "All" filter select ho ya kuch bhi. Yeh check sab se pehle,
+  // filter status check karne se bhi pehle lagaya gaya hai.
+  // ============================================
   const matchesStatusFilter = useCallback((item, statuses) => {
-    if (!statuses || statuses.length === 0 || statuses.includes('all')) return true;
     const balance = parseFloat(item.balance || 0);
+
+    // ✅ Paid installment hamesha hide — page pe sirf Unpaid/Aging/Overdue dikhengi
+    if (balance <= 0) return false;
+
+    if (!statuses || statuses.length === 0 || statuses.includes('all')) return true;
+
     const aging = getAgingMonths(item);
     return statuses.some(status => {
-      if (status === 'paid') return balance <= 0;
-      if (status === 'unpaid') return balance > 0 && aging === 0;
-      if (status === 'aging') return balance > 0 && aging >= 1 && aging < 4;
-      if (status === 'overdue') return balance > 0 && aging >= 4;
+      if (status === 'unpaid') return aging === 0;
+      if (status === 'aging') return aging >= 1 && aging < 4;
+      if (status === 'overdue') return aging >= 4;
       return false;
     });
   }, [getAgingMonths]);
@@ -1403,15 +1414,6 @@ const Installments = () => {
           <div className="stat-card-4-info">
             <span className="stat-card-4-label">Total Mirror</span>
             <span className="stat-card-4-value">{formatCurrency(totalData.total_due - totalData.total_paid)}</span>
-          </div>
-        </div>
-        <div className="stat-card-4">
-          <div className="stat-card-4-icon paid">
-            <CheckCircle size={22} />
-          </div>
-          <div className="stat-card-4-info">
-            <span className="stat-card-4-label">Total Paid</span>
-            <span className="stat-card-4-value">{formatCurrency(totalData.total_paid)}</span>
           </div>
         </div>
         <div className="stat-card-4">

@@ -202,7 +202,9 @@ const OverdueInstallments = () => {
             overdueMonths,
             nextPayableInstallment: nextPayable,
             installments: sortedInstallments,
-            remarks: account.remarks || customer.remarks || '',
+            // ✅ FIX: remarks ab is account ki agli payable installment (jo table row mein represent ho rahi hai) se aayenge,
+            // account/customer se nahi — kyunke 'remarks' column installments table mein hai, account mein nahi.
+            remarks: nextPayable?.remarks || '',
             customer: customer,
             account: account,
             guarantors: guarantors,
@@ -294,12 +296,15 @@ const OverdueInstallments = () => {
     setEditingData({
       installmentId: nextInst?.id || null,
       paidAmount: '',
+      // ✅ FIX: remarks ab installment se hi aa rahe hain (record.remarks already isi se set hai)
       remarks: record.remarks || '',
       maxPayable: nextInst ? parseFloat(nextInst.balance || 0) : 0,
     });
     setShowEditModal(true);
   };
 
+  // ✅ UPDATED: ab amount dena zaroori nahi. Agar sirf remarks likhe hain (amount 0/khaali)
+  // to bhi save ho jayega, sirf remarks update honge, koi payment record nahi hogi.
   const handleSaveEdit = async () => {
     if (!canEdit) return;
 
@@ -308,13 +313,17 @@ const OverdueInstallments = () => {
       return;
     }
 
-    const amount = parseFloat(editingData.paidAmount);
-    if (!amount || amount <= 0) {
-      alert('Please enter a valid amount');
+    const amount = parseFloat(editingData.paidAmount) || 0;
+    const hasRemarks = (editingData.remarks || '').trim().length > 0;
+
+    // ✅ NEW: kam se kam amount ya remarks mein se koi ek hona chahiye
+    if (amount <= 0 && !hasRemarks) {
+      alert('Please enter a payment amount or add remarks');
       return;
     }
 
-    if (amount > editingData.maxPayable) {
+    // ✅ NEW: balance check sirf tab lagega jab actual amount diya ho
+    if (amount > 0 && amount > editingData.maxPayable) {
       alert(`Amount cannot exceed the remaining balance of PKR ${editingData.maxPayable.toLocaleString()}`);
       return;
     }
@@ -338,13 +347,14 @@ const OverdueInstallments = () => {
 
       const data = await response.json();
       if (data.success) {
-        alert('Payment recorded successfully!');
+        // ✅ NEW: amount ke hisaab se alag message
+        alert(amount > 0 ? 'Payment recorded successfully!' : 'Remarks saved successfully!');
         setShowEditModal(false);
         setSelectedRecord(null);
         const user = JSON.parse(localStorage.getItem('user'));
         fetchOverdueAccounts(user?.branch || null, user?.role || null);
       } else {
-        alert('Failed to record payment: ' + (data.message || 'Unknown error'));
+        alert('Failed to save: ' + (data.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error saving payment:', error);
@@ -523,7 +533,7 @@ const OverdueInstallments = () => {
                     <td className="oi-overdue-amount" style={{ fontWeight: 700, color: '#dc2626' }}>
                       PKR {item.totalOverdue.toLocaleString()}
                     </td>
-                    <td className="oi-remarks-cell" style={{ fontSize: '0.85rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <td className="oi-remarks-cell" style={{ fontSize: '0.85rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.remarks || ''}>
                       {item.remarks || '-'}
                     </td>
                     <td>
@@ -772,13 +782,13 @@ const OverdueInstallments = () => {
                         onChange={(e) => setEditingData({ ...editingData, paidAmount: e.target.value })}
                         min="0"
                         max={editingData.maxPayable}
-                        placeholder="Enter amount to pay..."
+                        placeholder="Enter amount to pay (leave empty to just save remarks)..."
                         style={{ fontWeight: 600 }}
                         disabled={!selectedRecord.nextPayableInstallment}
                       />
                       <small className="oi-field-hint" style={{ fontWeight: 600 }}>
                         {selectedRecord.nextPayableInstallment
-                          ? `Max payable: PKR ${editingData.maxPayable.toLocaleString()}`
+                          ? `Max payable: PKR ${editingData.maxPayable.toLocaleString()} — amount is optional if you're only adding remarks`
                           : 'No payable installment found for this account'}
                       </small>
                     </div>

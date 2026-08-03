@@ -47,6 +47,17 @@ class AccountController extends Controller
             $query->where('customer_id', $request->customer_id);
         }
 
+        // ✅ FIX: employee_id filter missing tha — isi wajah se Salary.jsx ka
+        // fallback fetch (jab accounts_count === 0 hota tha) har employee ke
+        // liye TOTAL system accounts return kar raha tha, uske apne accounts
+        // nahi. Ab sirf us employee ke accounts hi filter ho kar aayenge.
+        if ($request->employee_id) {
+            $employeeId = $request->employee_id;
+            $query->whereHas('employeeAccount', function ($q) use ($employeeId) {
+                $q->where('employee_id', $employeeId);
+            });
+        }
+
         $accounts = $query->orderBy('id', 'desc')->paginate(20);
         return $this->sendResponse($accounts, 'Accounts retrieved successfully');
     }

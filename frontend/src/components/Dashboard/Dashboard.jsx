@@ -6,7 +6,8 @@ import {
   Users, Package, DollarSign, TrendingUp, BarChart, 
   LineChart, PieChart, Activity, Award, AlertTriangle, 
   Calendar, ChevronDown, ChevronUp, RefreshCw, Sparkles,
-  CheckCircle, Clock, AlertCircle, Building, Filter, ChevronRight
+  CheckCircle, Clock, AlertCircle, Building, Filter, ChevronRight,
+  Landmark
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -47,25 +48,21 @@ const getCurrentDueDate = (dueDateStr) => {
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
   
-  // If dueDate is like "1", "2", "3" (day of month)
   if (/^\d{1,2}$/.test(dueDateStr.trim())) {
     const day = parseInt(dueDateStr.trim());
     return new Date(currentYear, currentMonth, day);
   }
-  // If dueDate is like "1st", "2nd", "3rd"
   else if (/^(\d{1,2})(st|nd|rd|th)?$/.test(dueDateStr.trim())) {
     const day = parseInt(dueDateStr.trim());
     return new Date(currentYear, currentMonth, day);
   }
-  // If dueDate is like "2026-08-01"
   else if (/^\d{4}-\d{2}-\d{2}$/.test(dueDateStr.trim())) {
     return new Date(dueDateStr.trim());
   }
   return null;
 };
 
-// ✅ Dismissal key ko current month/cycle ke sath bandho, taake
-// agle mahine expense unpaid hone par dobara dashboard par show ho.
+// ✅ Dismissal key ko current month/cycle ke sath bandho
 const getDismissKey = (expenseId) => {
   const today = new Date();
   return `${expenseId}_${today.getFullYear()}-${today.getMonth() + 1}`;
@@ -75,6 +72,11 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
+  const [loanData, setLoanData] = useState({
+    total_loans_given: 0,
+    total_loans_recovered: 0,
+    total_loans_pending: 0
+  });
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [userBranch, setUserBranch] = useState(null);
@@ -104,10 +106,12 @@ const Dashboard = () => {
     }
     
     fetchAllData();
+    fetchLoanData();
   }, []);
 
   useEffect(() => {
     fetchAllData();
+    fetchLoanData();
   }, [appliedFilter]);
 
   const buildDashboardParams = useCallback((user) => {
@@ -129,7 +133,40 @@ const Dashboard = () => {
     return params.toString();
   }, [appliedFilter]);
 
-  // ✅ FIXED: Sirf unpaid expenses fetch karo aur current month ki due date show karo
+  // ✅ Fetch loan summary data
+  const fetchLoanData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      let url = `${API_URL}/reports/loan-summary`;
+      const params = new URLSearchParams();
+      
+      if (user && user.branch_id && user.role !== 'admin') {
+        params.set('branch_id', user.branch_id);
+      }
+      
+      const queryString = params.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setLoanData(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching loan data:', error);
+    }
+  }, [userBranch]);
+
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -158,10 +195,9 @@ const Dashboard = () => {
         setError(dashboardJson.message || 'Failed to load dashboard');
       }
 
-      // ✅ FIXED: Expenses processing - sirf unpaid aur current month ki due date
       if (expensesData.success) {
         const expenses = (expensesData.data || [])
-          .filter(exp => !exp.paid && exp.due_date) // ✅ Sirf unpaid
+          .filter(exp => !exp.paid && exp.due_date)
           .map(exp => ({
             id: exp.id,
             name: exp.name,
@@ -176,24 +212,18 @@ const Dashboard = () => {
         today.setHours(0, 0, 0, 0);
 
         const upcoming = expenses.map(e => {
-          // ✅ Use getCurrentDueDate helper for proper date
           let dueDate = getCurrentDueDate(e.dueDate);
-          
-          // If dueDate is null or invalid, use today
           if (!dueDate || isNaN(dueDate.getTime())) {
             dueDate = new Date(today);
           }
-          
           dueDate.setHours(0, 0, 0, 0);
           const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
           return { ...e, dueDateObj: dueDate, daysLeft };
         });
 
-        // ✅ Sab expenses jo aaj, kal ya overdue hain (daysLeft <= 1)
         const filtered = upcoming.filter(e => e.daysLeft <= 1);
         filtered.sort((a, b) => a.daysLeft - b.daysLeft);
         
-        console.log('Upcoming Expenses:', filtered);
         setUpcomingExpenses(filtered);
       }
     } catch (error) {
@@ -206,10 +236,9 @@ const Dashboard = () => {
 
   const handleRefresh = useCallback(() => {
     fetchAllData();
-  }, [fetchAllData]);
+    fetchLoanData();
+  }, [fetchAllData, fetchLoanData]);
 
-  // ✅ key ab expenseId + current year-month hai, isliye dismissal
-  // sirf isi cycle ke liye lagu hoga — agle mahine wapas dikhega
   const handleDismissReminder = (expenseId) => {
     const key = getDismissKey(expenseId);
     if (dismissedReminders.includes(key)) return;
@@ -249,7 +278,6 @@ const Dashboard = () => {
     navigate('/finance/fixed');
   };
 
-  // ✅ filter ab getDismissKey se compare karta hai
   const visibleUpcomingExpenses = upcomingExpenses.filter(
     expense => !dismissedReminders.includes(getDismissKey(expense.id))
   );
@@ -455,7 +483,6 @@ const Dashboard = () => {
     return null;
   };
 
-  // ✅ FIXED: Status ab hamesha "Unpaid" dikhayega (Today/Tomorrow/Overdue pill hata di)
   const getStatusPill = () => {
     return (
       <span
@@ -476,7 +503,6 @@ const Dashboard = () => {
     );
   };
 
-  // ✅ Export data function
   const getExportData = useCallback(() => {
     if (!dashboardData) return [];
     
@@ -505,9 +531,14 @@ const Dashboard = () => {
         metric: 'Total Revenue',
         value: dashboardData.total_revenue || 0,
         branch: getBranchDisplayName()
+      },
+      {
+        metric: 'Total Loans Pending',
+        value: loanData.total_loans_pending || 0,
+        branch: getBranchDisplayName()
       }
     ];
-  }, [dashboardData]);
+  }, [dashboardData, loanData]);
 
   const exportColumns = [
     { header: 'Metric', key: 'metric' },
@@ -557,11 +588,19 @@ const Dashboard = () => {
     return data.branch_name || 'All Branches';
   };
 
+  // ✅ Updated stats - Loan card only shows Pending
   const stats = [
     { label: 'Total Customers', value: data.total_customers?.toLocaleString() || '0', icon: Users, subtitle: getBranchDisplayName() },
     { label: `New Accounts (${new Date().toLocaleString('default', { month: 'long' })})`, value: data.new_accounts || 0, icon: Calendar, subtitle: 'This month' },
     { label: 'Total Sales', value: formatCurrency(data.total_sales || 0), icon: DollarSign, subtitle: 'Lifetime revenue' },
     { label: 'Monthly Recovery', value: formatCurrency(data.monthly_recovery || 0), icon: TrendingUp, subtitle: `${new Date().toLocaleString('default', { month: 'long' })} recovery` },
+    // ✅ Loan Card - Sirf Pending amount dikhao
+    { 
+      label: 'Loan Pending', 
+      value: formatCurrency(loanData.total_loans_pending || 0), 
+      icon: Landmark, 
+      subtitle: 'Total loans pending'
+    },
   ];
 
   return (
@@ -585,15 +624,28 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="stats-grid-4">
+      {/* ✅ 5 cards grid */}
+      <div className="stats-grid-5">
         {stats.map((stat, index) => (
-          <div key={index} className="stat-card-4">
-            <div className="stat-card-4-top">
-              <div className="stat-card-4-icon"><stat.icon size={18} /></div>
-              <span className="stat-card-4-label">{stat.label}</span>
+          <div key={index} className={`stat-card-5 ${index === 4 ? 'loan-card' : ''}`}>
+            <div className="stat-card-5-top">
+              <div className="stat-card-5-icon" style={{ 
+                background: index === 4 ? 'rgba(139, 92, 246, 0.12)' : undefined,
+                color: index === 4 ? '#7c3aed' : undefined
+              }}>
+                <stat.icon size={18} />
+              </div>
+              <span className="stat-card-5-label">{stat.label}</span>
             </div>
-            <span className="stat-card-4-value">{stat.value}</span>
-            {stat.subtitle && <span className="stat-card-4-sub">{stat.subtitle}</span>}
+            <span className="stat-card-5-value">{stat.value}</span>
+            {stat.subtitle && (
+              <span className="stat-card-5-sub" style={{
+                color: index === 4 ? '#7c3aed' : undefined,
+                background: index === 4 ? 'rgba(139, 92, 246, 0.08)' : undefined
+              }}>
+                {stat.subtitle}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -753,7 +805,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ===== UPCOMING FIXED EXPENSES - UPDATED ===== */}
+      {/* ===== UPCOMING FIXED EXPENSES ===== */}
       {visibleUpcomingExpenses.length > 0 && (
         <div className="upcoming-expenses-section">
           <div className="upcoming-expenses-header">

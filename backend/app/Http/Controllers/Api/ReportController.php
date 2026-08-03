@@ -54,6 +54,65 @@ class ReportController extends Controller
     }
 
     // ============================================
+    // ✅ LOAN SUMMARY - NEW METHOD FOR DASHBOARD
+    // ============================================
+    public function getLoanSummary(Request $request)
+    {
+        try {
+            $branchId = $request->get('branch_id');
+            $user = auth()->user();
+            
+            if ($user && $user->role !== 'admin' && $user->branch_id) {
+                $branchId = $user->branch_id;
+            }
+            
+            $isAdmin = $user && $user->role === 'admin';
+            
+            // ✅ Total loan given (sum of all loan amounts)
+            $loanQuery = DB::table('loans');
+            if ($branchId && !$isAdmin) {
+                $loanQuery->whereHas('user', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
+            }
+            $totalLoansGiven = $loanQuery->sum('amount') ?? 0;
+            
+            // ✅ Total loan recovered (sum of all paid amounts)
+            $paidQuery = DB::table('loan_payments');
+            if ($branchId && !$isAdmin) {
+                $paidQuery->whereHas('loan.user', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
+            }
+            $totalLoansRecovered = $paidQuery->sum('amount') ?? 0;
+            
+            // ✅ Total pending loans
+            $pendingQuery = DB::table('loans');
+            if ($branchId && !$isAdmin) {
+                $pendingQuery->whereHas('user', function($q) use ($branchId) {
+                    $q->where('branch_id', $branchId);
+                });
+            }
+            $totalPending = $pendingQuery->sum(DB::raw('amount - paid_amount')) ?? 0;
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_loans_given' => floatval($totalLoansGiven),
+                    'total_loans_recovered' => floatval($totalLoansRecovered),
+                    'total_loans_pending' => floatval($totalPending),
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // ============================================
     // ✅ DASHBOARD - DYNAMIC DATA (with month filters)
     // ============================================
     public function dashboard(Request $request)
@@ -180,7 +239,7 @@ class ReportController extends Controller
                         ->sum('paid_amount');
 
                     $performanceData[] = [
-                        'month' => 'Week ' . ($index + 1), // frontend "month" key hi X-axis label ke liye use karta hai
+                        'month' => 'Week ' . ($index + 1),
                         'accounts' => $weekAccounts,
                         'sales' => $weekSales,
                         'recovery' => $weekRecovery,
@@ -387,9 +446,7 @@ class ReportController extends Controller
                     ->count();
 
                 // ✅ FIXED: Total Overdue - use month + account created_at day
-                // instead of virtual due_date column
                 $today = now()->format('Y-m-d');
-                $todayMonth = now()->format('Y-m');
 
                 $totalOverdue = 0;
                 $installments = Installment::with('account')

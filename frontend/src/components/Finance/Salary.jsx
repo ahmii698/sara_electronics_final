@@ -42,7 +42,7 @@ const Salary = () => {
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showLoanSummaryModal, setShowLoanSummaryModal] = useState(false);
-  const [deductAmounts, setDeductAmounts] = useState({}); // { [loanId]: 'amount string' }
+  const [deductAmounts, setDeductAmounts] = useState({});
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceReason, setAdvanceReason] = useState('');
@@ -56,43 +56,15 @@ const Salary = () => {
   const [advanceData, setAdvanceData] = useState([]);
   const [loanData, setLoanData] = useState([]);
 
-  // ✅ Pehle branch set karo, phir data fetch karo
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user) {
       setUserRole(user.role);
       setUserBranch(user.branch);
     }
-    // ✅ Branch set hone ke baad data fetch karo
     fetchAllData();
   }, []);
 
-  // ============================================
-  // ✅ FETCH ACCOUNT COUNT FOR A SPECIFIC EMPLOYEE
-  // ============================================
-  const fetchAccountCountForEmployee = async (employeeId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/accounts?employee_id=${employeeId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        const accounts = data.data?.data || data.data || [];
-        return Array.isArray(accounts) ? accounts.length : 0;
-      }
-      return 0;
-    } catch (error) {
-      console.error(`Error fetching accounts for employee ${employeeId}:`, error);
-      return 0;
-    }
-  };
-
-  // ✅ Loan record ko normalize karo — remaining = amount - paid_amount
-  // aur payments ko applied/unapplied mein split karo
   const mapLoan = (l) => {
     const amount = parseFloat(l.amount) || 0;
     const paidAmount = parseFloat(l.paid_amount) || 0;
@@ -111,227 +83,134 @@ const Salary = () => {
       reason: l.reason,
       deducted: l.deducted,
       payments: payments,
-      // ✅ Ye deductions manually kaati ja chuki hain lekin abhi
-      // "Pay" ke through us mahine ki salary mein count nahi hui
       pendingApplication: payments.filter(p => !p.applied).reduce((s, p) => s + p.amount, 0)
     };
   };
 
   // ============================================
-  // ✅ OPTIMIZED: PARALLEL API CALLS - 3x FAST
+  // ✅ SHARED: raw API responses ko employees array mein badalta hai.
+  // accounts_count seedha backend se (withCount) le rahe hain — is liye
+  // yahan koi per-employee extra API call NAHI hai. Ye hi sabse bada
+  // speed fix tha (pehle N employees = N extra /accounts calls).
   // ============================================
+  const buildEmployeesFromResponses = (employeesList, salData, advData, loanRespData) => {
+    return employeesList.map((emp) => {
+      const accountCount = emp.accounts_count || 0;
+
+      const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
+      const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
+      const loans = loanRespData.success
+        ? loanRespData.data.filter(l => l.user_id === emp.id).map(mapLoan)
+        : [];
+
+      const totalAdvances = advances
+        .filter(a => !a.deducted)
+        .reduce((sum, a) => sum + parseFloat(a.amount), 0);
+
+      const deductedAdvances = advances
+        .filter(a => a.deducted)
+        .reduce((sum, a) => sum + parseFloat(a.amount), 0);
+
+      const totalLoans = loans.reduce((sum, l) => sum + l.remaining, 0);
+      const totalLoanGiven = loans.reduce((sum, l) => sum + l.amount, 0);
+      const pendingLoanDeduction = loans.reduce((sum, l) => sum + l.pendingApplication, 0);
+
+      return {
+        id: emp.id,
+        name: emp.name,
+        branch: emp.branch_id,
+        salary: parseFloat(emp.salary) || 0,
+        commission: salary ? parseFloat(salary.commission) || 0 : 0,
+        paid: salary ? salary.status === 'paid' : false,
+        lastPaid: salary ? salary.paid_date : 'Never',
+        totalAdvances: totalAdvances,
+        deductedAdvances: deductedAdvances,
+        totalLoans: totalLoans,
+        totalLoanGiven: totalLoanGiven,
+        pendingLoanDeduction: pendingLoanDeduction,
+        accountCount: accountCount,
+        history: salary ? [{
+          date: salary.paid_date || '2026-06-01',
+          amount: salary.total_paid || 0,
+          status: 'Paid',
+          type: 'salary'
+        }] : [],
+        advances: advances.map(a => ({
+          date: a.date,
+          amount: a.amount,
+          reason: a.reason,
+          deducted: a.deducted
+        })),
+        loans: loans,
+        salaryRecord: salary,
+        currentMonth: new Date().toISOString().slice(0, 7)
+      };
+    });
+  };
+
+  // ============================================
+  // ✅ SHARED: 4 API calls ek saath (parallel), phir employees ka
+  // final shape bana kar state update karta hai. fetchAllData aur
+  // handleRefresh dono isi ko use karte hain — duplicate logic khatam.
+  // ============================================
+  const loadSalaryData = async () => {
+    const token = localStorage.getItem('token');
+
+    const [empRes, salRes, advRes, loanRes] = await Promise.all([
+      fetch(`${API_URL}/users?role=employee&paginate=false`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch(`${API_URL}/salary`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch(`${API_URL}/salary/advances`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }),
+      fetch(`${API_URL}/loans`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    ]);
+
+    const [empData, salData, advData, loanRespData] = await Promise.all([
+      empRes.json(),
+      salRes.json(),
+      advRes.json(),
+      loanRes.json()
+    ]);
+
+    if (!empData.success) return;
+
+    // ✅ paginate=false hone ki wajah se data.data direct array hai;
+    // agar backend fir bhi paginated shape bhej de to fallback bhi rakha hai
+    const employeesList = Array.isArray(empData.data) ? empData.data : (empData.data.data || []);
+
+    const employeesWithCounts = buildEmployeesFromResponses(employeesList, salData, advData, loanRespData);
+
+    setEmployees(employeesWithCounts);
+    setSalaryData(salData.success ? salData.data : []);
+    setAdvanceData(advData.success ? advData.data : []);
+    setLoanData(loanRespData.success ? loanRespData.data : []);
+
+    setSelectedEmployee(prev => {
+      if (!prev) return prev;
+      const fresh = employeesWithCounts.find(e => e.id === prev.id);
+      return fresh || prev;
+    });
+  };
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      
-      // ✅ PARALLEL API CALLS - Sab ek saath
-      const [empRes, salRes, advRes, loanRes] = await Promise.all([
-        fetch(`${API_URL}/users?role=employee`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/salary`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/salary/advances`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/loans`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
-
-      // ✅ PARALLEL JSON PARSING - Sab ek saath
-      const [empData, salData, advData, loanRespData] = await Promise.all([
-        empRes.json(),
-        salRes.json(),
-        advRes.json(),
-        loanRes.json()
-      ]);
-
-      if (empData.success) {
-        const employeesList = empData.data.data || [];
-        
-        // ✅ Manually fetch account count for each employee if needed
-        const employeesWithCounts = await Promise.all(
-          employeesList.map(async (emp) => {
-            let accountCount = emp.accounts_count || 0;
-            
-            // If backend returns 0, fetch manually
-            if (accountCount === 0) {
-              accountCount = await fetchAccountCountForEmployee(emp.id);
-            }
-            
-            const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
-            const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
-            const loans = loanRespData.success
-              ? loanRespData.data.filter(l => l.user_id === emp.id).map(mapLoan)
-              : [];
-            
-            const totalAdvances = advances
-              .filter(a => !a.deducted)
-              .reduce((sum, a) => sum + parseFloat(a.amount), 0);
-            
-            const deductedAdvances = advances
-              .filter(a => a.deducted)
-              .reduce((sum, a) => sum + parseFloat(a.amount), 0);
-
-            // ✅ Total outstanding loan debt (sab loans ka jama remaining)
-            const totalLoans = loans.reduce((sum, l) => sum + l.remaining, 0);
-
-            // ✅ Sab loans ki original total amount (jitna diya gaya tha)
-            const totalLoanGiven = loans.reduce((sum, l) => sum + l.amount, 0);
-
-            // ✅ Manually kaati gayi amount jo agli "Pay" pe salary se katay gi
-            const pendingLoanDeduction = loans.reduce((sum, l) => sum + l.pendingApplication, 0);
-
-            return {
-              id: emp.id,
-              name: emp.name,
-              branch: emp.branch_id,
-              salary: parseFloat(emp.salary) || 0,
-              commission: salary ? parseFloat(salary.commission) || 0 : 0,
-              paid: salary ? salary.status === 'paid' : false,
-              lastPaid: salary ? salary.paid_date : 'Never',
-              totalAdvances: totalAdvances,
-              deductedAdvances: deductedAdvances,
-              totalLoans: totalLoans,
-              totalLoanGiven: totalLoanGiven,
-              pendingLoanDeduction: pendingLoanDeduction,
-              accountCount: accountCount,
-              history: salary ? [{
-                date: salary.paid_date || '2026-06-01',
-                amount: salary.total_paid || 0,
-                status: 'Paid',
-                type: 'salary'
-              }] : [],
-              advances: advances.map(a => ({
-                date: a.date,
-                amount: a.amount,
-                reason: a.reason,
-                deducted: a.deducted
-              })),
-              loans: loans,
-              salaryRecord: salary,
-              currentMonth: new Date().toISOString().slice(0, 7)
-            };
-          })
-        );
-
-        setEmployees(employeesWithCounts);
-        setSalaryData(salData.success ? salData.data : []);
-        setAdvanceData(advData.success ? advData.data : []);
-        setLoanData(loanRespData.success ? loanRespData.data : []);
-
-        // ✅ Agar koi modal khula hua hai to selectedEmployee ko bhi fresh data se sync karo
-        setSelectedEmployee(prev => {
-          if (!prev) return prev;
-          const fresh = employeesWithCounts.find(e => e.id === prev.id);
-          return fresh || prev;
-        });
-      }
+      await loadSalaryData();
     } catch (error) {
       console.error('Error fetching data:', error);
     }
     setLoading(false);
   };
 
-  // ✅ Fast refresh ke liye - Loading state dikhaye bina refresh kare
   const handleRefresh = async () => {
     try {
-      const token = localStorage.getItem('token');
-      
-      const [empRes, salRes, advRes, loanRes] = await Promise.all([
-        fetch(`${API_URL}/users?role=employee`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/salary`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/salary/advances`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/loans`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
-
-      const [empData, salData, advData, loanRespData] = await Promise.all([
-        empRes.json(),
-        salRes.json(),
-        advRes.json(),
-        loanRes.json()
-      ]);
-
-      if (empData.success) {
-        const employeesList = empData.data.data || [];
-        
-        const employeesWithCounts = await Promise.all(
-          employeesList.map(async (emp) => {
-            let accountCount = emp.accounts_count || 0;
-            
-            if (accountCount === 0) {
-              accountCount = await fetchAccountCountForEmployee(emp.id);
-            }
-            
-            const salary = salData.success ? salData.data.find(s => s.user_id === emp.id) : null;
-            const advances = advData.success ? advData.data.filter(a => a.user_id === emp.id) : [];
-            const loans = loanRespData.success
-              ? loanRespData.data.filter(l => l.user_id === emp.id).map(mapLoan)
-              : [];
-            
-            const totalAdvances = advances
-              .filter(a => !a.deducted)
-              .reduce((sum, a) => sum + parseFloat(a.amount), 0);
-
-            const totalLoans = loans.reduce((sum, l) => sum + l.remaining, 0);
-            const totalLoanGiven = loans.reduce((sum, l) => sum + l.amount, 0);
-            const pendingLoanDeduction = loans.reduce((sum, l) => sum + l.pendingApplication, 0);
-
-            return {
-              id: emp.id,
-              name: emp.name,
-              branch: emp.branch_id,
-              salary: parseFloat(emp.salary) || 0,
-              commission: salary ? parseFloat(salary.commission) || 0 : 0,
-              paid: salary ? salary.status === 'paid' : false,
-              lastPaid: salary ? salary.paid_date : 'Never',
-              totalAdvances: totalAdvances,
-              deductedAdvances: 0,
-              totalLoans: totalLoans,
-              totalLoanGiven: totalLoanGiven,
-              pendingLoanDeduction: pendingLoanDeduction,
-              accountCount: accountCount,
-              history: salary ? [{
-                date: salary.paid_date || '2026-06-01',
-                amount: salary.total_paid || 0,
-                status: 'Paid',
-                type: 'salary'
-              }] : [],
-              advances: advances.map(a => ({
-                date: a.date,
-                amount: a.amount,
-                reason: a.reason,
-                deducted: a.deducted
-              })),
-              loans: loans,
-              salaryRecord: salary,
-              currentMonth: new Date().toISOString().slice(0, 7)
-            };
-          })
-        );
-
-        setEmployees(employeesWithCounts);
-        setSalaryData(salData.success ? salData.data : []);
-        setAdvanceData(advData.success ? advData.data : []);
-        setLoanData(loanRespData.success ? loanRespData.data : []);
-
-        setSelectedEmployee(prev => {
-          if (!prev) return prev;
-          const fresh = employeesWithCounts.find(e => e.id === prev.id);
-          return fresh || prev;
-        });
-      }
+      await loadSalaryData();
     } catch (error) {
       console.error('Error refreshing data:', error);
     }
@@ -378,8 +257,7 @@ const Salary = () => {
       advances: emp.totalAdvances,
       loans: emp.totalLoans,
       pendingLoanDeduction: emp.pendingLoanDeduction,
-      status: emp.paid ? 'Paid' : 'Pending',
-      lastPaid: formatLastPaid(emp.lastPaid)
+      status: emp.paid ? 'Paid' : 'Pending'
     }));
   };
 
@@ -393,32 +271,18 @@ const Salary = () => {
     { header: 'Loans (PKR)', key: 'loans' },
     { header: 'Pending Loan Deduction (PKR)', key: 'pendingLoanDeduction' },
     { header: 'Status', key: 'status' },
-    { header: 'Last Paid', key: 'lastPaid' },
   ];
 
-  // ============================================
-  // ✅ PAY NOW
-  // Cycle-based: real calendar month se match NAHI karna.
-  // Employee ka jo bhi latest salary record hai (salaryData
-  // already backend se `orderBy('month','desc')` order mein
-  // aata hai — is.liye .find() se pehla match hi us employee
-  // ka sabse recent/active cycle hoga), usi pe pay karo.
-  // Sirf bilkul naye employee (jiska koi record hi nahi) ke
-  // liye naya record banate waqt real calendar month use hoga.
-  // ============================================
   const handlePayNow = async (id) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const emp = employees.find(e => e.id === id);
       
-      // ✅ Real month se match nahi — employee ka current (latest) cycle record
       let salaryRecord = salaryData.find(s => s.user_id === id);
       
       let response;
       if (salaryRecord) {
-        // ✅ Backend sirf wahi manual loan deductions apply karega jo
-        // pehle se ki ja chuki hain — khud se kuch nahi katega
         response = await fetch(`${API_URL}/salary/${salaryRecord.id}/pay`, {
           method: 'POST',
           headers: {
@@ -427,8 +291,6 @@ const Salary = () => {
           }
         });
       } else {
-        // ✅ Bilkul naya employee — pehli dafa record banega,
-        // sirf isi starting-point case mein real calendar month use hoga
         const month = new Date().toISOString().slice(0, 7);
         const finalSalary = emp.salary - emp.totalAdvances;
         const totalPaid = finalSalary + emp.commission;
@@ -455,16 +317,18 @@ const Salary = () => {
       const data = await response.json();
       
       if (data.success) {
+        // ✅ Advances ko parallel deduct karo — pehle for..of se ek-ek
+        // karke sequential await ho raha tha, ab sab ek saath.
         const advancesToDeduct = advanceData.filter(a => a.user_id === id && !a.deducted);
-        for (const adv of advancesToDeduct) {
-          await fetch(`${API_URL}/salary/advances/${adv.id}/deduct`, {
+        await Promise.all(advancesToDeduct.map(adv =>
+          fetch(`${API_URL}/salary/advances/${adv.id}/deduct`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             }
-          });
-        }
+          })
+        ));
 
         await handleRefresh();
 
@@ -528,9 +392,6 @@ const Salary = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ ADD LOAN — koi cap nahi, employee jitni chahe le sakta hai
-  // ============================================
   const handleAddLoan = async (id) => {
     if (!loanAmount || parseInt(loanAmount) <= 0) {
       alert('Please enter a valid amount');
@@ -576,10 +437,6 @@ const Salary = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ MANUALLY DEDUCT A CUSTOM AMOUNT FROM A SPECIFIC LOAN
-  // (inline — used from both History modal & Loan Summary modal)
-  // ============================================
   const handleDeductLoanInline = async (loan) => {
     const rawAmount = deductAmounts[loan.id];
     const amount = parseFloat(rawAmount);
@@ -623,12 +480,6 @@ const Salary = () => {
     setLoading(false);
   };
 
-  // ============================================
-  // ✅ RESET
-  // Cycle-based: real calendar month se match nahi karna —
-  // employee ka jo bhi current (latest) salary record hai
-  // wahi reset hoga. Backend khud month ko agay barha dega.
-  // ============================================
   const handleReset = async (id) => {
     if (!window.confirm('Reset this employee\'s salary for the current month?\n\nThis will:\n• Mark as Pending\n• Remove Paid Date\n• Reset Commission to 0\n• Reset Total Paid to 0\n• Close out (finalize) any pending advance/loan deductions so they don\'t carry into the next cycle')) {
       return;
@@ -637,13 +488,9 @@ const Salary = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      // ✅ Real month se match nahi — employee ka current (latest) cycle record
       const salaryRecord = salaryData.find(s => s.user_id === id);
       
       if (salaryRecord) {
-        // ✅ Naya endpoint — Salary reset + month ko agla cycle barhata hai +
-        // pending advances/loan deductions ko finalize (close) kar deta hai
-        // taake agle mahine dobara na katein
         const response = await fetch(`${API_URL}/salary/${salaryRecord.id}/reset`, {
           method: 'POST',
           headers: {
@@ -701,18 +548,11 @@ const Salary = () => {
     setEditingEmployee(null);
   };
 
-  // ============================================
-  // ✅ EDIT COMMISSION
-  // Cycle-based: real calendar month se match nahi karna —
-  // employee ka jo bhi latest salary record hai usi ki
-  // commission update hogi.
-  // ============================================
   const handleEditCommission = async (id, newCommission) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       
-      // ✅ Real month se match nahi — employee ka current (latest) cycle record
       let salaryRecord = salaryData.find(s => s.user_id === id);
       
       let response;
@@ -728,8 +568,6 @@ const Salary = () => {
           })
         });
       } else {
-        // ✅ Bilkul naya employee — pehli dafa record banega,
-        // sirf isi starting-point case mein real calendar month use hoga
         const month = new Date().toISOString().slice(0, 7);
         const emp = employees.find(e => e.id === id);
         response = await fetch(`${API_URL}/salary`, {
@@ -858,7 +696,6 @@ const Salary = () => {
     },
   ];
 
-  // ✅ Agar loading ho aur employees empty hain toh spinner dikhao
   if (loading && employees.length === 0) {
     return (
       <div className="salary-container">
@@ -950,20 +787,16 @@ const Salary = () => {
               <th>Loans</th>
               <th>Balance (PKR)</th>
               <th>Status</th>
-              <th>Last Paid</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="10" className="no-data">No employees found for {branchLabel}</td>
+                <td colSpan="9" className="no-data">No employees found for {branchLabel}</td>
               </tr>
             ) : (
               filtered.map(emp => {
-                // ✅ Monthly balance = salary + commission - advances - jo loan
-                // deduction manually ki ja chuki ho lekin abhi tak salary mein
-                // "apply" nahi hui (pendingLoanDeduction)
                 let balance;
                 if (emp.paid) {
                   balance = 0;
@@ -1027,9 +860,6 @@ const Salary = () => {
                         {emp.paid ? 'Paid' : 'Pending'}
                       </span>
                     </td>
-                    <td className="last-paid" style={{ fontWeight: 600 }}>
-                      {formatLastPaid(emp.lastPaid)}
-                    </td>
                     <td>
                       <div className="action-group">
                         <button className="btn-view" onClick={() => handleViewHistory(emp)} title="View History">
@@ -1077,7 +907,7 @@ const Salary = () => {
         </table>
       </div>
 
-      {/* ===== LOAN SUMMARY MODAL — quick summary + inline deduct ===== */}
+      {/* ===== LOAN SUMMARY MODAL ===== */}
       {showLoanSummaryModal && selectedEmployee && (
         <div className="salary-modal-overlay" onClick={() => setShowLoanSummaryModal(false)}>
           <div className="salary-modal-content salary-modal-advance" onClick={(e) => e.stopPropagation()}>
@@ -1102,7 +932,6 @@ const Salary = () => {
                 </div>
               </div>
 
-              {/* ✅ Requested summary table: Salary, Commission, Advance, Loan Amount, Pending Loan, Pending Salary */}
               <div style={{ border: '1px solid #e5e7eb', borderRadius: '0.75rem', overflow: 'hidden', marginBottom: '1rem' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
@@ -1146,7 +975,6 @@ const Salary = () => {
                 </table>
               </div>
 
-              {/* ✅ Har active loan ke liye inline deduct */}
               <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1E1B4B', marginBottom: '0.5rem' }}>Active Loans</h4>
               {selectedEmployee.loans.filter(l => l.remaining > 0).length === 0 ? (
                 <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No pending loans.</p>
@@ -1303,7 +1131,6 @@ const Salary = () => {
                 </div>
               )}
 
-              {/* ✅ LOANS — har loan ka amount, kitna kata, kitna baaki + manual Deduct button */}
               {selectedEmployee.loans.length > 0 && (
                 <div className="advances-section">
                   <div className="advances-header">
@@ -1363,7 +1190,6 @@ const Salary = () => {
                     </table>
                   </div>
 
-                  {/* ✅ Full payment log — har manual deduction yahan */}
                   {selectedEmployee.loans.some(l => l.payments.length > 0) && (
                     <div style={{ marginTop: '0.75rem' }}>
                       <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1E1B4B', marginBottom: '0.4rem' }}>
@@ -1547,7 +1373,7 @@ const Salary = () => {
         </div>
       )}
 
-      {/* ===== LOAN MODAL — koi max cap nahi ===== */}
+      {/* ===== LOAN MODAL ===== */}
       {showLoanModal && selectedEmployee && (
         <div className="salary-modal-overlay" onClick={() => setShowLoanModal(false)}>
           <div className="salary-modal-content salary-modal-advance" onClick={(e) => e.stopPropagation()}>

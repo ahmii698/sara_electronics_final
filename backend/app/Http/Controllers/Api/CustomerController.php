@@ -20,6 +20,7 @@ class CustomerController extends Controller
 {
     const MAX_ACCOUNTS_PER_CNIC = 2;
     const MAX_COMBINED_AMOUNT = 100000;
+    const CASE_NO_START = 10000; // ✅ case number yahan se start hoga (naye records ke liye)
 
     public function index(Request $request)
     {
@@ -182,8 +183,15 @@ class CustomerController extends Controller
     {
         try {
             Log::info('========== CUSTOMER STORE REQUEST ==========');
-            Log::info('created_by (employee_id):', [$request->created_by]);
+            Log::info('created_by (logged-in admin/manager):', [$request->created_by]);
+            Log::info('employee_id (selected employee):', [$request->input('employee_id')]);
             Log::info('product_name:', [$request->product_name]);
+
+            // ✅ Old Record mode + manually typed case number
+            $isOldRecord = filter_var($request->input('is_old_record', false), FILTER_VALIDATE_BOOLEAN);
+            $manualCaseNo = trim((string) $request->input('case_no', ''));
+            Log::info('is_old_record:', [$isOldRecord]);
+            Log::info('manual case_no:', [$manualCaseNo]);
 
             $cleanCnic = preg_replace('/[^0-9]/', '', $request->cnic ?? '');
 
@@ -197,7 +205,9 @@ class CustomerController extends Controller
                 ->where('is_unlimited', true)
                 ->exists();
 
-            if ($existingCustomer && !$isUnlimitedCnic) {
+            // ✅ Old Record mode ya Unlimited/Special customer ho to koi bhi
+            // account-count / combined-amount limit check nahi hoga
+            if ($existingCustomer && !$isUnlimitedCnic && !$isOldRecord) {
                 $openAccounts = $existingCustomer->accounts->where('balance', '>', 0);
                 $existingAccountsCount = $openAccounts->count();
                 $existingTotal = (float) $openAccounts->sum('total_amount');
@@ -217,8 +227,8 @@ class CustomerController extends Controller
                         'message' => 'Combined account amount cannot exceed PKR ' . number_format(self::MAX_COMBINED_AMOUNT) . '. Remaining limit: PKR ' . number_format(self::MAX_COMBINED_AMOUNT - $existingTotal)
                     ], 422);
                 }
-            } elseif ($isUnlimitedCnic) {
-                Log::info('✅ Special/unlimited CNIC — skipping account-count and combined-amount limit checks', ['cnic' => $request->cnic]);
+            } elseif ($isUnlimitedCnic || $isOldRecord) {
+                Log::info('✅ Special/unlimited/old-record CNIC — skipping account-count and combined-amount limit checks', ['cnic' => $request->cnic]);
             }
 
             // Get guarantors from request
@@ -288,11 +298,14 @@ class CustomerController extends Controller
                 'branch_id' => 'required|exists:branches,id',
                 'status' => 'nullable|in:active,hold,closed',
                 'created_by' => 'required|exists:users,id',
+                'employee_id' => 'nullable|exists:users,id',
                 'invoice_price' => 'required|numeric|min:0',
                 'advance_payment' => 'nullable|numeric|min:0',
                 'number_of_installments' => 'required|integer|min:1',
                 'due_date' => 'required|date',
-                'first_installment_payment' => 'nullable|numeric|min:0', // ✅ NEW
+                'first_installment_payment' => 'nullable|numeric|min:0',
+                'is_old_record' => 'nullable|boolean',
+                'case_no' => 'nullable|string|max:50',
             ]);
 
             if ($validator->fails()) {
@@ -303,10 +316,13 @@ class CustomerController extends Controller
                 ], 422);
             }
 
-            $employeeId = $request->created_by;
-            Log::info('✅ Employee ID from request:', ['employee_id' => $employeeId]);
+            $loggedInUserId = $request->created_by;
+            $employeeId = $request->input('employee_id', $loggedInUserId);
 
-            // ✅ Minimum 1 guarantor required
+            Log::info('✅ Logged-in user (creator):', ['id' => $loggedInUserId]);
+            Log::info('✅ Employee ID (opened by):', ['id' => $employeeId]);
+
+            // ✅ Minimum 1 guarantor required — yeh restriction Old Record mein bhi lagu rahegi
             if (count($validGuarantors) < 1) {
                 return response()->json([
                     'success' => false,
@@ -325,11 +341,62 @@ class CustomerController extends Controller
                 ], 422);
             }
 
-            foreach ($validGuarantors as $g) {
-                if (Customer::where('cnic', $g['cnic'])->exists()) {
+            // ✅ Guarantor CNIC "already a customer" check — Old Record mein SKIP
+            if (!$isOldRecord) {
+                foreach ($validGuarantors as $g) {
+                    if (Customer::where('cnic', $g['cnic'])->exists()) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "CNIC {$g['cnic']} already exists as a customer"
+                        ], 422);
+                    }
+                }
+            } else {
+                Log::info('✅ Old Record mode — skipping guarantor CNIC duplicate-as-customer check');
+            }
+
+            // ============================================
+            // ✅ NEW: Old Record mode mein manual case number
+            // required hai AUR woh sirf CASE_NO_START (10000)
+            // se KAM hona chahiye — taake naye auto-generated
+            // case numbers (10000+) se kabhi conflict/confusion na ho.
+            // ============================================
+            if ($isOldRecord) {
+                if ($manualCaseNo === '') {
                     return response()->json([
                         'success' => false,
-                        'message' => "CNIC {$g['cnic']} already exists as a customer"
+                        'errors' => [
+                            'case_no' => ['Old Record mode: Case number manually likhna zaroori hai.']
+                        ]
+                    ], 422);
+                }
+
+                if (!ctype_digit($manualCaseNo)) {
+                    return response()->json([
+                        'success' => false,
+                        'errors' => [
+                            'case_no' => ['Case number sirf numbers mein hona chahiye.']
+                        ]
+                    ], 422);
+                }
+
+                $numericCaseNo = (int) $manualCaseNo;
+
+                if ($numericCaseNo >= self::CASE_NO_START) {
+                    return response()->json([
+                        'success' => false,
+                        'errors' => [
+                            'case_no' => ['Old Record: Case number ' . self::CASE_NO_START . ' se kam hona chahiye (sirf purane records ke liye). Naye records khud-ba-khud ' . self::CASE_NO_START . ' se generate hote hain.']
+                        ]
+                    ], 422);
+                }
+
+                if ($numericCaseNo <= 0) {
+                    return response()->json([
+                        'success' => false,
+                        'errors' => [
+                            'case_no' => ['Case number valid hona chahiye (0 se zyada).']
+                        ]
                     ], 422);
                 }
             }
@@ -487,7 +554,7 @@ class CustomerController extends Controller
                     'product_name' => $request->product_name ?? '',
                     'branch_id' => $request->branch_id,
                     'status' => $request->status ?? 'active',
-                    'created_by' => $employeeId,
+                    'created_by' => $loggedInUserId,
                     'cnic_front' => $cnicFrontPath,
                     'cnic_back' => $cnicBackPath,
                     'voice_consent' => $voiceConsentPath,
@@ -497,7 +564,7 @@ class CustomerController extends Controller
                     'bill_image_2' => $billImage2Path,
                 ]);
 
-                Log::info('✅ Customer created:', ['id' => $customer->id, 'created_by' => $employeeId]);
+                Log::info('✅ Customer created:', ['id' => $customer->id, 'created_by' => $loggedInUserId]);
 
                 // ✅ 2. Create Employee Account
                 $employeeAccount = EmployeeAccount::create([
@@ -508,10 +575,10 @@ class CustomerController extends Controller
                     'month' => now()->format('Y-m'),
                     'year' => now()->year,
                     'status' => 'active',
-                    'created_by' => $employeeId,
+                    'created_by' => $loggedInUserId,
                 ]);
 
-                Log::info('✅ EmployeeAccount created:', ['id' => $employeeAccount->id, 'employee_id' => $employeeId]);
+                Log::info('✅ EmployeeAccount created:', ['id' => $employeeAccount->id, 'employee_id' => $employeeId, 'created_by' => $loggedInUserId]);
 
                 // ✅ 3. Create Account
                 $invoicePrice = (float) $request->invoice_price;
@@ -519,14 +586,29 @@ class CustomerController extends Controller
                 $numberOfInstallments = (int) $request->number_of_installments;
                 $dueDate = $request->due_date;
 
-                // Calculate monthly installment
                 $remainingAmount = $invoicePrice - $advancePayment;
                 $monthlyInstallment = $numberOfInstallments > 0 ? round($remainingAmount / $numberOfInstallments, 0) : 0;
 
-                // Generate case number
-                $lastAccount = Account::orderBy('id', 'desc')->first();
-                $nextId = $lastAccount ? $lastAccount->id + 1 : 1;
-                $caseNo = 'SR-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+                // ============================================
+                // ✅ Case Number Generation
+                // - Old Record mode: manual case number (already validated < 10000)
+                // - Naya record: 10000 se start, aur uske baad hamesha +1 hote hue continue
+                // ============================================
+                if ($isOldRecord && $manualCaseNo !== '') {
+                    $caseNo = $manualCaseNo;
+                    Log::info('✅ Using manual case_no (Old Record mode):', ['case_no' => $caseNo]);
+                } else {
+                    $lastCaseNo = Account::whereRaw("case_no REGEXP '^[0-9]+$'")
+                        ->selectRaw('MAX(CAST(case_no AS UNSIGNED)) as max_no')
+                        ->value('max_no');
+
+                    $nextNo = ($lastCaseNo && $lastCaseNo >= self::CASE_NO_START)
+                        ? ((int) $lastCaseNo + 1)
+                        : self::CASE_NO_START;
+
+                    $caseNo = (string) $nextNo;
+                    Log::info('✅ Auto-generated case_no:', ['case_no' => $caseNo]);
+                }
 
                 // ✅ Create Account with chalan images
                 $account = Account::create([
@@ -546,7 +628,7 @@ class CustomerController extends Controller
                     'due_date' => $dueDate,
                     'next_due_date' => date('Y-m-d', strtotime('+1 month', strtotime($dueDate))),
                     'status' => 'active',
-                    'created_by' => $employeeId,
+                    'created_by' => $loggedInUserId,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -558,6 +640,7 @@ class CustomerController extends Controller
                     'paid_amount' => $advancePayment,
                     'balance' => $invoicePrice - $advancePayment,
                     'due_date' => $dueDate,
+                    'created_by' => $loggedInUserId,
                     'chalan_front' => $chalanFrontPath,
                     'chalan_back' => $chalanBackPath,
                 ]);
@@ -590,8 +673,7 @@ class CustomerController extends Controller
                 Log::info('✅ Installments created:', ['count' => count($installments)]);
 
                 // ============================================
-                // ✅ NEW: First Installment ka payment
-                // (agar frontend modal se koi amount diya gaya ho)
+                // ✅ First Installment ka payment
                 // ============================================
                 $firstInstallmentPayment = (float) ($request->first_installment_payment ?? 0);
 
@@ -601,7 +683,6 @@ class CustomerController extends Controller
                         ->first();
 
                     if ($firstInstallment) {
-                        // Amount kabhi bhi installment ke due_amount se zyada nahi ho sakta
                         $payAmount = min($firstInstallmentPayment, $firstInstallment->due_amount);
 
                         $newPaidAmount = $payAmount;
@@ -622,7 +703,6 @@ class CustomerController extends Controller
                             'payment_date' => now(),
                         ]);
 
-                        // ✅ Account ka paid_amount/balance bhi update karo
                         $account->paid_amount = $account->paid_amount + $payAmount;
                         $account->balance = $account->total_amount - $account->paid_amount;
                         $account->installments_paid = Installment::where('account_id', $account->id)
@@ -656,6 +736,7 @@ class CustomerController extends Controller
                     'data' => $customer,
                     'employee_account_id' => $employeeAccount->id,
                     'employee_id' => $employeeId,
+                    'created_by' => $loggedInUserId,
                     'account_id' => $account->id,
                     'case_no' => $caseNo,
                 ], 201);

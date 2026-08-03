@@ -1,9 +1,10 @@
 // src/components/FixedExpense/FixedExpense.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, Eye, DollarSign, X, Calendar, Clock, Building, CreditCard, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import './FixedExpense.css';
 import { API_URL } from '../../../config';
+import ExportButton from '../common/ExportButton';
 
 const FixedExpense = () => {
   const [search, setSearch] = useState('');
@@ -531,6 +532,60 @@ const FixedExpense = () => {
   const availableYears = getAvailableYears();
   const availableMonths = getAvailableMonths();
 
+  // ✅ EXPORT DATA - main Fixed Expenses table ke liye
+  const getExportData = useCallback(() => {
+    return filtered.map(exp => ({
+      name: exp.name || 'N/A',
+      amount: exp.amount || 0,
+      branch: exp.branch === 1 ? 'Branch 1' : 'Branch 2',
+      dueDate: formatDueDate(exp.dueDate),
+      status: exp.paid ? 'Paid' : 'Pending',
+      lastPaid: exp.lastPaid || 'Never',
+    }));
+  }, [filtered]);
+
+  const exportColumns = useMemo(() => [
+    { header: 'Expense Name', key: 'name' },
+    { header: 'Amount (PKR)', key: 'amount' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'Due Date', key: 'dueDate' },
+    { header: 'Status', key: 'status' },
+    { header: 'Last Paid', key: 'lastPaid' },
+  ], []);
+
+  // ✅ NEW: PAYMENT HISTORY MODAL EXPORT DATA
+  const getHistoryExportData = useCallback(() => {
+    if (!selectedExpense) return [];
+
+    const rows = selectedExpense.history && selectedExpense.history.length > 0
+      ? selectedExpense.history
+      : [null];
+
+    return rows.map((h) => ({
+      expenseName: selectedExpense.name || 'N/A',
+      branch: selectedExpense.branch === 1 ? 'Branch 1' : 'Branch 2',
+      originalAmount: selectedExpense.amount || 0,
+      dueDate: formatDueDate(selectedExpense.dueDate),
+      status: selectedExpense.paid ? 'Paid' : 'Pending',
+      paymentDate: h ? getDateOnly(h.date) : '-',
+      paymentTime: h ? getTimeOnly(h.date) : '-',
+      paymentAmount: h ? h.amount : 0,
+      paymentStatus: h ? h.status : '-',
+    }));
+  }, [selectedExpense]);
+
+  const historyExportColumns = useMemo(() => [
+    { header: 'Expense Name', key: 'expenseName' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'Original Amount (PKR)', key: 'originalAmount' },
+    { header: 'Due Date', key: 'dueDate' },
+    { header: 'Current Status', key: 'status' },
+    { header: 'Payment Date', key: 'paymentDate' },
+    { header: 'Payment Time', key: 'paymentTime' },
+    { header: 'Payment Amount (PKR)', key: 'paymentAmount' },
+    { header: 'Payment Status', key: 'paymentStatus' },
+  ], []);
+
   const statChips = [
     { 
       label: `${totalExpenses} Expenses`, 
@@ -607,6 +662,12 @@ const FixedExpense = () => {
         </div>
 
         <div className="header-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportButton
+            data={getExportData()}
+            columns={exportColumns}
+            filename="fixed-expenses-report"
+            title="Fixed Expenses Report"
+          />
           {canManageExpenses() && (
             <button className="btn-accent" onClick={openAddModal}>
               <Plus size={18} />
@@ -971,9 +1032,18 @@ const FixedExpense = () => {
                 <Clock size={20} className="modal-icon" />
                 <h3>Payment History - {selectedExpense.name}</h3>
               </div>
-              <button className="modal-close" onClick={() => setShowHistoryModal(false)}>
-                <X size={24} />
-              </button>
+              {/* ✅ EXPORT BUTTON - top-right of modal, next to close button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <ExportButton
+                  data={getHistoryExportData()}
+                  columns={historyExportColumns}
+                  filename={`${selectedExpense.name}-payment-history`}
+                  title={`Payment History - ${selectedExpense.name}`}
+                />
+                <button className="modal-close" onClick={() => setShowHistoryModal(false)}>
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="modal-body">

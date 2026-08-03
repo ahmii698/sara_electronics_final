@@ -51,6 +51,8 @@ const EmployeePerformanceReport = () => {
   const [activeTab, setActiveTab] = useState('total');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  // ✅ Aging filter state - 'all' | 1 | 2 | 3 | '4+'
+  const [agingFilter, setAgingFilter] = useState('all');
 
   const [loading, setLoading] = useState(true);
   const [employeesList, setEmployeesList] = useState([]);
@@ -299,6 +301,37 @@ const EmployeePerformanceReport = () => {
     return 0;
   };
 
+  // ✅ NEW (badge fix only): kitne months se oldest due-unpaid installment
+  // pending hai — same month-bucket formula jo Installments.jsx /
+  // AgingReport.jsx mein use hoti hai (oldest due-unpaid month vs current
+  // month, +1). Ye sirf badge label ke liye hai — isAccountOverdue,
+  // overdueList, cards, exports waghera sab pehle jaisa hi rehta hai.
+  const getOverdueMonthsCount = (account) => {
+    const list = Array.isArray(account.installments) ? account.installments : [];
+    const currentMonthStr = getCurrentMonthStr();
+
+    const dueUnpaidMonths = list
+      .filter(p =>
+        parseFloat(p.balance || 0) > 0 &&
+        p.month &&
+        monthsBetween(p.month, currentMonthStr) >= 0
+      )
+      .map(p => p.month)
+      .sort();
+
+    if (dueUnpaidMonths.length === 0) return 0;
+
+    const oldestDueMonth = dueUnpaidMonths[0];
+    return monthsBetween(oldestDueMonth, currentMonthStr) + 1;
+  };
+
+  // ✅ Aging filter helper - overdueList ko selected aging bucket ke hisaab se filter karta hai
+  const applyAgingFilter = (list) => {
+    if (agingFilter === 'all') return list;
+    if (agingFilter === '4+') return list.filter(acc => getOverdueMonthsCount(acc) >= 4);
+    return list.filter(acc => getOverdueMonthsCount(acc) === agingFilter);
+  };
+
   // ✅ Memoized: only recomputes when employeesList or userBranch actually change,
   // instead of on every render (e.g. every keystroke in search, every dropdown toggle)
   const filteredEmployees = useMemo(() => {
@@ -439,7 +472,7 @@ const EmployeePerformanceReport = () => {
     const accountsToExport = activeTab === 'total' ? filteredAccounts :
                             activeTab === 'new' ? selectedEmployeeData.newAccountsList :
                             activeTab === 'recovery' ? selectedEmployeeData.accounts.filter(acc => getThisMonthDue(acc) > 0) :
-                            activeTab === 'overdue' ? selectedEmployeeData.overdueList :
+                            activeTab === 'overdue' ? applyAgingFilter(selectedEmployeeData.overdueList) :
                             filteredAccounts;
 
     return accountsToExport.map(acc => {
@@ -466,7 +499,7 @@ const EmployeePerformanceReport = () => {
         remarks: acc.remarks || ''
       };
     });
-  }, [activeTab, filteredAccounts, selectedEmployeeData]);
+  }, [activeTab, filteredAccounts, selectedEmployeeData, agingFilter]);
 
   const exportColumns = useMemo(() => [
     { header: 'Customer', key: 'customer' },
@@ -504,54 +537,6 @@ const EmployeePerformanceReport = () => {
     const employeeName = selectedEmployee ? selectedEmployee.name : 'All Employees';
     return `Employee Performance - ${tabMap[activeTab] || 'Report'} - ${employeeName}`;
   };
-
-  // ✅ NEW: ACCOUNT DETAIL MODAL EXPORT DATA - account summary + installment history
-  const getAccountExportData = useCallback(() => {
-    if (!selectedAccount) return [];
-
-    const status = getStatusForAccountLabel(selectedAccount);
-    const installments = selectedAccount.installments && selectedAccount.installments.length > 0
-      ? selectedAccount.installments
-      : [null];
-
-    return installments.map((inst) => ({
-      customer: selectedAccount.customer || 'N/A',
-      caseNo: selectedAccount.caseNo || 'N/A',
-      cnic: selectedAccount.cnic || 'N/A',
-      phone: selectedAccount.phone || 'N/A',
-      address: selectedAccount.address || 'N/A',
-      product: selectedAccount.product || 'N/A',
-      totalAmount: selectedAccount.amount || 0,
-      paidAmount: selectedAccount.paid || 0,
-      balance: selectedAccount.balance || 0,
-      openingDate: formatFullDate(selectedAccount.openingDate),
-      dueDate: formatDueDate(selectedAccount.dueDate),
-      status: status,
-      month: inst ? formatMonth(inst.month) : '-',
-      installmentDue: inst ? parseFloat(inst.due_amount || 0) : 0,
-      installmentPaid: inst ? parseFloat(inst.paid_amount || 0) : 0,
-      installmentBalance: inst ? parseFloat(inst.balance || 0) : 0,
-    }));
-  }, [selectedAccount]);
-
-  const accountExportColumns = useMemo(() => [
-    { header: 'Customer', key: 'customer' },
-    { header: 'Case No', key: 'caseNo' },
-    { header: 'CNIC', key: 'cnic' },
-    { header: 'Phone', key: 'phone' },
-    { header: 'Address', key: 'address' },
-    { header: 'Product', key: 'product' },
-    { header: 'Total Amount (PKR)', key: 'totalAmount' },
-    { header: 'Paid Amount (PKR)', key: 'paidAmount' },
-    { header: 'Balance (PKR)', key: 'balance' },
-    { header: 'Account Opening', key: 'openingDate' },
-    { header: 'Due Date', key: 'dueDate' },
-    { header: 'Status', key: 'status' },
-    { header: 'Installment Month', key: 'month' },
-    { header: 'Installment Due (PKR)', key: 'installmentDue' },
-    { header: 'Installment Paid (PKR)', key: 'installmentPaid' },
-    { header: 'Installment Balance (PKR)', key: 'installmentBalance' },
-  ], []);
 
   const cards = isEmployee ? [
     {
@@ -632,6 +617,20 @@ const EmployeePerformanceReport = () => {
     return status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue';
   };
 
+  // ✅ BADGE FIX (only these two places use this): 1-3 months late = "Aging
+  // (Nm)", 4+ months late = "Overdue". Everything else (isAccountOverdue,
+  // overdueList, cards, exports) is untouched.
+  const getAccountBadgeInfo = (account) => {
+    if (account.balance <= 0) return { key: 'paid', label: 'Paid' };
+
+    const overdueMonths = getOverdueMonthsCount(account);
+
+    if (overdueMonths >= 4) return { key: 'overdue', label: 'Overdue' };
+    if (overdueMonths >= 1) return { key: 'aging', label: `Aging (${overdueMonths}m)` };
+
+    return { key: 'paid', label: 'Paid' };
+  };
+
   // ✅ RENDER TABLE - NEW SEQUENCE
   const renderTable = () => {
     if (activeTab === 'total' && !isEmployee) {
@@ -672,12 +671,12 @@ const EmployeePerformanceReport = () => {
                   <tr><td colSpan="9" className="epr-no-data">No accounts found</td></tr>
                 ) : (
                   filteredAccounts.map((item, index) => {
-                    const status = getStatusForAccount(item);
+                    const badge = getAccountBadgeInfo(item);
                     return (
-                      <tr key={item.id} className={`${status === 'overdue' ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
+                      <tr key={item.id} className={`${badge.key === 'overdue' || badge.key === 'aging' ? 'epr-overdue-row' : ''} ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
                         <td>
                           <div className="epr-customer-info">
-                            <div className="epr-customer-avatar" style={{ background: status === 'paid' ? '#d1fae5' : status === 'overdue' ? '#fee2e2' : '#fef3c7', color: status === 'paid' ? '#065f46' : status === 'overdue' ? '#991b1b' : '#92400e' }}>
+                            <div className="epr-customer-avatar" style={{ background: badge.key === 'paid' ? '#d1fae5' : badge.key === 'overdue' ? '#fee2e2' : '#fef3c7', color: badge.key === 'paid' ? '#065f46' : badge.key === 'overdue' ? '#991b1b' : '#92400e' }}>
                               {item.customer.charAt(0)}
                             </div>
                             {item.customer}
@@ -701,8 +700,8 @@ const EmployeePerformanceReport = () => {
                           <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                         </td>
                         <td>
-                          <span className={`epr-status-badge epr-${status}`}>
-                            {status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue'}
+                          <span className={`epr-status-badge epr-${badge.key}`}>
+                            {badge.label}
                           </span>
                         </td>
                         <td>
@@ -762,7 +761,7 @@ const EmployeePerformanceReport = () => {
                   <tr><td colSpan="9" className="epr-no-data">No new accounts this month</td></tr>
                 ) : (
                   list.map((item, index) => {
-                    const status = getStatusForAccount(item);
+                    const badge = getAccountBadgeInfo(item);
                     return (
                       <tr key={item.id} className={index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}>
                         <td>
@@ -789,8 +788,8 @@ const EmployeePerformanceReport = () => {
                           <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
                         </td>
                         <td>
-                          <span className={`epr-status-badge epr-${status}`}>
-                            {status === 'paid' ? 'Paid' : status === 'pending' ? 'Pending' : 'Overdue'}
+                          <span className={`epr-status-badge epr-${badge.key}`}>
+                            {badge.label}
                           </span>
                         </td>
                         <td>
@@ -887,16 +886,37 @@ const EmployeePerformanceReport = () => {
     }
 
     if (activeTab === 'overdue') {
-      const list = selectedEmployeeData.overdueList;
+      const list = applyAgingFilter(selectedEmployeeData.overdueList);
       return (
         <div className="epr-table-container">
           <div className="epr-table-header">
             <div className="epr-table-header-left">
               <FileText size={18} style={{ color: '#dc2626' }} />
-              <h3>Overdue Accounts</h3>
+              <h3>Aging Accounts</h3>
               <span className="epr-record-count">{list.length} customers</span>
             </div>
-            <div className="epr-table-header-right">
+            <div className="epr-table-header-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* ✅ AGING FILTER BUTTONS */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {['all', 1, 2, 3].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setAgingFilter(f)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: agingFilter === f ? '1px solid #dc2626' : '1px solid #e5e7eb',
+                      background: agingFilter === f ? '#fee2e2' : '#fff',
+                      color: agingFilter === f ? '#991b1b' : '#374151',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {f === 'all' ? 'All' : f === '4+' ? 'Overdue' : `Aging ${f}m`}
+                  </button>
+                ))}
+              </div>
               <ExportButton
                 data={getExportData()}
                 columns={exportColumns}
@@ -916,43 +936,52 @@ const EmployeePerformanceReport = () => {
                   <th>Balance</th>
                   <th>Mirror</th>
                   <th>Remarks</th>
+                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {list.length === 0 ? (
-                  <tr><td colSpan="8" className="epr-no-data">No overdue accounts</td></tr>
+                  <tr><td colSpan="9" className="epr-no-data">No accounts in this aging bucket</td></tr>
                 ) : (
-                  list.map((item, index) => (
-                    <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
-                      <td>
-                        <div className="epr-customer-info">
-                          <div className="epr-customer-avatar">{item.customer.charAt(0)}</div>
-                          {item.customer}
-                        </div>
-                      </td>
-                      <td className="epr-case-number">{item.caseNo}</td>
-                      <td>
-                        <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
-                          <Calendar size={12} />
-                          {formatDueDate(item.dueDate)}
-                        </div>
-                      </td>
-                      <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
-                      <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
-                      <td className="epr-balance-amount">PKR {getOverdueAmount(item).toLocaleString()}</td>
-                      <td>
-                        <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
-                      </td>
-                      <td>
-                        <div className="epr-action-group">
-                          <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
-                            <Eye size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  list.map((item, index) => {
+                    const badge = getAccountBadgeInfo(item);
+                    return (
+                      <tr key={item.id} className={`epr-overdue-row ${index % 2 === 0 ? 'epr-even-row' : 'epr-odd-row'}`}>
+                        <td>
+                          <div className="epr-customer-info">
+                            <div className="epr-customer-avatar">{item.customer.charAt(0)}</div>
+                            {item.customer}
+                          </div>
+                        </td>
+                        <td className="epr-case-number">{item.caseNo}</td>
+                        <td>
+                          <div className="epr-date-info" style={{ color: '#7c3aed', fontWeight: 500 }}>
+                            <Calendar size={12} />
+                            {formatDueDate(item.dueDate)}
+                          </div>
+                        </td>
+                        <td className="epr-amount">PKR {item.monthly.toLocaleString()}</td>
+                        <td className={item.balance > 0 ? 'epr-balance-amount' : 'epr-paid-amount'}>PKR {item.balance.toLocaleString()}</td>
+                        <td className="epr-balance-amount">PKR {getOverdueAmount(item).toLocaleString()}</td>
+                        <td>
+                          <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
+                        </td>
+                        <td>
+                          <span className={`epr-status-badge epr-${badge.key}`}>
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="epr-action-group">
+                            <button className="epr-btn-view-account" onClick={() => openAccountModal(item)} title="View Account Details">
+                              <Eye size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -971,6 +1000,11 @@ const EmployeePerformanceReport = () => {
       setActiveTab('total');
     }
   }, [isEmployee, selectedEmployeeId]);
+
+  // ✅ Aging filter reset - jab bhi tab ya employee change ho, filter wapas 'all' ho jaye
+  useEffect(() => {
+    setAgingFilter('all');
+  }, [activeTab, selectedEmployeeId]);
 
   if (loading) {
     return (
@@ -1091,18 +1125,9 @@ const EmployeePerformanceReport = () => {
                 <User size={20} className="epr-modal-icon" />
                 <h3>Account Details - {selectedAccount.caseNo}</h3>
               </div>
-              {/* ✅ EXPORT BUTTON - top-right of modal, next to close button */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <ExportButton
-                  data={getAccountExportData()}
-                  columns={accountExportColumns}
-                  filename={`account-${selectedAccount.caseNo}-details`}
-                  title={`Account Details - ${selectedAccount.caseNo} - ${selectedAccount.customer}`}
-                />
-                <button className="epr-modal-close" onClick={() => setShowAccountModal(false)}>
-                  <X size={24} />
-                </button>
-              </div>
+              <button className="epr-modal-close" onClick={() => setShowAccountModal(false)}>
+                <X size={24} />
+              </button>
             </div>
 
             <div className="epr-modal-body">
@@ -1116,9 +1141,8 @@ const EmployeePerformanceReport = () => {
                   <span className="epr-account-detail-product" style={{ fontWeight: 500 }}>Product: {selectedAccount.product}</span>
                 </div>
                 <div className="epr-account-detail-status">
-                  <span className={`epr-status-badge epr-${getStatusForAccount(selectedAccount)}`}>
-                    {getStatusForAccount(selectedAccount) === 'paid' ? 'Paid' :
-                     getStatusForAccount(selectedAccount) === 'pending' ? 'Pending' : 'Overdue'}
+                  <span className={`epr-status-badge epr-${getAccountBadgeInfo(selectedAccount).key}`}>
+                    {getAccountBadgeInfo(selectedAccount).label}
                   </span>
                 </div>
               </div>

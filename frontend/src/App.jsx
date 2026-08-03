@@ -1,3 +1,5 @@
+// src/App.jsx
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
@@ -21,6 +23,11 @@ import SystemAccess from './components/SystemAccess/SystemAccess';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 import './App.css';
+
+// ✅ NEW: Import components for new pages
+import Alert from './components/Alert/Alert';
+// ❌ SelectedRecovery REMOVED
+import AccountTarget from './components/AccountTarget/AccountTarget';
 
 // ✅ Employee sirf inhi paths pe ja sakta hai - Apply Leave bhi add kar diya
 const EMPLOYEE_ALLOWED_PATHS = ['/employee-performance', '/apply-leave'];
@@ -130,6 +137,25 @@ const App = () => {
                   element={
                     <ProtectedRoute allowedRoles={['admin']}>
                       <SystemAccess />
+                    </ProtectedRoute>
+                  } 
+                />
+
+                {/* ✅ NEW ROUTES - Added for Sidebar */}
+                <Route 
+                  path="/alert" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                      <Alert />
+                    </ProtectedRoute>
+                  } 
+                />
+                {/* ❌ Selected Recovery route REMOVED */}
+                <Route 
+                  path="/account-target" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                      <AccountTarget />
                     </ProtectedRoute>
                   } 
                 />

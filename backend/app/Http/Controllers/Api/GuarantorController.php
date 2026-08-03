@@ -50,6 +50,10 @@ class GuarantorController extends Controller
             Log::info('cnic:', [$request->cnic]);
             Log::info('Has cnic_front?', [$request->hasFile('cnic_front')]);
             Log::info('Has cnic_back?', [$request->hasFile('cnic_back')]);
+
+            // ✅ NEW: Old Record mode — jab ON ho to koi bhi CNIC/existing restriction check nahi hogi
+            $isOldRecord = filter_var($request->input('is_old_record', false), FILTER_VALIDATE_BOOLEAN);
+            Log::info('is_old_record:', [$isOldRecord]);
             
             $validator = Validator::make($request->all(), [
                 'customer_id' => 'required|exists:customers,id',
@@ -67,27 +71,31 @@ class GuarantorController extends Controller
                 ], 422);
             }
 
-            // ✅ Check if CNIC already exists as customer
-            $customerExists = Customer::where('cnic', $request->cnic)->exists();
-            if ($customerExists) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'This CNIC already exists as a customer',
-                    'errors' => ['cnic' => ['This CNIC already exists as a customer']]
-                ], 422);
-            }
+            // ✅ Check if CNIC already exists as customer — SKIP agar Old Record mode ON hai
+            if (!$isOldRecord) {
+                $customerExists = Customer::where('cnic', $request->cnic)->exists();
+                if ($customerExists) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This CNIC already exists as a customer',
+                        'errors' => ['cnic' => ['This CNIC already exists as a customer']]
+                    ], 422);
+                }
 
-            // ✅ Check if same customer already has this guarantor
-            $existingGuarantor = Guarantor::where('cnic', $request->cnic)
-                ->where('customer_id', $request->customer_id)
-                ->first();
-            
-            if ($existingGuarantor) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'This guarantor is already added for this customer',
-                    'errors' => ['cnic' => ['This guarantor is already added for this customer']]
-                ], 422);
+                // ✅ Check if same customer already has this guarantor — yeh bhi SKIP old record mein
+                $existingGuarantor = Guarantor::where('cnic', $request->cnic)
+                    ->where('customer_id', $request->customer_id)
+                    ->first();
+
+                if ($existingGuarantor) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This guarantor is already added for this customer',
+                        'errors' => ['cnic' => ['This guarantor is already added for this customer']]
+                    ], 422);
+                }
+            } else {
+                Log::info('✅ Old Record mode — skipping customer-exists and duplicate-guarantor checks', ['cnic' => $request->cnic]);
             }
 
             // ============================================
@@ -229,7 +237,7 @@ class GuarantorController extends Controller
     }
 
     // ============================================
-    // ✅ UPGRADED: ab poori guarantor_records list bhi deta hai
+    // ✅ Poori guarantor_records list bhi deta hai
     // (kis kis customer ka guarantor hai)
     // ============================================
     public function checkCnic(Request $request)

@@ -6,11 +6,25 @@ import {
   Filter, Download, Eye, Building, Award, Fuel, Briefcase, User, 
   BarChart, LineChart, PieChart, X, Activity, CheckCircle, AlertCircle, 
   AreaChart, ChevronDown, CalendarIcon, BookOpen, AlertTriangle, RefreshCw,
-  Wallet, Sparkles
+  Wallet, Sparkles, Landmark, Minus, ClipboardList
 } from 'lucide-react';
 import './EmployeeReport.css';
 import { API_URL } from '../../../config';
 import ExportButton from '../common/ExportButton';
+
+const deductBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  padding: '6px 12px',
+  fontSize: '0.75rem',
+  fontWeight: 700,
+  background: '#dc2626',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer'
+};
 
 const EmployeeReport = () => {
   const [search, setSearch] = useState('');
@@ -34,10 +48,13 @@ const EmployeeReport = () => {
   const [yearFilter, setYearFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
 
-  // ✅ Salary + Advances data
+  // ✅ Salary + Advances + Loans data
   const [salaryRecords, setSalaryRecords] = useState([]);
   const [advanceRecords, setAdvanceRecords] = useState([]);
+  const [loanRecords, setLoanRecords] = useState([]);
   const [monthDetail, setMonthDetail] = useState(null);
+  const [deductAmounts, setDeductAmounts] = useState({});
+  const [loanActionLoading, setLoanActionLoading] = useState(false);
 
   // ✅ Get user data and fetch immediately
   useEffect(() => {
@@ -49,6 +66,30 @@ const EmployeeReport = () => {
     fetchData();
   }, []);
 
+  // ✅ Loan record ko normalize karo — remaining = amount - paid_amount
+  // aur payments ko applied/unapplied mein split karo (Salary.jsx jaisa hi)
+  const mapLoan = (l) => {
+    const amount = parseFloat(l.amount) || 0;
+    const paidAmount = parseFloat(l.paid_amount) || 0;
+    const remaining = Math.max(amount - paidAmount, 0);
+    const payments = (l.payments || []).map(p => ({
+      date: p.date,
+      amount: parseFloat(p.amount) || 0,
+      applied: !!p.applied
+    }));
+    return {
+      id: l.id,
+      date: l.date,
+      amount: amount,
+      paidAmount: paidAmount,
+      remaining: remaining,
+      reason: l.reason,
+      deducted: l.deducted,
+      payments: payments,
+      pendingApplication: payments.filter(p => !p.applied).reduce((s, p) => s + p.amount, 0)
+    };
+  };
+
   // ✅ useCallback - function memoize
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -59,16 +100,18 @@ const EmployeeReport = () => {
         'Content-Type': 'application/json'
       };
 
-      const [reportRes, salRes, advRes] = await Promise.all([
+      const [reportRes, salRes, advRes, loanRes] = await Promise.all([
         fetch(`${API_URL}/employee-report`, { headers }),
         fetch(`${API_URL}/salary`, { headers }),
-        fetch(`${API_URL}/salary/advances`, { headers })
+        fetch(`${API_URL}/salary/advances`, { headers }),
+        fetch(`${API_URL}/loans`, { headers })
       ]);
 
-      const [data, salData, advData] = await Promise.all([
+      const [data, salData, advData, loanData] = await Promise.all([
         reportRes.json(),
         salRes.json(),
-        advRes.json()
+        advRes.json(),
+        loanRes.json()
       ]);
 
       console.log('Employee Report Data:', data);
@@ -81,9 +124,19 @@ const EmployeeReport = () => {
         setSummary(summaryData);
         setSalaryRecords(salData.success ? salData.data : []);
         setAdvanceRecords(advData.success ? advData.data : []);
+        setLoanRecords(loanData.success ? loanData.data : []);
         
         const processedEmployees = employeesList.map(emp => {
           const monthlyData = emp.monthlyData || {};
+
+          // ✅ Loans belonging to this employee
+          const empLoans = (loanData.success ? loanData.data : [])
+            .filter(l => l.user_id === emp.id)
+            .map(mapLoan);
+          const totalLoanGiven = empLoans.reduce((sum, l) => sum + l.amount, 0);
+          const totalLoanRemaining = empLoans.reduce((sum, l) => sum + l.remaining, 0);
+          const totalLoanPaid = empLoans.reduce((sum, l) => sum + l.paidAmount, 0);
+          const pendingLoanDeduction = empLoans.reduce((sum, l) => sum + l.pendingApplication, 0);
           
           return {
             id: emp.id,
@@ -99,6 +152,11 @@ const EmployeeReport = () => {
             totalRecovery: emp.totalRecovery || 0,
             totalCommission: emp.totalCommission || 0,
             totalOverdue: emp.totalOverdue || 0,
+            loans: empLoans,
+            totalLoanGiven,
+            totalLoanRemaining,
+            totalLoanPaid,
+            pendingLoanDeduction,
           };
         });
         
@@ -121,16 +179,18 @@ const EmployeeReport = () => {
         'Content-Type': 'application/json'
       };
 
-      const [reportRes, salRes, advRes] = await Promise.all([
+      const [reportRes, salRes, advRes, loanRes] = await Promise.all([
         fetch(`${API_URL}/employee-report`, { headers }),
         fetch(`${API_URL}/salary`, { headers }),
-        fetch(`${API_URL}/salary/advances`, { headers })
+        fetch(`${API_URL}/salary/advances`, { headers }),
+        fetch(`${API_URL}/loans`, { headers })
       ]);
 
-      const [data, salData, advData] = await Promise.all([
+      const [data, salData, advData, loanData] = await Promise.all([
         reportRes.json(),
         salRes.json(),
-        advRes.json()
+        advRes.json(),
+        loanRes.json()
       ]);
       
       if (data.success) {
@@ -141,9 +201,18 @@ const EmployeeReport = () => {
         setSummary(summaryData);
         setSalaryRecords(salData.success ? salData.data : []);
         setAdvanceRecords(advData.success ? advData.data : []);
+        setLoanRecords(loanData.success ? loanData.data : []);
         
         const processedEmployees = employeesList.map(emp => {
           const monthlyData = emp.monthlyData || {};
+
+          const empLoans = (loanData.success ? loanData.data : [])
+            .filter(l => l.user_id === emp.id)
+            .map(mapLoan);
+          const totalLoanGiven = empLoans.reduce((sum, l) => sum + l.amount, 0);
+          const totalLoanRemaining = empLoans.reduce((sum, l) => sum + l.remaining, 0);
+          const totalLoanPaid = empLoans.reduce((sum, l) => sum + l.paidAmount, 0);
+          const pendingLoanDeduction = empLoans.reduce((sum, l) => sum + l.pendingApplication, 0);
           
           return {
             id: emp.id,
@@ -159,15 +228,74 @@ const EmployeeReport = () => {
             totalRecovery: emp.totalRecovery || 0,
             totalCommission: emp.totalCommission || 0,
             totalOverdue: emp.totalOverdue || 0,
+            loans: empLoans,
+            totalLoanGiven,
+            totalLoanRemaining,
+            totalLoanPaid,
+            pendingLoanDeduction,
           };
         });
         
         setEmployees(processedEmployees);
+
+        // ✅ Agar loan modal khula hai to selectedEmployee ko bhi fresh data se sync karo
+        setSelectedEmployee(prev => {
+          if (!prev) return prev;
+          const fresh = processedEmployees.find(e => e.id === prev.id);
+          return fresh || prev;
+        });
       }
     } catch (error) {
       console.error('Error refreshing data:', error);
     }
   }, []);
+
+  // ============================================
+  // ✅ MANUALLY DEDUCT A CUSTOM AMOUNT FROM A SPECIFIC LOAN
+  // (same behaviour as Salary.jsx — usable directly from this report)
+  // ============================================
+  const handleDeductLoanInline = async (loan) => {
+    const rawAmount = deductAmounts[loan.id];
+    const amount = parseFloat(rawAmount);
+
+    if (!rawAmount || isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (amount > loan.remaining) {
+      alert(`Amount exceeds remaining loan balance: PKR ${loan.remaining.toLocaleString()}`);
+      return;
+    }
+
+    setLoanActionLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`${API_URL}/loans/${loan.id}/deduct`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ amount })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await handleRefresh();
+        setDeductAmounts(prev => ({ ...prev, [loan.id]: '' }));
+        alert('✅ Loan amount deducted successfully!');
+      } else {
+        alert(data.message || 'Failed to deduct loan');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Network error. Please try again.');
+    }
+    setLoanActionLoading(false);
+  };
 
   // ✅ ALL YEARS - 2020 se current year tak
   const getAllYears = () => {
@@ -274,22 +402,103 @@ const EmployeeReport = () => {
     };
   };
 
-  // ✅ NEW: Kisi employee ke kisi specific month ka pura salary detail
+  // ✅ Kisi employee ke kisi specific month ka pura salary detail
+  // + us mahine loan se kitna kata (payments jo us month mein "applied" hue)
+  // ✅ FIXED: pehle ye real calendar date se advances/loan payments ko month
+  // mein "guess" kar raha tha — lekin poora salary system cycle-based hai,
+  // real month se match nahi hota (Salary.jsx dekho). Isi wajah se jab same
+  // din 2 alag cycles pay hoti thi (testing mein aksar hota hai), dono ki
+  // deduction ek hi month mein mix ho jati thi.
+  //
+  // Sahi tareeqa:
+  // • Jo cycle PAID ho chuki hai → us salary record mein khud save hui
+  //   "advances" amount use karo, aur loan deduction ko formula se nikalo:
+  //   loanDeducted = (baseSalary + commission) - advancesDeducted - totalPaid
+  //   (yehi formula Salary.jsx ke balance calculation mein bhi use hota hai)
+  // • Jo cycle abhi PENDING hai (current/latest) → live pending
+  //   advances/loan-queue dikhao, jo abhi tak deduct nahi hui — wo hamesha
+  //   sahi hoti hai kyunke unka koi "past" nahi, wo abhi bhi pending hain.
   const getMonthSalaryDetail = (emp, monthKey) => {
     const salaryRec = salaryRecords.find(s => s.user_id === emp.id && s.month === monthKey);
-    const monthAdvances = advanceRecords.filter(a => 
-      a.user_id === emp.id && a.date && a.date.slice(0, 7) === monthKey
-    );
-    const totalAdvances = monthAdvances.reduce((sum, a) => sum + parseFloat(a.amount || 0), 0);
+    const isPaidCycle = !!(salaryRec && salaryRec.status === 'paid');
+
+    const baseSalary = emp.salary || 0;
+    const commission = salaryRec ? parseFloat(salaryRec.commission || 0) : (emp.monthlyData[monthKey]?.commission || 0);
+    const totalPaid = salaryRec ? parseFloat(salaryRec.total_paid || 0) : 0;
+
+    let advances = [];
+    let totalAdvances = 0;
+    let loanPayments = [];
+    let totalLoanDeductedThisMonth = 0;
+
+    if (isPaidCycle) {
+      // ✅ Record mein khud save hui advance amount — date guess nahi
+      totalAdvances = parseFloat(salaryRec.advances || 0);
+      advances = totalAdvances > 0
+        ? [{ date: salaryRec.paid_date, amount: totalAdvances, reason: 'Deducted for this cycle' }]
+        : [];
+
+      // ✅ FIXED: pehle loan deduction ko "Salary - Advance - TotalPaid" se
+      // reverse-calculate karne ki koshish ki thi — lekin backend loan ki
+      // deduction total_paid mein se minus nahi karta (wo sirf loan ke apne
+      // balance se katta hai), isliye ye formula hamesha 0 deta tha.
+      //
+      // Sahi tareeqa: loan ke apne "payments" records dekho jo applied:true
+      // hain, aur unhe is specific cycle ki window mein bound karo — pichle
+      // paid cycle ke paid_date ke baad se, is cycle ke paid_date tak. Isse
+      // real date use hoti hai lekin sirf isi cycle ki boundary ke andar,
+      // is liye same-din multiple cycles mein bhi sahi cycle match hota hai.
+      const paidRecordsSorted = salaryRecords
+        .filter(s => s.user_id === emp.id && s.status === 'paid' && s.paid_date)
+        .sort((a, b) => new Date(a.paid_date) - new Date(b.paid_date) || a.id - b.id);
+      const idx = paidRecordsSorted.findIndex(s => s.id === salaryRec.id);
+      const prevPaidDate = idx > 0 ? paidRecordsSorted[idx - 1].paid_date : null;
+      const thisPaidDate = salaryRec.paid_date;
+
+      // ✅ paid_date sirf date store karta hai (time nahi — hamesha
+      // 00:00:00), jabke payment.date real deduction ka poora timestamp
+      // hai. Isliye date-only (YYYY-MM-DD) compare karo, poora timestamp
+      // nahi — warna same-din ki deduction bhi "baad ki" lag ke exclude
+      // ho jati hai.
+      const toDay = (d) => (d ? new Date(d).toISOString().slice(0, 10) : null);
+      const thisDay = toDay(thisPaidDate);
+      const prevDay = toDay(prevPaidDate);
+
+      const empLoans = emp.loans || [];
+      loanPayments = empLoans.flatMap(l =>
+        (l.payments || [])
+          .filter(p => p.applied && p.date && thisDay &&
+            toDay(p.date) <= thisDay &&
+            (!prevDay || toDay(p.date) > prevDay))
+          .map(p => ({ ...p, loanReason: l.reason, loanId: l.id }))
+      );
+      totalLoanDeductedThisMonth = loanPayments.reduce((sum, p) => sum + p.amount, 0);
+    } else {
+      // ✅ Current/pending cycle — abhi jo bhi undeducted advances aur
+      // pending loan payments hain, wahi is cycle mein deduct hongi
+      advances = advanceRecords.filter(a => a.user_id === emp.id && !a.deducted);
+      totalAdvances = advances.reduce((sum, a) => sum + parseFloat(a.amount || 0), 0);
+
+      const empLoans = emp.loans || [];
+      loanPayments = empLoans.flatMap(l =>
+        (l.payments || [])
+          .filter(p => !p.applied)
+          .map(p => ({ ...p, loanReason: l.reason, loanId: l.id }))
+      );
+      totalLoanDeductedThisMonth = loanPayments.reduce((sum, p) => sum + p.amount, 0);
+    }
 
     return {
-      baseSalary: emp.salary || 0,
-      commission: salaryRec ? parseFloat(salaryRec.commission || 0) : (emp.monthlyData[monthKey]?.commission || 0),
+      baseSalary,
+      commission,
       status: salaryRec ? salaryRec.status : 'pending',
       paidDate: salaryRec ? salaryRec.paid_date : null,
-      totalPaid: salaryRec ? parseFloat(salaryRec.total_paid || 0) : 0,
-      advances: monthAdvances,
+      totalPaid,
+      advances,
       totalAdvances,
+      loanPayments,
+      totalLoanDeductedThisMonth,
+      isPaidCycle,
     };
   };
 
@@ -310,6 +519,9 @@ const EmployeeReport = () => {
         totalCommission: emp.totalCommission || 0,
         totalOverdue: emp.totalOverdue || 0,
         currentMonthOverdue: currentOverdue || 0,
+        loanGiven: emp.totalLoanGiven || 0,
+        loanPaid: emp.totalLoanPaid || 0,
+        loanRemaining: emp.totalLoanRemaining || 0,
         currentMonth: getCurrentMonth()
       };
     });
@@ -328,6 +540,9 @@ const EmployeeReport = () => {
     { header: 'Total Commission', key: 'totalCommission' },
     { header: 'Total Overdue', key: 'totalOverdue' },
     { header: 'Current Month Overdue', key: 'currentMonthOverdue' },
+    { header: 'Loan Given (PKR)', key: 'loanGiven' },
+    { header: 'Loan Recovered (PKR)', key: 'loanPaid' },
+    { header: 'Loan Remaining (PKR)', key: 'loanRemaining' },
     { header: 'Month', key: 'currentMonth' },
   ], []);
 
@@ -352,6 +567,8 @@ const EmployeeReport = () => {
       totalOverdue: selectedEmployee.totalOverdue || 0,
       salary: selectedEmployee.salary || 0,
       totalCommission: selectedEmployee.totalCommission || 0,
+      loanGiven: selectedEmployee.totalLoanGiven || 0,
+      loanRemaining: selectedEmployee.totalLoanRemaining || 0,
       month: label,
       accounts: empData.accounts[index] || 0,
       recovery: empData.recovery[index] || 0,
@@ -372,6 +589,8 @@ const EmployeeReport = () => {
     { header: 'Total Overdue (PKR)', key: 'totalOverdue' },
     { header: 'Salary (PKR)', key: 'salary' },
     { header: 'Total Commission (PKR)', key: 'totalCommission' },
+    { header: 'Loan Given (PKR)', key: 'loanGiven' },
+    { header: 'Loan Remaining (PKR)', key: 'loanRemaining' },
     { header: 'Month', key: 'month' },
     { header: 'Accounts', key: 'accounts' },
     { header: 'Recovery (PKR)', key: 'recovery' },
@@ -673,13 +892,29 @@ const EmployeeReport = () => {
     return emp.monthlyData[key]?.overdue || 0;
   };
 
+  const getDateOnly = (dateStr) => {
+    if (!dateStr) return '';
+    return dateStr.split(' ')[0];
+  };
+
+  const getTimeOnly = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split(' ');
+    return parts.slice(1).join(' ');
+  };
+
   const branchLabel = userBranch ? `Branch ${userBranch}` : 'All Branches';
 
   const totalRecovery = displayEmployees.reduce((sum, e) => sum + (e.totalRecovery || 0), 0);
   const totalCommission = displayEmployees.reduce((sum, e) => sum + (e.totalCommission || 0), 0);
   const totalAccounts = displayEmployees.reduce((sum, e) => sum + (e.totalAccounts || 0), 0);
   const totalOverdue = displayEmployees.reduce((sum, e) => sum + (e.totalOverdue || 0), 0);
+  const totalLoanRemaining = displayEmployees.reduce((sum, e) => sum + (e.totalLoanRemaining || 0), 0);
   const totalEmployees = displayEmployees.length;
+
+  const canManageSalary = () => {
+    return userRole === 'admin' || userRole === 'manager';
+  };
 
   const getEmployeeStats = (emp) => {
     const currentAccounts = emp.monthlyData[getCurrentMonthKey()]?.accountsOpened || 0;
@@ -695,6 +930,8 @@ const EmployeeReport = () => {
       { label: 'Total Overdue', value: `PKR ${(totalOverdueVal || 0).toLocaleString()}`, color: '#ef4444' },
       { label: 'Salary', value: `PKR ${(emp.salary || 0).toLocaleString()}`, color: '#065f46' },
       { label: 'Total Commission', value: `PKR ${(emp.totalCommission || 0).toLocaleString()}`, color: '#8B5CF6' },
+      { label: 'Loan Given', value: `PKR ${(emp.totalLoanGiven || 0).toLocaleString()}`, color: '#991b1b' },
+      { label: 'Loan Remaining', value: `PKR ${(emp.totalLoanRemaining || 0).toLocaleString()}`, color: '#dc2626' },
     ];
   };
 
@@ -704,12 +941,14 @@ const EmployeeReport = () => {
     { label: 'Total Accounts', value: totalAccounts || 0, icon: Briefcase, color: '#1E1B4B', bg: 'rgba(30,27,75,0.08)', className: 'accounts' },
     { label: 'Recovery Due', value: `PKR ${(totalRecovery || 0).toLocaleString()}`, icon: DollarSign, color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', className: 'recovery' },
     { label: 'Total Overdue', value: `PKR ${(totalOverdue || 0).toLocaleString()}`, icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.1)', className: 'overdue' },
+    { label: 'Loan Remaining', value: `PKR ${(totalLoanRemaining || 0).toLocaleString()}`, icon: Landmark, color: '#991b1b', bg: 'rgba(153,27,27,0.1)', className: 'loans' },
   ] : [
     { label: 'Total Employees', value: totalEmployees || 0, icon: Users, color: '#1E1B4B', bg: 'rgba(30,27,75,0.08)', className: 'users' },
     { label: 'Total Recovery', value: `PKR ${(totalRecovery || 0).toLocaleString()}`, icon: DollarSign, color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', className: 'recovery' },
     { label: 'Total Accounts', value: totalAccounts || 0, icon: Briefcase, color: '#2563eb', bg: 'rgba(37,99,235,0.1)', className: 'accounts' },
     { label: 'Total Overdue', value: `PKR ${(totalOverdue || 0).toLocaleString()}`, icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.1)', className: 'overdue' },
     { label: 'Total Commission', value: `PKR ${(totalCommission || 0).toLocaleString()}`, icon: Award, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', className: 'commission' },
+    { label: 'Loans Pending', value: `PKR ${(totalLoanRemaining || 0).toLocaleString()}`, icon: Landmark, color: '#991b1b', bg: 'rgba(153,27,27,0.1)', className: 'loans' },
   ];
 
   const getEmployeeName = (id) => {
@@ -932,13 +1171,14 @@ const EmployeeReport = () => {
                 <th style={{ fontWeight: 800 }}>Recovery</th>
                 <th style={{ fontWeight: 800 }}>Commission</th>
                 <th style={{ fontWeight: 800 }}>Overdue ({currentMonth})</th>
+                <th style={{ fontWeight: 800 }}>Loan (Remaining)</th>
                 <th style={{ fontWeight: 800 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {displayEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="no-data">
+                  <td colSpan="8" className="no-data">
                     <div className="no-data-content">
                       <AlertCircle size={24} />
                       <p>No employees found</p>
@@ -963,6 +1203,9 @@ const EmployeeReport = () => {
                       <td style={{ fontWeight: 600 }}>PKR {(emp.totalRecovery || 0).toLocaleString()}</td>
                       <td style={{ fontWeight: 600 }}>PKR {(emp.totalCommission || 0).toLocaleString()}</td>
                       <td style={{ fontWeight: 600, color: currentOverdue > 0 ? '#dc2626' : '#1a1a2e' }}>PKR {(currentOverdue || 0).toLocaleString()}</td>
+                      <td style={{ fontWeight: 700, color: (emp.totalLoanRemaining || 0) > 0 ? '#dc2626' : '#94a3b8' }}>
+                        {(emp.totalLoanRemaining || 0) > 0 ? `PKR ${emp.totalLoanRemaining.toLocaleString()}` : '—'}
+                      </td>
                       <td>
                         <button className="btn-view-detail" onClick={() => openDetailModal(emp)} style={{ fontWeight: 700 }}>
                           <Eye size={15} />
@@ -1012,7 +1255,7 @@ const EmployeeReport = () => {
                 </div>
               </div>
 
-              {/* ✅ STATS ORDER CHANGED: Overdue pehle, Commission baad mein */}
+              {/* ✅ STATS - ab Loan Given + Loan Remaining bhi shamil hain */}
               <div className="detail-summary-7">
                 {getEmployeeStats(selectedEmployee).map((stat, index) => (
                   <div 
@@ -1028,6 +1271,120 @@ const EmployeeReport = () => {
                   </div>
                 ))}
               </div>
+
+              {/* ✅ LOAN SECTION — kitna liya, kitna kata (paid), kitna baaki + payment log */}
+              {selectedEmployee.loans && selectedEmployee.loans.length > 0 && (
+                <div className="advances-section" style={{ marginTop: '1rem' }}>
+                  <div className="advances-header">
+                    <Landmark size={16} style={{ color: '#991b1b' }} />
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#991b1b' }}>Loans</h4>
+                    <span className="advances-total" style={{ fontWeight: 700 }}>
+                      Pending: PKR {selectedEmployee.totalLoanRemaining.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="advances-table-wrap">
+                    <table className="advances-table">
+                      <thead>
+                        <tr>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Loan Amount</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Recovered</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Remaining</th>
+                          <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Reason</th>
+                          {canManageSalary() && <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Deduct</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedEmployee.loans.map((item, index) => (
+                          <tr key={index}>
+                            <td>
+                              <div className="advance-date-time">
+                                <span className="adv-date" style={{ fontWeight: 600 }}>{getDateOnly(item.date)}</span>
+                                <span className="adv-time" style={{ fontSize: '0.6rem' }}>{getTimeOnly(item.date)}</span>
+                              </div>
+                            </td>
+                            <td style={{ fontWeight: 700 }}>PKR {item.amount.toLocaleString()}</td>
+                            <td style={{ color: '#22c55e', fontWeight: 700 }}>PKR {item.paidAmount.toLocaleString()}</td>
+                            <td style={{ color: item.remaining > 0 ? '#dc2626' : '#22c55e', fontWeight: 700 }}>
+                              PKR {item.remaining.toLocaleString()}
+                            </td>
+                            <td className="advance-reason-cell" style={{ fontWeight: 500 }}>{item.reason}</td>
+                            {canManageSalary() && (
+                              <td>
+                                {item.remaining > 0 ? (
+                                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    <input
+                                      type="number"
+                                      placeholder="Amount"
+                                      value={deductAmounts[item.id] || ''}
+                                      onChange={(e) => setDeductAmounts(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                      min="1"
+                                      max={item.remaining}
+                                      style={{ width: '90px', padding: '6px 8px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #fca5a5', borderRadius: '6px' }}
+                                    />
+                                    <button
+                                      style={deductBtnStyle}
+                                      onClick={() => handleDeductLoanInline(item)}
+                                      disabled={loanActionLoading}
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="no-value">Paid off</span>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* ✅ Full payment log — har manual deduction yahan */}
+                  {selectedEmployee.loans.some(l => l.payments.length > 0) && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1E1B4B', marginBottom: '0.4rem' }}>
+                        Loan Recovery Log (Salary se kitna kaata gaya)
+                      </h4>
+                      <div className="advances-table-wrap">
+                        <table className="advances-table">
+                          <thead>
+                            <tr>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Amount Deducted</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedEmployee.loans
+                              .flatMap(l => l.payments)
+                              .sort((a, b) => new Date(b.date) - new Date(a.date))
+                              .map((p, index) => (
+                                <tr key={index}>
+                                  <td>
+                                    <div className="advance-date-time">
+                                      <span className="adv-date" style={{ fontWeight: 600 }}>{getDateOnly(p.date)}</span>
+                                      <span className="adv-time" style={{ fontSize: '0.6rem' }}>{getTimeOnly(p.date)}</span>
+                                    </div>
+                                  </td>
+                                  <td style={{ color: '#22c55e', fontWeight: 700 }}>
+                                    -PKR {p.amount.toLocaleString()}
+                                  </td>
+                                  <td>
+                                    <span style={{ fontWeight: 700, fontSize: '0.75rem', color: p.applied ? '#22c55e' : '#f59e0b' }}>
+                                      {p.applied ? 'Applied to salary' : 'Pending next Pay'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ✅ CHART SECTION - BARA CHART */}
               <div className="modal-chart-section">
@@ -1146,7 +1503,7 @@ const EmployeeReport = () => {
         </div>
       )}
 
-      {/* ✅ NEW: Month-wise Salary Detail Modal */}
+      {/* ✅ Month-wise Salary Detail Modal — ab loan deduction bhi dikhata hai */}
       {monthDetail && (
         <div className="empreport-modal-overlay" onClick={() => setMonthDetail(null)} style={{ zIndex: 1100 }}>
           <div className="empreport-modal-content empreport-detail-modal" onClick={(e) => e.stopPropagation()}>
@@ -1224,7 +1581,53 @@ const EmployeeReport = () => {
                       </div>
                     ) : (
                       <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.85rem' }}>
-                        Is month koi advance nahi liya gaya.
+                        {d.isPaidCycle ? 'Is cycle mein koi advance deduct nahi hui.' : 'Abhi koi advance pending nahi hai.'}
+                      </p>
+                    )}
+
+                    {/* ✅ NEW: Is month loan se kitna kata */}
+                    {d.loanPayments.length > 0 ? (
+                      <div className="advances-section" style={{ marginTop: '1rem' }}>
+                        <div className="advances-header">
+                          <Landmark size={16} style={{ color: '#991b1b' }} />
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#991b1b' }}>Loan Deduction This Month</h4>
+                          <span className="advances-total" style={{ fontWeight: 700 }}>
+                            Total: PKR {d.totalLoanDeductedThisMonth.toLocaleString()}
+                          </span>
+                        </div>
+                        <table className="advances-table">
+                          <thead>
+                            <tr>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Date</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Amount</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Loan Reason</th>
+                              <th style={{ fontSize: '0.7rem', fontWeight: 700 }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {d.loanPayments.map((p, i) => (
+                              <tr key={i}>
+                                <td style={{ fontWeight: 600 }}>{getDateOnly(p.date)}</td>
+                                <td style={{ color: '#dc2626', fontWeight: 700 }}>-PKR {p.amount.toLocaleString()}</td>
+                                <td style={{ fontWeight: 500 }}>{p.loanReason}</td>
+                                <td>
+                                  <span style={{ fontWeight: 700, fontSize: '0.75rem', color: p.applied ? '#22c55e' : '#f59e0b' }}>
+                                    {p.applied ? 'Applied' : 'Pending'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.85rem' }}>
+                        {d.isPaidCycle ? 'Is cycle mein koi loan deduction apply nahi hui.' : 'Abhi koi loan deduction pending nahi hai.'}
+                      </p>
+                    )}
+                    {!d.isPaidCycle && (d.totalAdvances > 0 || d.totalLoanDeductedThisMonth > 0) && (
+                      <p style={{ marginTop: '0.5rem', color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>
+                        ⏳ Ye is cycle ki current pending amounts hain — jab tak "Pay" nahi hoga, tab tak deduct nahi hongi.
                       </p>
                     )}
 

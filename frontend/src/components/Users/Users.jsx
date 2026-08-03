@@ -5,7 +5,7 @@ import {
   Search, Users as UsersIcon, UserPlus, User, Building, Calendar, 
   CheckCircle, Clock, Edit, Trash2, Eye, 
   Award, Briefcase,
-  DollarSign, AlertCircle, AlertTriangle, X, FileText
+  DollarSign, AlertCircle, AlertTriangle, X, FileText, Save, RefreshCw
 } from 'lucide-react';
 import './Users.css';
 import { API_URL, STORAGE_URL } from '../../../config';
@@ -41,6 +41,49 @@ const DocImage = React.memo(({ label, src }) => (
   </div>
 ));
 
+// ============================================
+// ✅ NEW: month-math + "primary installment" helpers (same logic used in
+// Installments.jsx / OverdueInstallments.jsx / AgingReport.jsx) — finds the
+// oldest due-and-unpaid installment for an account. Remarks + payment edit
+// both operate on this specific installment row, not the account/customer.
+// ============================================
+const monthsBetweenStr = (fromMonth, toMonth) => {
+  if (!fromMonth || !toMonth) return 0;
+  const [fy, fm] = fromMonth.split('-').map(Number);
+  const [ty, tm] = toMonth.split('-').map(Number);
+  return (ty - fy) * 12 + (tm - fm);
+};
+
+const getCurrentMonthString = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const findPrimaryInstallment = (installments) => {
+  const list = Array.isArray(installments) ? installments : [];
+  const currentMonthStr = getCurrentMonthString();
+
+  const dueUnpaid = list
+    .filter(p =>
+      parseFloat(p.balance || 0) > 0 &&
+      p.month &&
+      monthsBetweenStr(p.month, currentMonthStr) >= 0
+    )
+    .sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+
+  if (dueUnpaid.length > 0) return dueUnpaid[0];
+
+  // agar koi due-unpaid nahi (account clear/active/future) to sabse aakhri
+  // installment record par remarks show/edit hone do, taake field kabhi
+  // "stuck" na ho
+  if (list.length > 0) {
+    const sorted = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
+    return sorted[sorted.length - 1];
+  }
+
+  return null;
+};
+
 const UsersManagement = () => {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -54,6 +97,15 @@ const UsersManagement = () => {
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [guarantorsLoading, setGuarantorsLoading] = useState(false);
+
+  // ✅ NEW: remarks/payment edit state (same pattern as other report pages)
+  const [editingData, setEditingData] = useState({
+    installmentId: null,
+    paidAmount: '',
+    remarks: '',
+    maxPayable: 0,
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
@@ -144,6 +196,11 @@ const UsersManagement = () => {
             guarantors = customer.guarantor;
           }
 
+          // ✅ NEW: is account ki "primary" installment (oldest due-unpaid, ya
+          // agar koi nahi to sabse aakhri record) — remarks aur edit isi record
+          // par kaam karenge.
+          const primaryInstallment = findPrimaryInstallment(installments);
+
           return {
             id: account.id,
             name: customer.name || 'N/A',
@@ -174,7 +231,12 @@ const UsersManagement = () => {
             mirror: mirrorAmount,
             customer: customer,
             account: account,
-            remarks: account.remarks || customer.remarks || '', // ✅ Remarks field
+            // ✅ FIX: remarks ab primary installment se aayenge — account/customer se nahi
+            remarks: primaryInstallment?.remarks || '',
+            // ✅ NEW: edit form isi installment record pe kaam karega
+            primaryInstallmentId: primaryInstallment?.id || null,
+            primaryInstallmentBalance: primaryInstallment ? parseFloat(primaryInstallment.balance || 0) : 0,
+            primaryInstallmentMonth: primaryInstallment?.month || null,
             guarantors: guarantors,
             guarantorsFetched: guarantors.length > 0,
             cnic_front: customer.cnic_front || null,
@@ -274,6 +336,18 @@ const UsersManagement = () => {
     }
   };
 
+  // ✅ Human-readable status label for exports
+  const getCategoryLabel = (client) => {
+    const { category } = getClientCategoryInfo(client);
+    switch (category) {
+      case 'overdue': return 'Overdue';
+      case 'aging': return 'Aging';
+      case 'paid': return 'Active';
+      case 'clear': return 'Clear Account';
+      default: return '-';
+    }
+  };
+
   const filteredData = useMemo(() => {
     let filtered = clients;
 
@@ -357,13 +431,31 @@ const UsersManagement = () => {
     });
   };
 
+  const formatMonth = (month) => {
+    if (!month) return '-';
+    return new Date(month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' });
+  };
+
   const getBranchName = (branchId) => {
     return branchId === 1 ? 'Branch 1' : 'Branch 2';
   };
 
+  const isAdmin = userRole === 'admin';
+  const isManager = userRole === 'manager';
+  // ✅ NEW: sirf admin/manager remarks/payment edit kar sakein
+  const canEdit = isAdmin || isManager;
+
   const viewDetail = async (item) => {
     setSelectedUser(item);
     setShowDetailModal(true);
+
+    // ✅ NEW: edit form ko isi client ki primary installment se prefill karo
+    setEditingData({
+      installmentId: item.primaryInstallmentId || null,
+      paidAmount: '',
+      remarks: item.remarks || '',
+      maxPayable: item.primaryInstallmentBalance || 0,
+    });
 
     if (!item.guarantorsFetched) {
       setGuarantorsLoading(true);
@@ -373,6 +465,63 @@ const UsersManagement = () => {
       setSelectedUser(updatedItem);
       setClients(prev => prev.map(c => c.id === item.id ? updatedItem : c));
       setGuarantorsLoading(false);
+    }
+  };
+
+  // ✅ NEW: remarks (aur agar diya ho to payment) seedha DB mein save karta hai.
+  // Amount dena zaroori nahi — agar sirf remarks likhe hain to bhi save ho jayega.
+  const handleSaveEdit = async () => {
+    if (!canEdit || !selectedUser) return;
+
+    if (!editingData.installmentId) {
+      alert('No installment record found for this account.');
+      return;
+    }
+
+    const amount = parseFloat(editingData.paidAmount) || 0;
+    const hasRemarks = (editingData.remarks || '').trim().length > 0;
+
+    if (amount <= 0 && !hasRemarks) {
+      alert('Please enter a payment amount or add remarks');
+      return;
+    }
+
+    if (amount > 0 && amount > editingData.maxPayable) {
+      alert(`Amount cannot exceed the remaining balance of PKR ${editingData.maxPayable.toLocaleString()}`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/installments/partial-pay`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          installment_id: editingData.installmentId,
+          paid_amount: amount,
+          remarks: editingData.remarks || ''
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(amount > 0 ? 'Payment recorded successfully!' : 'Remarks saved successfully!');
+        setShowDetailModal(false);
+        setSelectedUser(null);
+        fetchClients();
+      } else {
+        alert('Failed to save: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      alert('Network error. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -454,8 +603,69 @@ const UsersManagement = () => {
     { header: 'Employee', key: 'employee' }
   ], []);
 
-  const isAdmin = userRole === 'admin';
-  const isManager = userRole === 'manager';
+  // ✅ CLIENT DETAIL MODAL EXPORT DATA - client summary + payment history
+  const getClientDetailExportData = useCallback(() => {
+    if (!selectedUser) return [];
+
+    const remarks = selectedUser.remarks || '';
+    const installments = selectedUser.installments && selectedUser.installments.length > 0
+      ? selectedUser.installments
+      : [null];
+
+    return installments.map((p) => ({
+      name: selectedUser.name || 'N/A',
+      phone: selectedUser.phone || 'N/A',
+      cnic: selectedUser.cnic || 'N/A',
+      address: selectedUser.address || 'N/A',
+      caseNo: selectedUser.caseNo || 'N/A',
+      product: selectedUser.product || 'N/A',
+      branch: getBranchName(selectedUser.branch),
+      status: getCategoryLabel(selectedUser),
+      totalAmount: selectedUser.totalAmount || 0,
+      paidAmount: selectedUser.paidAmount || 0,
+      balance: selectedUser.balance || 0,
+      monthlyInstallment: selectedUser.monthlyInstallment || 0,
+      installmentsPaid: selectedUser.installmentsPaid || 0,
+      totalInstallments: selectedUser.totalInstallments || 0,
+      nextDueDate: selectedUser.nextDueDate || 'N/A',
+      joiningDate: selectedUser.joiningDate || 'N/A',
+      lastPaymentDate: selectedUser.lastPaymentDate || 'N/A',
+      remarks: remarks,
+      createdBy: selectedUser.creatorName || 'N/A',
+      employee: selectedUser.employeeName || selectedUser.employeeAccount?.employee?.name || 'N/A',
+      month: p && p.month ? new Date(p.month + '-01').toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) : '-',
+      installmentDue: p ? formatCurrency(parseFloat(p.due_amount || 0)) : 0,
+      installmentPaid: p ? formatCurrency(parseFloat(p.paid_amount || 0)) : 0,
+      installmentBalance: p ? formatCurrency(parseFloat(p.balance || 0)) : 0,
+    }));
+  }, [selectedUser]);
+
+  const clientDetailExportColumns = useMemo(() => [
+    { header: 'Name', key: 'name' },
+    { header: 'Phone', key: 'phone' },
+    { header: 'CNIC', key: 'cnic' },
+    { header: 'Address', key: 'address' },
+    { header: 'Case No', key: 'caseNo' },
+    { header: 'Product', key: 'product' },
+    { header: 'Branch', key: 'branch' },
+    { header: 'Status', key: 'status' },
+    { header: 'Total Amount', key: 'totalAmount' },
+    { header: 'Paid Amount', key: 'paidAmount' },
+    { header: 'Balance', key: 'balance' },
+    { header: 'Monthly Installment', key: 'monthlyInstallment' },
+    { header: 'Installments Paid', key: 'installmentsPaid' },
+    { header: 'Total Installments', key: 'totalInstallments' },
+    { header: 'Next Due Date', key: 'nextDueDate' },
+    { header: 'Joining Date', key: 'joiningDate' },
+    { header: 'Last Payment', key: 'lastPaymentDate' },
+    { header: 'Remarks', key: 'remarks' },
+    { header: 'Created By', key: 'createdBy' },
+    { header: 'Employee', key: 'employee' },
+    { header: 'Installment Month', key: 'month' },
+    { header: 'Installment Due', key: 'installmentDue' },
+    { header: 'Installment Paid', key: 'installmentPaid' },
+    { header: 'Installment Balance', key: 'installmentBalance' },
+  ], []);
 
   const statCards = [
     { 
@@ -508,7 +718,7 @@ const UsersManagement = () => {
     },
   ];
 
-  // ✅ UPDATED: renderClientsTable with Remarks column
+  // ✅ UPDATED: renderClientsTable with fixed Remarks column
   const renderClientsTable = () => {
     if (loading) {
       return (
@@ -550,9 +760,6 @@ const UsersManagement = () => {
             </tr>
           ) : (
             data.map((client, index) => {
-              const categoryInfo = getClientCategoryInfo(client);
-              const remarks = client.remarks || client.account?.remarks || client.customer?.remarks || '';
-              
               return (
                 <tr key={client.id} className={getRowColorClass(client)}>
                   <td className="text-gray" style={{ fontWeight: 600 }}>{index + 1}</td>
@@ -580,8 +787,9 @@ const UsersManagement = () => {
                     {formatCurrency(client.mirror)}
                   </td>
                   <td>
-                    <span style={{ fontSize: '12px', color: '#4b5563', maxWidth: '150px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {remarks || '-'}
+                    {/* ✅ FIX: ab is client ki primary installment ke apne remarks dikhenge */}
+                    <span style={{ fontSize: '12px', color: '#4b5563', maxWidth: '150px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={client.remarks || ''}>
+                      {client.remarks || '-'}
                     </span>
                   </td>
                   <td>
@@ -589,8 +797,13 @@ const UsersManagement = () => {
                   </td>
                   <td>
                     <div className="action-group">
-                      <button className="btn-view" onClick={() => viewDetail(client)} title="View Details" style={{ fontWeight: 700 }}>
-                        <Eye size={15} />
+                      <button
+                        className="btn-view"
+                        onClick={() => viewDetail(client)}
+                        title={canEdit ? "View / Edit Details" : "View Details"}
+                        style={{ fontWeight: 700 }}
+                      >
+                        {canEdit ? <Edit size={15} /> : <Eye size={15} />}
                       </button>
                       {isAdmin && (
                         <button className="btn-delete" onClick={() => deleteUser(client.id)} title="Delete Client" style={{ fontWeight: 700 }}>
@@ -705,9 +918,18 @@ const UsersManagement = () => {
                 <User size={20} className="users-modal-icon" />
                 <h3 style={{ fontSize: '1.3rem', fontWeight: 800 }}>Client Details</h3>
               </div>
-              <button className="users-modal-close" onClick={() => setShowDetailModal(false)}>
-                <X size={24} />
-              </button>
+              {/* ✅ EXPORT BUTTON - top-right of modal, next to close button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <ExportButton
+                  data={getClientDetailExportData()}
+                  columns={clientDetailExportColumns}
+                  filename={`client-${selectedUser.caseNo}-details`}
+                  title={`Client Details - ${selectedUser.name} (${selectedUser.caseNo})`}
+                />
+                <button className="users-modal-close" onClick={() => setShowDetailModal(false)}>
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="users-modal-body">
@@ -938,10 +1160,94 @@ const UsersManagement = () => {
                   </div>
                 </div>
               )}
+
+              {/* ============================================ */}
+              {/* ✅ NEW: EDIT / REMARKS SECTION - admin/manager ke liye */}
+              {/* ============================================ */}
+              <div className="detail-section" style={{ borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
+                {canEdit ? (
+                  <>
+                    <h5 style={{ fontWeight: 700, marginBottom: '12px' }}>
+                      Pay Installment{selectedUser.primaryInstallmentMonth ? ` — ${formatMonth(selectedUser.primaryInstallmentMonth)}` : ''}
+                    </h5>
+                    <div style={{ marginBottom: '16px' }}>
+                      <input
+                        type="number"
+                        value={editingData.paidAmount}
+                        onChange={(e) => setEditingData({ ...editingData, paidAmount: e.target.value })}
+                        min="0"
+                        max={editingData.maxPayable}
+                        placeholder="Enter amount to pay (leave empty to just save remarks)..."
+                        disabled={!editingData.installmentId}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontWeight: 600,
+                          fontSize: '14px'
+                        }}
+                      />
+                      <small style={{ display: 'block', marginTop: '6px', color: '#6b7280', fontWeight: 600 }}>
+                        {editingData.installmentId
+                          ? `Max payable: PKR ${editingData.maxPayable.toLocaleString()} — amount is optional if you're only adding remarks`
+                          : 'No installment record found for this account'}
+                      </small>
+                    </div>
+
+                    <div>
+                      <label style={{ fontWeight: 700, display: 'block', marginBottom: '8px' }}>Remarks</label>
+                      <textarea
+                        value={editingData.remarks}
+                        onChange={(e) => setEditingData({ ...editingData, remarks: e.target.value })}
+                        placeholder="Add remarks or notes..."
+                        rows="3"
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontWeight: 500,
+                          fontSize: '14px',
+                          resize: 'vertical',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="user-detail-item">
+                    <span style={{ fontWeight: 700 }}>Remarks</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedUser.remarks || 'No remarks'}</strong>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="users-modal-footer">
-              <button className="users-btn-cancel" onClick={() => setShowDetailModal(false)} style={{ fontWeight: 700 }}>Close</button>
+              <button className="users-btn-cancel" onClick={() => setShowDetailModal(false)} style={{ fontWeight: 700 }}>
+                {canEdit ? 'Cancel' : 'Close'}
+              </button>
+              {canEdit && (
+                <button
+                  className="users-btn-save"
+                  onClick={handleSaveEdit}
+                  style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                  disabled={saving || !editingData.installmentId}
+                >
+                  {saving ? (
+                    <>
+                      <RefreshCw size={16} className="spinning" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>

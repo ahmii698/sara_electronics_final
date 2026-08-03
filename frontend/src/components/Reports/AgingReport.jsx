@@ -1,7 +1,7 @@
 // src/components/AgingReport/AgingReport.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Calendar, DollarSign, User, Building, AlertTriangle, Clock, Eye, FileText, Download, Filter, X, Users } from 'lucide-react';
+import { Search, Calendar, DollarSign, User, Building, AlertTriangle, Clock, Eye, Edit, Save, FileText, Download, Filter, X, Users, RefreshCw } from 'lucide-react';
 import './AgingReport.css';
 import { API_URL, STORAGE_URL } from '../../../config';
 import ExportButton from '../common/ExportButton';
@@ -46,6 +46,15 @@ const AgingReport = () => {
   const [loading, setLoading] = useState(true);
   const [agingAccounts, setAgingAccounts] = useState([]);
 
+  // ✅ NEW: remarks/payment edit state (same pattern as OverdueInstallments.jsx)
+  const [editingData, setEditingData] = useState({
+    installmentId: null,
+    paidAmount: '',
+    remarks: '',
+    maxPayable: 0,
+  });
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     let branch = null;
@@ -64,6 +73,9 @@ const AgingReport = () => {
     fetchAgingAccounts(branch, role);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ NEW: sirf admin/manager remarks/payment edit kar sakein
+  const canEdit = userRole === 'admin' || userRole === 'manager';
 
   // ===== CURRENT MONTH (used for month-name formatting only) =====
   const getCurrentMonth = () => {
@@ -123,7 +135,7 @@ const AgingReport = () => {
   // ✅ EXACT SAME LOGIC as Installments.jsx / OverdueInstallments.jsx.
   // Looks at the OLDEST unpaid installment whose due month has already
   // arrived (ignores future months), and counts how many months behind
-  // it is. Returns { statusKey, overdueMonths }.
+  // it is. Returns { statusKey, overdueMonths, nextPayableInstallment }.
   //   - Clear   -> every installment (up to total_installments) fully paid
   //   - Active  -> no due-and-unpaid installment at all
   //   - Overdue (statusKey 'overdue') -> oldest due-unpaid installment is 1-3 months behind
@@ -135,33 +147,32 @@ const AgingReport = () => {
     const fullyPaidCount = list.filter(p => parseFloat(p.balance || 0) <= 0).length;
 
     if (totalInstallments > 0 && fullyPaidCount >= totalInstallments) {
-      return { statusKey: 'clear', overdueMonths: 0 };
+      return { statusKey: 'clear', overdueMonths: 0, nextPayableInstallment: null };
     }
 
     const currentMonthStr = getCurrentMonthStr();
 
-    // sirf woh unpaid months jinka due date aa chuka hai (future wale exclude)
-    const dueUnpaidMonths = list
+    // sirf woh unpaid installments jinka due date aa chuka hai (future wale exclude)
+    const dueUnpaid = list
       .filter(p =>
         parseFloat(p.balance || 0) > 0 &&
         p.month &&
         monthsBetween(p.month, currentMonthStr) >= 0
       )
-      .map(p => p.month)
-      .sort(); // "YYYY-MM" string sort = chronological
+      .sort((a, b) => (a.month || '').localeCompare(b.month || '')); // chronological
 
-    if (dueUnpaidMonths.length === 0) {
-      return { statusKey: 'active', overdueMonths: 0 };
+    if (dueUnpaid.length === 0) {
+      return { statusKey: 'active', overdueMonths: 0, nextPayableInstallment: null };
     }
 
-    const oldestDueMonth = dueUnpaidMonths[0];
-    const overdueMonths = monthsBetween(oldestDueMonth, currentMonthStr) + 1;
+    const oldest = dueUnpaid[0];
+    const overdueMonths = monthsBetween(oldest.month, currentMonthStr) + 1;
 
     if (overdueMonths >= 4) {
-      return { statusKey: 'aging', overdueMonths };
+      return { statusKey: 'aging', overdueMonths, nextPayableInstallment: oldest };
     }
 
-    return { statusKey: 'overdue', overdueMonths };
+    return { statusKey: 'overdue', overdueMonths, nextPayableInstallment: oldest };
   };
 
   // ✅ Per-installment row status — used inside the month-by-month history table.
@@ -255,7 +266,7 @@ const AgingReport = () => {
         const account = sample.account || {};
 
         // ✅ Only accounts whose status is actually "Aging" internally (4+ months behind)
-        const { statusKey, overdueMonths } = getAccountAgingInfo(list, account);
+        const { statusKey, overdueMonths, nextPayableInstallment } = getAccountAgingInfo(list, account);
         if (statusKey !== 'aging') continue;
 
         const sortedInstallments = [...list].sort((a, b) => (a.month || '').localeCompare(b.month || ''));
@@ -335,8 +346,11 @@ const AgingReport = () => {
           customer: customer,
           account: account,
           guarantors: guarantors,
-          // ✅ Remarks field - empty for now
-          remarks: account.remarks || '',
+          // ✅ FIX: remarks ab is account ki sabse purani due-unpaid installment (jis wajah se
+          // account "Aging" mein hai) se aayenge — account/customer se nahi.
+          remarks: nextPayableInstallment?.remarks || '',
+          // ✅ NEW: edit form isi installment record pe kaam karega
+          nextPayableInstallment: nextPayableInstallment,
         });
       }
 
@@ -383,12 +397,79 @@ const AgingReport = () => {
   // ===== VIEW DETAIL =====
   const openDetailModal = (item) => {
     setSelectedCustomer(item);
+
+    // ✅ NEW: edit form ko isi account ki payable installment se prefill karo
+    const nextInst = item.nextPayableInstallment;
+    setEditingData({
+      installmentId: nextInst?.id || null,
+      paidAmount: '',
+      remarks: item.remarks || '',
+      maxPayable: nextInst ? parseFloat(nextInst.balance || 0) : 0,
+    });
+
     setShowDetailModal(true);
   };
 
   const closeModal = () => {
     setShowDetailModal(false);
     setSelectedCustomer(null);
+  };
+
+  // ✅ NEW: remarks (aur agar diya ho to payment) seedha DB mein save karta hai.
+  // Amount dena zaroori nahi — agar sirf remarks likhe hain to bhi save ho jayega.
+  const handleSaveEdit = async () => {
+    if (!canEdit || !selectedCustomer) return;
+
+    if (!editingData.installmentId) {
+      alert('No payable installment found for this account.');
+      return;
+    }
+
+    const amount = parseFloat(editingData.paidAmount) || 0;
+    const hasRemarks = (editingData.remarks || '').trim().length > 0;
+
+    if (amount <= 0 && !hasRemarks) {
+      alert('Please enter a payment amount or add remarks');
+      return;
+    }
+
+    if (amount > 0 && amount > editingData.maxPayable) {
+      alert(`Amount cannot exceed the remaining balance of PKR ${editingData.maxPayable.toLocaleString()}`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/installments/partial-pay`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          installment_id: editingData.installmentId,
+          paid_amount: amount,
+          remarks: editingData.remarks || ''
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(amount > 0 ? 'Payment recorded successfully!' : 'Remarks saved successfully!');
+        closeModal();
+        const user = JSON.parse(localStorage.getItem('user'));
+        fetchAgingAccounts(user?.branch || null, user?.role || null);
+      } else {
+        alert('Failed to save: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      alert('Network error. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const formatDate = (date) => {
@@ -443,7 +524,7 @@ const AgingReport = () => {
     },
   ];
 
-  // ✅ NAYA: export ke liye filtered aging list ko flat rows mein convert karna
+  // ✅ export ke liye filtered aging list ko flat rows mein convert karna
   const exportData = filtered.map(item => ({
     caseNo: item.caseNo,
     customerName: item.customerName,
@@ -634,8 +715,9 @@ const AgingReport = () => {
                     <td style={{ fontWeight: 600 }}>PKR {item.monthlyInstallment.toLocaleString()}</td>
                     <td className="balance-amount" style={{ fontWeight: 700, color: '#dc2626' }}>PKR {item.balance.toLocaleString()}</td>
                     <td style={{ fontWeight: 600 }}>PKR {getItemMirror(item).toLocaleString()}</td>
-                    <td>
-                      <span style={{ color: '#6b7280', fontSize: '13px' }}>—</span>
+                    <td style={{ fontSize: '0.85rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.remarks || ''}>
+                      {/* ✅ FIX: ab is account ki payable installment ke apne remarks dikhenge */}
+                      {item.remarks || '-'}
                     </td>
                     <td>
                       <span className="status-badge high" style={{ fontWeight: 700 }}>
@@ -646,10 +728,10 @@ const AgingReport = () => {
                       <button 
                         className="btn-view" 
                         onClick={() => openDetailModal(item)}
-                        title="View Details"
+                        title={canEdit ? "View / Edit Details" : "View Details"}
                         style={{ fontWeight: 700 }}
                       >
-                        <Eye size={16} />
+                        {canEdit ? <Edit size={16} /> : <Eye size={16} />}
                       </button>
                     </td>
                   </tr>
@@ -684,7 +766,7 @@ const AgingReport = () => {
         </div>
       </div>
 
-      {/* ===== DETAIL MODAL (Full Screen with Documents) — UNCHANGED ===== */}
+      {/* ===== DETAIL MODAL (Full Screen with Documents) ===== */}
       {showDetailModal && selectedCustomer && (
         <div className="aging-modal-overlay" onClick={closeModal}>
           <div className="aging-modal-content aging-modal-detail" onClick={(e) => e.stopPropagation()}>
@@ -904,10 +986,94 @@ const AgingReport = () => {
                   </table>
                 </div>
               </div>
+
+              {/* ============================================ */}
+              {/* ✅ NEW: EDIT / REMARKS SECTION - admin/manager ke liye */}
+              {/* ============================================ */}
+              <div style={{ marginTop: '20px', borderTop: '2px solid #e5e7eb', paddingTop: '20px' }}>
+                {canEdit ? (
+                  <>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontWeight: 700, display: 'block', marginBottom: '8px' }}>
+                        Pay Installment — {formatMonth(selectedCustomer.nextPayableInstallment?.month)}
+                      </label>
+                      <input
+                        type="number"
+                        value={editingData.paidAmount}
+                        onChange={(e) => setEditingData({ ...editingData, paidAmount: e.target.value })}
+                        min="0"
+                        max={editingData.maxPayable}
+                        placeholder="Enter amount to pay (leave empty to just save remarks)..."
+                        disabled={!selectedCustomer.nextPayableInstallment}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontWeight: 600,
+                          fontSize: '14px'
+                        }}
+                      />
+                      <small style={{ display: 'block', marginTop: '6px', color: '#6b7280', fontWeight: 600 }}>
+                        {selectedCustomer.nextPayableInstallment
+                          ? `Max payable: PKR ${editingData.maxPayable.toLocaleString()} — amount is optional if you're only adding remarks`
+                          : 'No payable installment found for this account'}
+                      </small>
+                    </div>
+
+                    <div>
+                      <label style={{ fontWeight: 700, display: 'block', marginBottom: '8px' }}>Remarks</label>
+                      <textarea
+                        value={editingData.remarks}
+                        onChange={(e) => setEditingData({ ...editingData, remarks: e.target.value })}
+                        placeholder="Add remarks or notes..."
+                        rows="3"
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #d1d5db',
+                          fontWeight: 500,
+                          fontSize: '14px',
+                          resize: 'vertical',
+                          fontFamily: 'inherit'
+                        }}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="detail-summary-item">
+                    <span style={{ fontWeight: 700 }}>Remarks</span>
+                    <strong style={{ fontWeight: 600 }}>{selectedCustomer.remarks || 'No remarks'}</strong>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="aging-modal-footer">
-              <button className="btn-cancel" onClick={closeModal} style={{ fontWeight: 700 }}>Close</button>
+              <button className="btn-cancel" onClick={closeModal} style={{ fontWeight: 700 }}>
+                {canEdit ? 'Cancel' : 'Close'}
+              </button>
+              {canEdit && (
+                <button
+                  className="btn-save"
+                  onClick={handleSaveEdit}
+                  style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}
+                  disabled={saving || !selectedCustomer.nextPayableInstallment}
+                >
+                  {saving ? (
+                    <>
+                      <RefreshCw size={16} className="oi-spinning" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>

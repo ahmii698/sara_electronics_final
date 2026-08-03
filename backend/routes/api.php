@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\RecoveryController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\OtpController;
 use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\TargetPerformanceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -175,6 +176,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ✅ REPORTS
     // ============================================
     Route::get('/reports/dashboard', [ReportController::class, 'dashboard']);
+    Route::get('/reports/loan-summary', [ReportController::class, 'getLoanSummary']); // ✅ NEW
     Route::get('/reports/branch-recovery', [ReportController::class, 'branchWiseRecovery']);
     Route::get('/reports/monthly-installments', [ReportController::class, 'monthlyInstallmentStatus']);
     Route::get('/reports/top-performers', [ReportController::class, 'topPerformers']);
@@ -205,4 +207,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // ============================================
     Route::get('/system-access', [UserController::class, 'systemAccess']);
     Route::put('/system-access/{id}/toggle', [UserController::class, 'toggleSystemAccess']);
+
+    // ============================================
+    // ✅ TARGET PERFORMANCE ROUTES (Account Target page)
+    // Employee ka current-month + total account count, aur
+    // employee ke monthly targets ko save/fetch karne ke liye.
+    // Alag controller (TargetPerformanceController) aur alag
+    // table (target_performance) use karta hai.
+    // ============================================
+    Route::get('/accounts/employee-count', [TargetPerformanceController::class, 'getEmployeeCount']);
+    Route::get('/target-performance', [TargetPerformanceController::class, 'getTargets']);
+    Route::post('/target-performance', [TargetPerformanceController::class, 'saveTarget']);
 });

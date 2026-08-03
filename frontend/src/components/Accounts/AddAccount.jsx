@@ -2,13 +2,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star, FileImage, Wallet, Percent, Banknote
+  Search, User, Phone, CreditCard, MapPin, Briefcase, Users, Package, DollarSign, Calendar, Upload, X, UserPlus, Mic, Play, Trash2, FileAudio, Building, CheckCircle, AlertCircle, Clock, Bell, Shield, PauseCircle, PlayCircle, UserCheck, Star, FileImage, Wallet, Percent, Banknote, History
 } from 'lucide-react';
 import './AddAccount.css';
 import { API_URL } from '../../../config';
 
 const MAX_ACCOUNTS_PER_CNIC = 2;
-const MAX_PRODUCT_PRICE = 100000; // ✅ Product Price limit (skip if special customer)
+const MAX_PRODUCT_PRICE = 100000; // ✅ Product Price limit (skip if special customer OR old record)
+const OLD_RECORD_CASE_NO_LIMIT = 10000; // ✅ NEW: Old Record case number sirf isse KAM hona chahiye
 
 const AddAccount = () => {
   const [step, setStep] = useState(1);
@@ -38,7 +39,11 @@ const AddAccount = () => {
   // ✅ Special Customer toggle
   const [isSpecialCustomer, setIsSpecialCustomer] = useState(false);
 
-  // ✅ NEW: First Installment payment confirmation modal
+  // ✅ Old Record toggle + manual case number
+  const [isOldRecord, setIsOldRecord] = useState(false);
+  const [manualCaseNo, setManualCaseNo] = useState('');
+
+  // ✅ First Installment payment confirmation modal
   const [showFirstInstallmentModal, setShowFirstInstallmentModal] = useState(false);
   const [firstInstallmentPayAmount, setFirstInstallmentPayAmount] = useState('');
 
@@ -540,18 +545,48 @@ const AddAccount = () => {
     if (!formData.additionalImage2) {
       newErrors.additionalImage2 = 'Additional Image 2 is required';
     }
-    
-    if (checkDuplicateGuarantorCnic()) {
-      newErrors.guarantors = 'Duplicate CNIC found in guarantors. Each guarantor must have a unique CNIC.';
-    }
-    
-    const completeGuarantors = formData.guarantors.filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim() && g.address.trim() && g.cnicFront !== null && g.cnicBack !== null);
-    if (completeGuarantors.length < 1) {
-      newErrors.guarantors = 'Minimum 1 complete guarantor required';
-    }
 
-    if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
-      newErrors.cnic = `This CNIC already has ${existingAccountData.accounts_count} accounts. Maximum limit reached.`;
+    // ============================================
+    // ✅ OLD RECORD MODE — bas 1 guarantor ka CNIC required,
+    // baaki koi restriction (duplicate check, complete-guarantor check,
+    // existing-account limit check) nahi lagegi.
+    // Case Number sirf 10000 se KAM allow hoga (purane records ke liye).
+    // ============================================
+    if (isOldRecord) {
+      const hasAtLeastOneGuarantorCnic = formData.guarantors.some(g => g.cnic && g.cnic.trim());
+      if (!hasAtLeastOneGuarantorCnic) {
+        newErrors.guarantors = 'Old Record: Kam se kam 1 guarantor ka CNIC required hai.';
+      }
+
+      if (!manualCaseNo || !manualCaseNo.trim()) {
+        newErrors.caseNo = 'Old Record: Case number likhna zaroori hai.';
+      } else {
+        // ✅ NEW: Old Record mein sirf 10000 se NEECHE ka number allow hoga
+        const trimmedCaseNo = manualCaseNo.trim();
+        if (!/^\d+$/.test(trimmedCaseNo)) {
+          newErrors.caseNo = 'Case number sirf numbers mein hona chahiye.';
+        } else {
+          const numericCaseNo = parseInt(trimmedCaseNo, 10);
+          if (numericCaseNo <= 0) {
+            newErrors.caseNo = 'Case number valid hona chahiye (0 se zyada).';
+          } else if (numericCaseNo >= OLD_RECORD_CASE_NO_LIMIT) {
+            newErrors.caseNo = `Old Record: Case number ${OLD_RECORD_CASE_NO_LIMIT} se kam hona chahiye (sirf purane records ke liye). Naye records khud-ba-khud ${OLD_RECORD_CASE_NO_LIMIT} se generate hote hain.`;
+          }
+        }
+      }
+    } else {
+      if (checkDuplicateGuarantorCnic()) {
+        newErrors.guarantors = 'Duplicate CNIC found in guarantors. Each guarantor must have a unique CNIC.';
+      }
+
+      const completeGuarantors = formData.guarantors.filter(g => g.name.trim() && g.cnic.trim() && g.phone.trim() && g.address.trim() && g.cnicFront !== null && g.cnicBack !== null);
+      if (completeGuarantors.length < 1) {
+        newErrors.guarantors = 'Minimum 1 complete guarantor required';
+      }
+
+      if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
+        newErrors.cnic = `This CNIC already has ${existingAccountData.accounts_count} accounts. Maximum limit reached.`;
+      }
     }
 
     setErrors(newErrors);
@@ -571,7 +606,8 @@ const AddAccount = () => {
       newErrors.chalanFront = 'Chalan Front image is required';
     }
 
-    if (!isSpecialCustomer) {
+    // ✅ Old Record ya Special Customer — dono mein price limit skip
+    if (!isSpecialCustomer && !isOldRecord) {
       const priceCheck = parseFloat(formData.productPrice) || 0;
       if (priceCheck > MAX_PRODUCT_PRICE) {
         newErrors.productPrice = `Product price cannot exceed PKR ${MAX_PRODUCT_PRICE.toLocaleString()} (unless Special Customer is enabled).`;
@@ -583,7 +619,8 @@ const AddAccount = () => {
   };
 
   const handleNext = () => {
-    if (!isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
+    // ✅ Old Record mode mein yeh blocking check bhi skip
+    if (!isOldRecord && !isSpecialCustomer && existingAccountData && existingAccountData.exists_as_customer && !existingAccountData.can_open_more) {
       showToast('🚫 This CNIC already has the maximum number of accounts. Cannot proceed further.', 'warning');
       return;
     }
@@ -592,7 +629,7 @@ const AddAccount = () => {
   const handlePrev = () => setStep(1);
 
   // ============================================
-  // ✅ NEW: FINAL SUBMIT — pehle validate karo, phir
+  // ✅ FINAL SUBMIT — pehle validate karo, phir
   // First Installment payment confirmation modal dikhao
   // ============================================
   const handleFinalSubmit = (e) => {
@@ -604,7 +641,7 @@ const AddAccount = () => {
     }
   };
 
-  // ✅ NEW: Modal se "Pay & Create Account"
+  // ✅ Modal se "Pay & Create Account"
   const handleConfirmWithPayment = () => {
     const amount = parseFloat(firstInstallmentPayAmount) || 0;
     const maxAmount = parseFloat(formData.installmentAmount) || 0;
@@ -622,7 +659,7 @@ const AddAccount = () => {
     confirmAccountCreation(amount);
   };
 
-  // ✅ NEW: Modal se "Skip & Create Account"
+  // ✅ Modal se "Skip & Create Account"
   const handleSkipPayment = () => {
     setShowFirstInstallmentModal(false);
     confirmAccountCreation(0);
@@ -660,7 +697,11 @@ const AddAccount = () => {
       customerFormData.append('work', formData.work);
       customerFormData.append('branch_id', formData.branch);
       customerFormData.append('status', 'active'); // ✅ Always active
-      customerFormData.append('created_by', parseInt(employeeId));
+
+      // ✅ created_by = logged-in admin/manager, employee_id = selected employee
+      customerFormData.append('created_by', parseInt(loggedInUserId));
+      customerFormData.append('employee_id', parseInt(employeeId));
+
       customerFormData.append('product_name', formData.productName);
       customerFormData.append('invoice_price', parseFloat(formData.invoicePrice) || 0);
       
@@ -669,10 +710,18 @@ const AddAccount = () => {
       customerFormData.append('advance_payment', parseFloat(formData.advanceAmount) || 0);
       customerFormData.append('payment_type', formData.paymentType || 'cash');
 
-      // ✅ NEW: Pehli installment ke against ki gayi payment
+      // ✅ Pehli installment ke against ki gayi payment
       customerFormData.append('first_installment_payment', firstInstallmentPayment || 0);
       
       customerFormData.append('is_unlimited', isSpecialCustomer ? 1 : 0);
+
+      // ============================================
+      // ✅ Old Record mode + manual case number backend ko bhejna
+      // ============================================
+      customerFormData.append('is_old_record', isOldRecord ? 1 : 0);
+      if (isOldRecord && manualCaseNo.trim()) {
+        customerFormData.append('case_no', manualCaseNo.trim());
+      }
       
       if (formData.cnicFront) {
         customerFormData.append('cnic_front', formData.cnicFront);
@@ -780,6 +829,9 @@ const AddAccount = () => {
               guarantorFormData.append('phone', guarantor.phone.trim());
               guarantorFormData.append('address', guarantor.address?.trim() || '');
               guarantorFormData.append('created_by', parseInt(employeeId));
+
+              // ✅ Guarantor create call mein bhi flag bhejna
+              guarantorFormData.append('is_old_record', isOldRecord ? 1 : 0);
               
               const originalGuarantor = formData.guarantors[guarantor.originalIndex];
               
@@ -866,6 +918,8 @@ const AddAccount = () => {
         setVoiceFiles([]);
         setExistingAccountData(null);
         setIsSpecialCustomer(false);
+        setIsOldRecord(false);
+        setManualCaseNo('');
         setFirstInstallmentPayAmount('');
         setStep(1);
       } else {
@@ -1063,7 +1117,7 @@ const AddAccount = () => {
         </div>
       )}
 
-      {/* ✅ NEW: First Installment Payment Confirmation Modal */}
+      {/* ✅ First Installment Payment Confirmation Modal */}
       {showFirstInstallmentModal && (
         <div className="status-modal-overlay" onClick={() => setShowFirstInstallmentModal(false)}>
           <div className="status-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
@@ -1187,6 +1241,88 @@ const AddAccount = () => {
           />
         </label>
       </div>
+
+      {/* ============================================
+          ✅ OLD RECORD TOGGLE
+          ============================================ */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          padding: '14px 18px',
+          borderRadius: '10px',
+          marginBottom: '20px',
+          border: isOldRecord ? '2px solid #2563eb' : '1px solid #e5e7eb',
+          background: isOldRecord ? '#eff6ff' : '#f9fafb',
+          transition: 'all 0.2s ease'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <History size={20} style={{ color: isOldRecord ? '#2563eb' : '#9ca3af' }} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '14px' }}>Old Record (Purana Record)</div>
+            <div style={{ fontWeight: 500, fontSize: '12px', color: '#6b7280' }}>
+              {isOldRecord
+                ? `ON — Koi bhi restriction (price, CNIC limit, duplicate account) apply nahi hogi. Case number manually dalna hoga (sirf ${OLD_RECORD_CASE_NO_LIMIT} se kam).`
+                : 'Purana database record dalne ke liye ON karein — koi restriction nahi lagegi, bas case number manually dalna hoga aur kam se kam 1 guarantor CNIC required hai.'}
+            </div>
+          </div>
+        </div>
+        <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '26px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={isOldRecord}
+            onChange={(e) => setIsOldRecord(e.target.checked)}
+            style={{ opacity: 0, width: 0, height: 0 }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: isOldRecord ? '#2563eb' : '#d1d5db',
+              borderRadius: '999px',
+              transition: '0.2s'
+            }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              height: '20px',
+              width: '20px',
+              left: isOldRecord ? '23px' : '3px',
+              bottom: '3px',
+              background: 'white',
+              borderRadius: '50%',
+              transition: '0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+            }}
+          />
+        </label>
+      </div>
+
+      {/* ✅ Manual Case Number field — sirf Old Record ON hone par dikhega */}
+      {isOldRecord && (
+        <div className="form-group" style={{ marginBottom: '20px' }}>
+          <label style={{ fontWeight: 700 }}>Case Number (Manual) *</label>
+          <div className="input-with-icon">
+            <CreditCard size={18} style={{ color: '#2563eb' }} />
+            <input
+              type="text"
+              className="form-input"
+              placeholder={`e.g. 9001 (must be under ${OLD_RECORD_CASE_NO_LIMIT})`}
+              value={manualCaseNo}
+              onChange={(e) => setManualCaseNo(e.target.value)}
+              style={{ fontWeight: 500 }}
+            />
+          </div>
+          <small className="field-hint" style={{ fontWeight: 500 }}>
+            ⚠️ Sirf purane case numbers ({OLD_RECORD_CASE_NO_LIMIT} se KAM) allow hain. Naye case numbers automatically {OLD_RECORD_CASE_NO_LIMIT} se start hote hain — un mein manual entry ki zaroorat nahi.
+          </small>
+          {errors.caseNo && <span className="error-text" style={{ fontWeight: 600 }}>{errors.caseNo}</span>}
+        </div>
+      )}
 
       <div className="cnic-search-section">
         <div className="cnic-search">
@@ -1465,7 +1601,9 @@ const AddAccount = () => {
               <div className="section-header">
                 <Users size={18} style={{ color: '#92400e' }} />
                 <h4 style={{ fontWeight: 700 }}>Guarantors</h4>
-                <span className="required-badge" style={{ fontWeight: 700 }}>Minimum 1 Required</span>
+                <span className="required-badge" style={{ fontWeight: 700 }}>
+                  {isOldRecord ? 'Old Record: Sirf 1 CNIC Required' : 'Minimum 1 Required'}
+                </span>
               </div>
               <p className="guarantor-count" style={{ fontWeight: 600 }}>Complete: {getGuarantorCount()}/3</p>
               {formData.guarantors.map((g, index) => (
@@ -1507,7 +1645,11 @@ const AddAccount = () => {
                       <input type="file" ref={(el) => { if (!guarantorRefs.current[index]) guarantorRefs.current[index] = {}; guarantorRefs.current[index].back = el; }} accept="image/*" onChange={(e) => handleGuarantorFileUpload(e, index, 'cnicBack')} style={{ display: 'none' }} />
                     </div>
                   </div>
-                  <small className="field-hint" style={{ fontWeight: 500 }}>System will check if this CNIC is already a customer or guarantor</small>
+                  <small className="field-hint" style={{ fontWeight: 500 }}>
+                    {isOldRecord
+                      ? 'Old Record mode: sirf CNIC likhna zaroori hai, baaki fields aur images optional hain'
+                      : 'System will check if this CNIC is already a customer or guarantor'}
+                  </small>
                 </div>
               ))}
               {errors.guarantors && <span className="error-text" style={{ fontWeight: 600, color: '#dc2626' }}>{errors.guarantors}</span>}
@@ -1541,6 +1683,24 @@ const AddAccount = () => {
               </div>
             )}
 
+            {isOldRecord && (
+              <div style={{
+                padding: '12px 16px',
+                background: '#eff6ff',
+                border: '1px solid #2563eb',
+                borderRadius: '10px',
+                marginBottom: '16px',
+                fontWeight: 700,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <History size={16} style={{ color: '#2563eb' }} />
+                Old Record mode ON — koi bhi price ya account limit apply nahi ho rahi. Case Number: {manualCaseNo || 'N/A'}
+              </div>
+            )}
+
             <div className="form-grid">
               <div className="form-group">
                 <label style={{ fontWeight: 700 }}>Product Type *</label>
@@ -1560,7 +1720,7 @@ const AddAccount = () => {
                 {errors.productName && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productName}</span>}
               </div>
 
-              {/* ✅ Product Price — max PKR 100,000 unless Special Customer is ON */}
+              {/* ✅ Product Price — max PKR 100,000 unless Special Customer OR Old Record ON */}
               <div className="form-group">
                 <label style={{ fontWeight: 700 }}>Product Price (PKR) *</label>
                 <div className="input-with-icon">
@@ -1569,15 +1729,15 @@ const AddAccount = () => {
                     type="number"
                     name="productPrice"
                     className="form-input"
-                    placeholder={isSpecialCustomer ? 'Enter product price' : 'Enter product price (max PKR 100,000)'}
+                    placeholder={(isSpecialCustomer || isOldRecord) ? 'Enter product price' : 'Enter product price (max PKR 100,000)'}
                     value={formData.productPrice}
                     onChange={handleChange}
                     style={{ fontWeight: 500 }}
                   />
                 </div>
-                {!isSpecialCustomer && (
+                {!isSpecialCustomer && !isOldRecord && (
                   <small className="field-hint" style={{ fontWeight: 500 }}>
-                    Maximum PKR {MAX_PRODUCT_PRICE.toLocaleString()} allowed (Special Customer ON hone par limit nahi)
+                    Maximum PKR {MAX_PRODUCT_PRICE.toLocaleString()} allowed (Special Customer ya Old Record ON hone par limit nahi)
                   </small>
                 )}
                 {errors.productPrice && <span className="error-text" style={{ fontWeight: 600 }}>{errors.productPrice}</span>}

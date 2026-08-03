@@ -7,7 +7,8 @@ import {
   LogOut, ChevronDown, ChevronRight, UserPlus, Receipt, 
   BarChart3, Clock, LayoutDashboard, AlertTriangle, 
   TrendingUp, PlusCircle, Menu, X, Calendar, 
-  UserCheck, Award, Settings, Shield, Building
+  UserCheck, Award, Settings, Shield, Building,
+  Bell, Target
 } from 'lucide-react';
 import './Sidebar.css';
 import logo from '../../assets/logo.jpeg';
@@ -70,10 +71,10 @@ const Sidebar = () => {
   ] : [];
 
   // ============================================
-  // ✅ SINGLE ORDERED LIST
-  // Dashboard -> Finance -> Extra Expenses -> Employee Report ->
-  // Employee Performance -> Users -> Add Account -> Recovery ->
-  // Aging Accounts (was Overdue Installments) -> Overdue Accounts (was Aging Report) ->
+  // ✅ UPDATED ORDER - Selected Recovery REMOVED
+  // Dashboard -> Finance -> Account Target -> Extra Expenses ->
+  // Employee Report -> Employee Performance -> Users -> Add Account ->
+  // Alert -> Recovery -> Aging Accounts -> Overdue Accounts ->
   // Employee Leave -> Add Employees -> System Access
   // ============================================
   const menuItems = [
@@ -91,6 +92,13 @@ const Sidebar = () => {
       label: 'Finance',
       items: financeItems,
       show: isAdmin && financeItems.length > 0
+    },
+    {
+      type: 'link',
+      path: '/account-target',
+      icon: Target,
+      label: 'Account Target',
+      show: isAdmin || isManager
     },
     {
       type: 'link',
@@ -129,23 +137,31 @@ const Sidebar = () => {
     },
     {
       type: 'link',
+      path: '/alert',
+      icon: Bell,
+      label: 'Alert',
+      show: isAdmin || isManager
+    },
+    {
+      type: 'link',
       path: '/installments',
       icon: FileText,
       label: 'Recovery',
       show: isAdmin || isManager
     },
+    // ✅ Selected Recovery REMOVED
     {
       type: 'link',
       path: '/overdue-installments',
       icon: Clock,
-      label: 'Aging Accounts', // ✅ Changed from "Overdue Installments"
+      label: 'Aging Accounts',
       show: isAdmin || isManager
     },
     {
       type: 'link',
       path: '/aging-report',
       icon: AlertTriangle,
-      label: 'Overdue Accounts', // ✅ Changed from "Aging Report"
+      label: 'Overdue Accounts',
       show: isAdmin || isManager
     },
     {
